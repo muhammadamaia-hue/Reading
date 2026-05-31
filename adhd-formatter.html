@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADHD Formatter</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f3ee;
+  --surface: #ffffff;
+  --surface2: #f0ede6;
+  --border: #e0dbd0;
+  --accent: #2d6a4f;
+  --accent2: #52b788;
+  --accent-light: #d8f3dc;
+  --text: #1a1a18;
+  --text2: #5a5a52;
+  --text3: #8a8a80;
+  --danger: #c1440e;
+  --radius: 16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans Arabic', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; direction: rtl; }
+
+.app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
+.logo-mark { width: 38px; height: 38px; background: var(--accent); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+.app-title { font-size: 17px; font-weight: 700; }
+.app-sub { font-size: 12px; color: var(--text3); }
+.api-badge { margin-right: auto; background: var(--accent-light); color: var(--accent); border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--accent2); transition: all 0.2s; white-space: nowrap; }
+.api-badge:hover { background: var(--accent); color: #fff; }
+
+.main { max-width: 760px; margin: 0 auto; padding: 28px 18px 60px; }
+
+/* Smart input zone */
+.drop-zone {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 2px dashed var(--border);
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.drop-zone.drag-over { border-color: var(--accent2); background: var(--accent-light); }
+.drop-zone.has-image { border-style: solid; border-color: var(--accent2); }
+
+.textarea-wrap { position: relative; }
+#input-text {
+  width: 100%;
+  min-height: 130px;
+  padding: 18px 18px 14px;
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  font-size: 15px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  resize: none;
+  outline: none;
+  line-height: 1.7;
+  direction: ltr;
+}
+#input-text::placeholder { color: var(--text3); }
+
+.image-preview-wrap { display: none; position: relative; }
+.image-preview-wrap.show { display: block; }
+.preview-img { width: 100%; max-height: 280px; object-fit: contain; display: block; background: var(--surface2); }
+.img-remove-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.55);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 11px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.drop-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px 14px;
+  font-size: 12px;
+  color: var(--text3);
+}
+.drop-hint-divider { width: 1px; height: 12px; background: var(--border); }
+
+.zone-footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+}
+.info-count { font-size: 12px; color: var(--text3); margin-right: auto; }
+.btn-attach { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 13px; font-size: 13px; color: var(--text2); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.btn-attach:hover { background: var(--border); }
+.btn-clear-sm { background: none; border: none; padding: 6px 10px; font-size: 13px; color: var(--text3); cursor: pointer; font-family: inherit; }
+.btn-clear-sm:hover { color: var(--danger); }
+.btn-go {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.2s;
+}
+.btn-go:hover:not(:disabled) { background: #235c3f; }
+.btn-go:disabled { opacity: 0.45; cursor: not-allowed; }
+.spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+.btn-go.loading .spinner { display: block; }
+.btn-go.loading .go-label { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#file-input { display: none; }
+
+/* Status strip */
+.status-strip { display: none; align-items: center; gap: 8px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 10px; padding: 10px 16px; font-size: 13px; color: #1565c0; margin-bottom: 14px; }
+.status-strip.show { display: flex; }
+
+.error-msg { background: #fff0ec; border: 1px solid #f5c4b0; border-radius: 12px; padding: 13px 18px; font-size: 14px; color: var(--danger); margin-bottom: 16px; display: none; }
+.error-msg.show { display: block; }
+.no-key-warn { background: #fffbea; border: 1px solid #f0d060; border-radius: 12px; padding: 13px 18px; font-size: 14px; color: #7a5a00; margin-bottom: 16px; display: none; cursor: pointer; }
+.no-key-warn.show { display: block; }
+
+/* Progress */
+.progress-wrap { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 14px 18px; margin-bottom: 18px; display: none; }
+.progress-wrap.show { display: block; }
+.prog-top { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+.prog-top span:last-child { color: var(--text2); }
+.prog-bar { background: var(--surface2); border-radius: 10px; height: 7px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--accent); border-radius: 10px; transition: width 0.4s ease; }
+.prog-reset { margin-top: 10px; background: none; border: 1px solid var(--border); border-radius: 8px; padding: 5px 13px; font-size: 12px; color: var(--text2); cursor: pointer; font-family: inherit; }
+
+/* Cards */
+.cards-section { display: none; }
+.cards-section.show { display: block; }
+.card-item { border-radius: var(--radius); padding: 16px 18px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.06); transition: opacity 0.4s, filter 0.4s; }
+.card-item.done { opacity: 0.3; filter: grayscale(0.5); }
+.card-row { display: flex; align-items: flex-start; gap: 11px; }
+.step-num { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; margin-top: 2px; }
+.card-arabic { font-size: 17px; font-weight: 600; line-height: 1.55; }
+.card-icon { margin-left: 5px; }
+.card-orig { font-size: 12px; color: var(--text2); line-height: 1.5; direction: ltr; text-align: left; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.06); font-family: 'IBM Plex Mono', monospace; }
+.card-btns { display: flex; align-items: center; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
+.btn-s { background: rgba(255,255,255,0.65); border: 1px solid rgba(0,0,0,0.09); border-radius: 7px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: inherit; color: var(--text2); transition: all 0.12s; }
+.btn-s:hover { background: white; }
+.btn-s.speaking { background: #e8f5e9; color: #2e7d32; border-color: #81c784; }
+.btn-done-c { margin-right: auto; background: rgba(255,255,255,0.65); border: 1px solid rgba(0,0,0,0.1); border-radius: 7px; padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text); }
+.btn-done-c:hover { background: white; }
+
+.completion-msg { text-align: center; padding: 28px; background: var(--accent-light); border-radius: var(--radius); border: 1px solid var(--accent2); display: none; margin-top: 6px; }
+.completion-msg.show { display: block; }
+.completion-msg .big { font-size: 38px; margin-bottom: 8px; }
+.completion-msg h3 { font-size: 19px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
+.completion-msg p { font-size: 13px; color: var(--text2); }
+
+.welcome { text-align: center; padding: 36px 18px; color: var(--text3); }
+.welcome .wi { font-size: 44px; margin-bottom: 14px; }
+.welcome h3 { font-size: 17px; font-weight: 600; color: var(--text2); margin-bottom: 7px; }
+.welcome p { font-size: 13px; line-height: 1.7; max-width: 380px; margin: 0 auto; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: 18px; padding: 28px; width: 100%; max-width: 420px; margin: 18px; box-shadow: 0 16px 50px rgba(0,0,0,0.18); }
+.modal h2 { font-size: 19px; font-weight: 700; margin-bottom: 7px; }
+.modal p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; }
+.modal input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 9px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; background: var(--surface2); color: var(--text); margin-bottom: 6px; outline: none; direction: ltr; }
+.modal input:focus { border-color: var(--accent); }
+.modal-hint { font-size: 12px; color: var(--text3); margin-bottom: 18px; }
+.modal-hint a { color: var(--accent); text-decoration: none; }
+.modal-btns { display: flex; gap: 9px; justify-content: flex-end; }
+.btn-save { background: var(--accent); color: white; border: none; border-radius: 9px; padding: 9px 22px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-cancel { background: none; border: 1px solid var(--border); border-radius: 9px; padding: 9px 16px; font-size: 14px; cursor: pointer; font-family: inherit; color: var(--text2); }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo-mark">🧠</div>
+  <div>
+    <div class="app-title">ADHD Formatter</div>
+    <div class="app-sub">نص أو صورة ← بطاقات واضحة</div>
+  </div>
+  <button class="api-badge" id="api-badge-btn" onclick="openModal()">⚙️ API Key</button>
+</header>
+
+<main class="main">
+
+  <input type="file" id="file-input" accept="image/*" onchange="handleFile(event)">
+
+  <div class="drop-zone" id="drop-zone">
+    <div class="image-preview-wrap" id="img-preview-wrap">
+      <img class="preview-img" id="preview-img" src="" alt="">
+      <button class="img-remove-btn" onclick="removeImage()">✕ إزالة</button>
+    </div>
+    <div class="textarea-wrap" id="textarea-wrap">
+      <textarea id="input-text" placeholder="الصق نصاً هنا، أو اسحب صورة وأفلتها..." oninput="syncState()" onpaste="handlePaste(event)"></textarea>
+    </div>
+    <div class="drop-hint">
+      <span>📝 الصق نصاً</span>
+      <div class="drop-hint-divider"></div>
+      <span>🖼️ اسحب صورة أو الصق لقطة شاشة</span>
+    </div>
+    <div class="zone-footer">
+      <span class="info-count" id="info-count">فارغ</span>
+      <button class="btn-clear-sm" onclick="clearAll()" title="مسح">✕</button>
+      <button class="btn-attach" onclick="document.getElementById('file-input').click()">📎 صورة</button>
+      <button class="btn-go" id="btn-go" onclick="processInput()" disabled>
+        <div class="spinner"></div>
+        <span class="go-label">✨ حوّل</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="status-strip" id="status-strip">🔍 <span id="status-msg">جارٍ قراءة الصورة...</span></div>
+  <div class="no-key-warn" id="no-key-warn" onclick="openModal()">⚠️ لم تُدخل API Key — اضغط هنا لإضافته.</div>
+  <div class="error-msg" id="error-msg"></div>
+
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="prog-top"><span style="font-weight:600">التقدم</span><span id="prog-count">0 من 0</span></div>
+    <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    <button class="prog-reset" onclick="resetCards()">↺ نص جديد</button>
+  </div>
+
+  <div class="cards-section" id="cards-section">
+    <div id="cards-container"></div>
+    <div class="completion-msg" id="completion-msg">
+      <div class="big">🎉</div>
+      <h3>أحسنت! أتممت جميع الخطوات</h3>
+      <p>يمكنك الآن معالجة نص جديد.</p>
+    </div>
+  </div>
+
+  <div class="welcome" id="welcome-msg">
+    <div class="wi">📋</div>
+    <h3>جاهز للبدء</h3>
+    <p>الصق نصاً، أو اسحب صورة، أو الصق لقطة شاشة مباشرة — التطبيق يفهم تلقائياً.</p>
+  </div>
+</main>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2>🔑 API Key</h2>
+    <p>يُحفظ في متصفحك على جهازك فقط.</p>
+    <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." />
+    <div class="modal-hint">احصل عليه من <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
+      <button class="btn-save" onclick="saveKey()">حفظ ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = ['#5c6bc0','#0288d1','#00897b','#558b2f','#f57c00','#7b1fa2','#c62828','#00838f','#ad1457','#4527a0'];
+const BGS = ['#f0f0ff','#e3f4fd','#e0f5f1','#eef6e3','#fff3e0','#f5e6ff','#fff0f0','#e0f7fa','#fce4ec','#ede7f6'];
+const SYS = `You are an ADHD text formatter. Split input into logical steps (1-2 sentences max). For each step return:
+- arabic: clear Arabic translation
+- original: EXACT original text, word for word, no changes
+- icon: fitting emoji
+Return ONLY a JSON array, no markdown, no backticks:
+[{"arabic":"...","original":"...","icon":"..."}]`;
+
+let apiKey = localStorage.getItem('adhd_api_key') || '';
+let steps = [], completed = [], currentSpeakBtn = null;
+let imageBase64 = null, imageMime = null;
+
+window.onload = () => { if (apiKey) document.getElementById('api-badge-btn').textContent = '✅ API Key'; };
+
+// Drag & drop
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) loadImage(f); });
+
+// Paste image from clipboard
+function handlePaste(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      loadImage(item.getAsFile());
+      return;
+    }
+  }
+}
+
+function handleFile(e) { const f = e.target.files[0]; if (f) loadImage(f); }
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const src = ev.target.result;
+    imageBase64 = src.split(',')[1];
+    imageMime = file.type;
+    document.getElementById('preview-img').src = src;
+    document.getElementById('img-preview-wrap').classList.add('show');
+    document.getElementById('textarea-wrap').style.display = 'none';
+    dz.classList.add('has-image');
+    syncState();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage() {
+  imageBase64 = null; imageMime = null;
+  document.getElementById('img-preview-wrap').classList.remove('show');
+  document.getElementById('textarea-wrap').style.display = 'block';
+  document.getElementById('preview-img').src = '';
+  document.getElementById('file-input').value = '';
+  dz.classList.remove('has-image');
+  syncState();
+}
+
+function syncState() {
+  const txt = document.getElementById('input-text').value.trim();
+  const hasContent = !!imageBase64 || txt.length > 0;
+  document.getElementById('btn-go').disabled = !hasContent;
+  if (imageBase64) document.getElementById('info-count').textContent = '📷 صورة جاهزة';
+  else document.getElementById('info-count').textContent = txt.length ? txt.length + ' حرف' : 'فارغ';
+}
+
+function openModal() { document.getElementById('api-key-input').value = apiKey; document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function saveKey() {
+  const k = document.getElementById('api-key-input').value.trim();
+  if (k) { apiKey = k; localStorage.setItem('adhd_api_key', k); document.getElementById('api-badge-btn').textContent = '✅ API Key'; document.getElementById('no-key-warn').classList.remove('show'); }
+  closeModal();
+}
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === document.getElementById('modal-overlay')) closeModal(); });
+
+async function processInput() {
+  if (!apiKey) { document.getElementById('no-key-warn').classList.add('show'); openModal(); return; }
+  const btn = document.getElementById('btn-go');
+  btn.classList.add('loading'); btn.disabled = true;
+  document.getElementById('error-msg').classList.remove('show');
+  document.getElementById('cards-section').classList.remove('show');
+  document.getElementById('progress-wrap').classList.remove('show');
+  document.getElementById('welcome-msg').style.display = 'none';
+
+  try {
+    let messages;
+    if (imageBase64) {
+      document.getElementById('status-strip').classList.add('show');
+      document.getElementById('status-msg').textContent = 'جارٍ قراءة النص من الصورة وتحويله...';
+      messages = [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: imageMime, data: imageBase64 } },
+        { type: 'text', text: 'Read ALL text from this image exactly as written, then process it.' }
+      ]}];
+    } else {
+      const txt = document.getElementById('input-text').value.trim();
+      messages = [{ role: 'user', content: 'Process this text:\n' + txt }];
+    }
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 2000, system: SYS, messages })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'خطأ ' + res.status); }
+    const data = await res.json();
+    const raw = data.content[0].text.trim().replace(/```json|```/g, '').trim();
+    steps = JSON.parse(raw);
+    completed = new Array(steps.length).fill(false);
+    renderCards(); updateProgress();
+    document.getElementById('cards-section').classList.add('show');
+    document.getElementById('progress-wrap').classList.add('show');
+  } catch(e) {
+    document.getElementById('error-msg').textContent = '❌ ' + e.message;
+    document.getElementById('error-msg').classList.add('show');
+    document.getElementById('welcome-msg').style.display = 'block';
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+    document.getElementById('status-strip').classList.remove('show');
+  }
+}
+
+function renderCards() {
+  const c = document.getElementById('cards-container');
+  c.innerHTML = '';
+  document.getElementById('completion-msg').classList.remove('show');
+  steps.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'card-item' + (completed[i] ? ' done' : '');
+    d.id = 'c' + i;
+    d.style.background = BGS[i % BGS.length];
+    const sv = /[åäöÅÄÖ]/.test(s.original);
+    const ol = sv ? 'sv-SE' : 'en-US', olabel = sv ? 'Svenska 🔊' : 'English 🔊';
+    d.innerHTML = `<div class="card-row">
+      <div class="step-num" style="background:${COLORS[i%COLORS.length]}">${i+1}</div>
+      <div style="flex:1">
+        <div class="card-arabic"><span class="card-icon">${s.icon}</span>${s.arabic}</div>
+        <div class="card-orig">${s.original}</div>
+        <div class="card-btns">
+          <button class="btn-s" id="bar${i}" onclick="speak(${i},'ar')">عربي 🔊</button>
+          <button class="btn-s" id="bor${i}" onclick="speak(${i},'orig','${ol}')">${olabel}</button>
+          <button class="btn-done-c" id="bdn${i}" onclick="done(${i})">${completed[i]?'تراجع ↩':'تم ✓'}</button>
+        </div>
+      </div>
+    </div>`;
+    c.appendChild(d);
+  });
+}
+
+function speak(i, type, lang) {
+  const id = type === 'ar' ? 'bar'+i : 'bor'+i;
+  const btn = document.getElementById(id);
+  if (btn.classList.contains('speaking')) { stopSpeak(); return; }
+  stopSpeak();
+  const u = new SpeechSynthesisUtterance(type === 'ar' ? steps[i].arabic : steps[i].original);
+  u.lang = type === 'ar' ? 'ar-SA' : lang; u.rate = 0.9;
+  btn.classList.add('speaking'); currentSpeakBtn = btn;
+  u.onend = u.onerror = () => { btn.classList.remove('speaking'); currentSpeakBtn = null; };
+  speechSynthesis.speak(u);
+}
+function stopSpeak() { speechSynthesis.cancel(); if (currentSpeakBtn) { currentSpeakBtn.classList.remove('speaking'); currentSpeakBtn = null; } }
+
+function done(i) { completed[i] = !completed[i]; stopSpeak(); renderCards(); updateProgress(); }
+
+function updateProgress() {
+  const n = completed.filter(Boolean).length, t = steps.length;
+  document.getElementById('prog-count').textContent = n + ' من ' + t;
+  document.getElementById('prog-fill').style.width = (t ? n/t*100 : 0) + '%';
+  if (n === t && t > 0) document.getElementById('completion-msg').classList.add('show');
+}
+
+function clearAll() {
+  document.getElementById('input-text').value = '';
+  removeImage();
+  resetCards();
+  document.getElementById('error-msg').classList.remove('show');
+  syncState();
+}
+
+function resetCards() {
+  steps = []; completed = [];
+  document.getElementById('cards-container').innerHTML = '';
+  document.getElementById('cards-section').classList.remove('show');
+  document.getElementById('progress-wrap').classList.remove('show');
+  document.getElementById('completion-msg').classList.remove('show');
+  document.getElementById('welcome-msg').style.display = 'block';
+  stopSpeak();
+}
+</script>
+</body>
+</html>
