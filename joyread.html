@@ -105,7 +105,7 @@ details[open].settings summary{color:var(--seal);border-color:var(--seal)}
 .chip:hover{color:var(--accent);border-color:var(--accent)}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 [data-theme="night"] .chip.on{color:#0d1014}
-.body{font-family:var(--read);font-size:var(--fs,26px);font-weight:var(--fw,500);line-height:var(--lh,1.75);word-spacing:var(--ws,0);white-space:pre-wrap;overflow-wrap:break-word;padding:4px 2px 6px}
+.body{user-select:text;-webkit-user-select:text;cursor:text;font-family:var(--read);font-size:var(--fs,26px);font-weight:var(--fw,500);line-height:var(--lh,1.75);word-spacing:var(--ws,0);white-space:pre-wrap;overflow-wrap:break-word;padding:4px 2px 6px}
 .body[dir="ltr"]{text-align:left}
 .body[dir="rtl"]{text-align:right}
 mark.hl{background:var(--mark-bg);color:var(--mark-ink);border-radius:5px;padding:0 2px;box-shadow:inset 0 -2px 0 var(--mark-line)}
@@ -162,6 +162,14 @@ body.ruler-on .ruler{display:block}
 .tr-head{font-size:11.5px;color:var(--muted);letter-spacing:.4px;margin-bottom:4px}
 .tr-body{font-family:var(--read);font-size:calc(var(--fs,26px) * .82);line-height:calc(var(--lh,1.75) * 1.02);font-weight:var(--fw,500);white-space:pre-wrap}
 .tr.simp{border-style:solid}
+.body ::selection,.body::selection{background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)}
+#seltool{position:absolute;z-index:150;display:none;gap:5px;padding:6px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);flex-wrap:wrap;max-width:min(94vw,420px)}
+#seltool.show{display:flex}
+#seltool button{border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:12.5px;padding:6px 10px;border-radius:9px;cursor:pointer;line-height:1}
+#seltool button:hover{border-color:var(--seal);color:var(--seal)}
+.tr{position:relative}
+.tr .px{position:absolute;inset-block-start:6px;inset-inline-start:8px;border:0;background:transparent;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;padding:2px 5px}
+.tr .px:hover{color:var(--bad)}
 .hlp{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:-2px}
 .field.off{opacity:.45;pointer-events:none}
 .dock-title{font-size:13px;font-weight:600;margin:0 0 6px}
@@ -170,6 +178,9 @@ body.ruler-on .ruler{display:block}
 #errbar button{float:inline-end;background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;border-radius:8px;font-size:12px;padding:3px 9px;cursor:pointer}
 .cardmsg{margin-top:8px;font-size:13.5px;line-height:1.7;padding:8px 11px;border-radius:10px;background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn)}
 .cardmsg.bad{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.w.sp{border-bottom:2px wavy var(--bad);cursor:pointer}
+#fixbar{position:fixed;inset-inline:0;top:0;z-index:190;background:var(--warn);color:#fff;font-size:13.5px;padding:9px 14px;display:none;line-height:1.7}
+#fixbar button{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.6);color:#fff;border-radius:8px;font-size:12.5px;padding:4px 10px;cursor:pointer;margin-inline-start:8px}
 .hint{font-size:12.5px;color:var(--muted);text-align:center;margin:22px 0 0;font-weight:300;line-height:1.9}
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 @media print{header,.card-panel,details.settings,.strip,.pager,.rtools,.hint,.ruler,.dock{display:none !important}body{background:#fff;padding:0}.rcard{break-inside:avoid;box-shadow:none;border:1px solid #ccc;background:#fff}.rcard.folded .body{display:block}}
@@ -186,6 +197,7 @@ body.ruler-on .ruler{display:block}
       <div class="sub">نفس النص حرفياً — ترتيب أوضح</div>
     </div>
     <div class="spacer"></div>
+    <button class="ghost" id="btnClin" aria-pressed="false" title="قائمة Folktandvården وأسطح الأسنان وأرقامها">الوضع السريري</button>
     <button class="ghost" id="btnRuler" aria-pressed="false">مسطرة</button>
     <button class="ghost" id="btnFocus" aria-pressed="false">وضع التركيز</button>
     <button class="ghost" id="btnNew">نص جديد</button>
@@ -199,6 +211,7 @@ body.ruler-on .ruler{display:block}
     <div class="shots hidden" id="shots"></div>
     <div class="input-foot">
       <button class="primary" id="btnGo">رتّب البطاقات</button>
+      <button class="ghost" id="btnProof">دقّق النص</button>
       <button class="ghost" id="btnPick">أضف صورة</button>
       <button class="ghost hidden" id="btnOcrLocal">استخرج محلياً (مجاني)</button>
       <button class="ghost hidden" id="btnOcrApi">حسّن بالنموذج</button>
@@ -282,18 +295,21 @@ body.ruler-on .ruler{display:block}
       </div>
 
       <div class="sep">الترجمة والتبسيط — تستعملان المفتاح أدناه</div>
+      <div class="field"><label for="exLang">لغة التبسيط والشرح</label>
+        <select id="exLang"><option value="ar">العربية</option><option value="sv">Svenska</option><option value="en">English</option></select>
+        <p class="hlp">أزرار ع / EN / SV على البطاقة خاصة بالترجمة. هذا الخيار للتبسيط والشرح فقط.</p>
+      </div>
       <div class="field"><label for="trModel">نموذج الترجمة والتبسيط</label>
         <select id="trModel"><option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — أرخص</option><option value="claude-sonnet-5">Claude Sonnet 5 — أدق</option></select>
       </div>
 
-      <div class="sep">قاموس الاختصارات</div>
+      <div class="sep">الوضع السريري — يُشغَّل من الشريط العلوي</div>
       <div class="toggles">
-        <button class="ghost" id="tGloss" aria-pressed="true">تفعيل القاموس</button>
-        <button class="ghost" id="tGlossAuto" aria-pressed="true">إظهار المعاني تلقائياً</button>
+        <button class="ghost" id="tGlossAuto" aria-pressed="true">إظهار المعاني تلقائياً تحت البطاقة</button>
         <button class="ghost" id="tSingle" aria-pressed="false">شمل الاختصارات ذات الحرف الواحد</button>
-        <button class="ghost" id="tFuzzy" aria-pressed="true">اقتراح عند اختلاف حرف واحد</button>
-        <button class="ghost" id="btnAddAb">أضف اختصاراً</button>
+        <button class="ghost" id="btnAddAb">أضف اختصاراً للقاموس</button>
       </div>
+      <p class="hlp full">حين يكون الوضع السريري مطفأً لا يظهر أي خط ولا توسعة — قراءة عامة نظيفة. واقتراح تصحيح الاختصارات المكتوبة خطأ يعمل بصمت داخله وحده.</p>
 
       <div class="sep">استخراج النص من الصور</div>
       <div class="field"><label for="ocrLang">لغة الاستخراج المحلي</label>
@@ -336,6 +352,8 @@ body.ruler-on .ruler{display:block}
   <p class="hint" id="hint">التقسيم والقاموس يعملان داخل متصفحك — لا يخرج نصك من الجهاز إلا لو ضغطت «حسّن بالنموذج».</p>
 </main>
 
+<div id="seltool"></div>
+<div id="fixbar"><span id="fixText"></span><button type="button" id="fixApply">صحّح</button><button type="button" id="fixSkip">تجاهل</button><button type="button" id="fixClose">أغلق</button></div>
 <div id="errbar"><button type="button" id="errClose">إخفاء</button><span id="errText"></span></div>
 <div class="ruler" id="rTop"></div>
 <div class="ruler" id="rBand"></div>
@@ -532,9 +550,9 @@ function cardNote(i, msg, bad){
 var AR = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
 var LAT = /[A-Za-z\u00C0-\u024F]/g;
 var ACCENTS = ["#0b6e5f","#3f5f9e","#8a5a2b","#6a4a7c","#4a7c3f","#a1543d"];
-var CTRL = ["fs","lh","ws","len","wpm","rh","mode","font","theme","voiceLang","rate","ocrLang","model","trModel"];
+var CTRL = ["fs","lh","ws","len","wpm","rh","mode","font","theme","voiceLang","rate","ocrLang","model","trModel","exLang"];
 var TOG = {tBold:"bold",tHl:"hl",tWord:"word",tPunct:"punct",tFold:"fold",tBio:"bio",tColor:"color",
-           tGloss:"gloss",tGlossAuto:"glossAuto",tSingle:"single",tFuzzy:"fuzzy",btnRuler:"ruler"};
+           tGlossAuto:"glossAuto",tSingle:"single",btnClin:"gloss",btnRuler:"ruler"};
 var OCR_PROMPT = "Transcribe every piece of text in this image exactly as it appears.\nRules:\n- Output ONLY the transcribed text, nothing else.\n- Keep the original language exactly. Never translate.\n- Keep the original line breaks, order and numbering.\n- Do not correct spelling, grammar, numbers or units.\n- Do not add headings, comments, explanations or markdown.\n- If a character is genuinely unreadable, write [?] in its place.";
 
 var FONTS = {
@@ -566,9 +584,9 @@ function useFont(name){
   document.documentElement.style.setProperty("--read", f.stack);
 }
 var S = { original:"", chunks:[], done:{}, idx:0, fromImage:false, images:[], personal:[], ideas:[],
-          speakId:0, playing:-1, paused:false, boundarySeen:false, voiceName:"", tr:{}, simp:{}, cal:{words:0,secs:0,t:0},
+          speakId:0, playing:-1, paused:false, cardHasAb:false, typos:{}, fix:null, boundarySeen:false, voiceName:"", tr:{}, simp:{}, extra:{}, cal:{words:0,secs:0,t:0},
           tog:{bold:true,hl:true,word:true,punct:true,fold:true,bio:false,color:true,
-               gloss:true,glossAuto:true,single:false,fuzzy:true,surf:true,ruler:false}, toothNear:false };
+               gloss:false,glossAuto:true,single:false,fuzzy:true,surf:true,ruler:false}, toothNear:false };
 
 var LS = {
   ok:function(){ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } },
@@ -682,7 +700,7 @@ function lookup(word){
   return null;
 }
 function fuzzy(word){
-  if(!S.tog.fuzzy) return null;
+  if(!S.tog.gloss || !S.cardHasAb) return null;
   var k = word.toLowerCase().replace(/^[^a-z\u00E0-\u024F]+/,"").replace(/[^a-z\u00E0-\u024F]+$/,"");
   if(latLen(k) < 3 || /\d/.test(word)) return null;
   if(IDX[k]) return null;
@@ -796,7 +814,22 @@ function bionicWord(w){
     return "<b class='bio'>" + x.slice(0,n) + "</b>" + x.slice(n);
   });
 }
+function hasKnownAb(text){
+  var m, re = /\S+/g;
+  while((m = re.exec(text)) !== null){
+    var w = m[0];
+    if(lookup(w)) return true;
+    var lb = w.replace(/^[(\[{"'\u00AB\u201C]+/,"").replace(/[)\]}.,;:!?"'\u00BB\u201D]+$/,"");
+    if(toothSurface(lb) || surfaceExpand(lb)) return true;
+  }
+  return false;
+}
+function spAttr(sug, orig){
+  return " title=\"" + esc("\u0647\u0644 \u062a\u0642\u0635\u062f " + sug + "\u061F \u0627\u0636\u063a\u0637 \u0644\u0644\u062a\u0635\u062d\u064a\u062d") +
+         "\" data-sug=\"" + esc(sug) + "\" data-orig=\"" + esc(orig) + "\"";
+}
 function buildBody(text, found){
+  S.cardHasAb = S.tog.gloss && hasKnownAb(text);
   var ranges = hlRanges(text), out = "", last = 0, m;
   var toks = [], re = /\S+/g;
   while((m = re.exec(text)) !== null) toks.push({w:m[0], s:m.index, e:m.index + m[0].length});
@@ -806,6 +839,8 @@ function buildBody(text, found){
     for(var i=s0;i<e0;i++){ if(inRange(ranges, i)){ touched = true; break; } }
     var inner = touched ? runs(word, s0, ranges) : (S.tog.bio ? bionicWord(esc(word)) : esc(word));
     var cls = "w", extra = "";
+    var lbl0 = word.replace(/^[(\[{"'\u00AB\u201C]+/,"").replace(/[)\]}.,;:!?"'\u00BB\u201D]+$/,"");
+    var sug0 = S.typos[lbl0] || S.typos[lbl0.toLowerCase()];
     if(S.tog.gloss){
       S.toothNear = (ti > 0 && isTooth(toks[ti-1].w)) || (ti + 1 < toks.length && isTooth(toks[ti+1].w));
       var label = word.replace(/^[(\[{"'\u00AB\u201C]+/,"").replace(/[)\]}.,;:!?"'\u00BB\u201D]+$/,"");
@@ -827,6 +862,8 @@ function buildBody(text, found){
       if(mean.length){
         cls += " ab"; extra = " title=\"" + esc(mean.join(" | ")) + "\"";
         if(!found.ab.some(function(x){ return x.l === label; })) found.ab.push({l:label, m:mean});
+      } else if(sug0){
+        cls += " sp"; extra = spAttr(sug0, lbl0);
       } else {
         var f = fuzzy(word);
         if(f){
@@ -835,6 +872,8 @@ function buildBody(text, found){
           if(found.fz.indexOf(pair) < 0) found.fz.push(pair);
         }
       }
+    } else if(sug0){
+      cls += " sp"; extra = spAttr(sug0, lbl0);
     }
     out += "<span class='" + cls + "' data-s='" + s0 + "' data-e='" + e0 + "'" + extra + ">" + inner + "</span>";
     last = e0;
@@ -890,6 +929,7 @@ function render(){
       "<button class='chip trbtn" + (S.tr[i+'|en'] ? " on" : "") + "' data-l='en' title='Translate to English'>EN</button>" +
       "<button class='chip trbtn" + (S.tr[i+'|sv'] ? " on" : "") + "' data-l='sv' title='Översätt till svenska'>SV</button>" +
       "<button class='chip spbtn' title='بسّط صياغة هذه البطاقة'>بسّط</button>" +
+      "<button class='chip copy' title='انسخ نص البطاقة'>نسخ</button>" +
       "<button class='chip zoom' title='وضع التركيز — اضغط ثانية للعودة'>\u2317</button>" +
       "<button class='chip done" + (S.done[i] ? " on" : "") + "'>تم \u2713</button></div>";
 
@@ -905,6 +945,10 @@ function render(){
       if(S.tr[i + "|" + lg]) card.appendChild(panelFor(text, S.tr[i + "|" + lg], LANGLABEL[lg], false));
     });
     if(S.simp[i]) card.appendChild(panelFor(text, S.simp[i], "صياغة مبسّطة \u2014 ليست نصك الأصلي", true));
+    (S.extra[i] || []).forEach(function(pn, k){
+      if(pn.wc) card.appendChild(wordCard(pn.word, pn.wc, text, k));
+      else card.appendChild(panelFor(text, pn.body, pn.head, true, k));
+    });
     var gh = glossHtml(found);
     if(gh && S.tog.gloss && S.tog.glossAuto){
       var g = document.createElement("div");
@@ -916,9 +960,109 @@ function render(){
   });
   updateProgress(); updatePager(); setSpeakUI();
 }
-function panelFor(src, txt, label, simp){
+function langOfWord(w, ctx){
+  if(/[\u0600-\u06FF]/.test(w)) return "ar";
+  if(/[\u00E5\u00E4\u00F6\u00C5\u00C4\u00D6]/.test(w)) return "sv";
+  if(ctx){
+    var c = langOf(ctx);
+    if(c === "sv" || c === "ar") return c;
+  }
+  return "en";
+}
+function srcLinks(word, lang){
+  var w = encodeURIComponent(word);
+  var out = [];
+  if(lang === "sv"){
+    out.push(["نطق في Lexin", "https://lexin.nada.kth.se/lexin/#searchinfo=both,swe_swe," + w + ";"]);
+    out.push(["الأصل في SAOB", "https://svenska.se/tre/?sok=" + w]);
+  } else if(lang === "ar"){
+    out.push(["الأصل في معجم الدوحة", "https://www.dohadictionary.org/dictionary/" + w]);
+  } else {
+    out.push(["الأصل في Etymonline", "https://www.etymonline.com/word/" + w]);
+  }
+  return out;
+}
+function wordCard(word, d, ctx, k){
+  var lang = langOfWord(word, ctx);
+  var el = document.createElement("div");
+  el.className = "wc";
+  var x = document.createElement("button");
+  x.className = "px"; x.type = "button"; x.dataset.k = k;
+  x.textContent = "\u00D7"; x.title = "أغلق";
+  el.appendChild(x);
+  var h = document.createElement("h4");
+  h.setAttribute("dir", dirOf(word));
+  h.textContent = word;
+  el.appendChild(h);
+  function grp(q, rows){
+    var g = document.createElement("div");
+    g.className = "grp";
+    var qq = document.createElement("p");
+    qq.className = "qq"; qq.textContent = q;
+    g.appendChild(qq);
+    rows.forEach(function(r){
+      if(!r[1]) return;
+      var pp = document.createElement("p");
+      pp.className = "row";
+      if(r[0]){
+        var bb = document.createElement("b");
+        bb.textContent = r[0];
+        pp.appendChild(bb);
+      }
+      var sp = document.createElement("span");
+      if(r[2]) sp.className = "ipa";
+      sp.textContent = r[1];
+      pp.appendChild(sp);
+      g.appendChild(pp);
+    });
+    if(g.children.length > 1) el.appendChild(g);
+  }
+  grp("ما معناها؟", [["", d.meaning]]);
+  grp("كيف أنطقها؟", [["المقاطع", d.syllables], ["النطق", lang === "sv" ? "" : d.ipa, true]]);
+  grp("ما مقابلها وكيف تُستعمل؟", [
+    ["بالعربية", d.arabic],
+    ["مرادف", d.synonym],
+    ["مثال", d.example],
+    ["ترجمته", d.exampleAr]
+  ]);
+  if(d.etymology){
+    var g4 = document.createElement("div");
+    g4.className = "grp";
+    var q4 = document.createElement("p");
+    q4.className = "qq"; q4.textContent = "من أين جاءت؟";
+    g4.appendChild(q4);
+    var ety = document.createElement("div");
+    ety.className = "ety";
+    var tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = "\u26A0 رواية غير موثّقة \u2014 راجع المصدر";
+    var bd = document.createElement("p");
+    bd.className = "row"; bd.style.margin = "0";
+    bd.textContent = d.etymology;
+    ety.appendChild(tag); ety.appendChild(bd);
+    g4.appendChild(ety);
+    el.appendChild(g4);
+  }
+  var srcd = document.createElement("div");
+  srcd.className = "src";
+  srcLinks(word, lang).forEach(function(L){
+    var a = document.createElement("a");
+    a.href = L[1]; a.target = "_blank"; a.rel = "noopener noreferrer";
+    a.textContent = L[0];
+    srcd.appendChild(a);
+  });
+  el.appendChild(srcd);
+  return el;
+}
+function panelFor(src, txt, label, simp, k){
   var d = document.createElement("div");
   d.className = "tr" + (simp ? " simp" : "");
+  if(k !== undefined){
+    var x = document.createElement("button");
+    x.className = "px"; x.type = "button"; x.dataset.k = k;
+    x.textContent = "\u00D7"; x.title = "أغلق";
+    d.appendChild(x);
+  }
   var head = document.createElement("div");
   head.className = "tr-head"; head.textContent = label;
   var body = document.createElement("div");
@@ -1318,7 +1462,95 @@ function glossFor(text){
   found.ab.forEach(function(x){ lines.push(x.l + " = " + x.m.join(" OR ")); });
   return lines.join("\n");
 }
-async function askModel(kind, i, btn, lg){
+function repairJson(str){
+  var out = "", inStr = false, esc = false, c;
+  for(var i=0;i<str.length;i++){
+    c = str.charAt(i);
+    if(esc){ out += c; esc = false; continue; }
+    if(c === "\\"){ out += c; esc = true; continue; }
+    if(c === "\""){ inStr = !inStr; out += c; continue; }
+    if(inStr && c === "\n"){ out += "\\n"; continue; }
+    if(inStr && c === "\r"){ continue; }
+    if(inStr && c === "\t"){ out += "\\t"; continue; }
+    out += c;
+  }
+  return out;
+}
+function unesc(x){
+  return x.replace(/\\n/g,"\n").replace(/\\t/g,"\t").replace(/\\"/g,"\"").replace(/\\\\/g,"\\");
+}
+function parseModelReply(raw){
+  var t = String(raw || "").trim();
+  var m = t.match(/\{[\s\S]*\}/);
+  if(m){
+    var tries = [m[0], repairJson(m[0])];
+    for(var k=0;k<tries.length;k++){
+      try{
+        var j = JSON.parse(tries[k]);
+        if(j && typeof j.t === "string"){
+          return {t: j.t, typos: Array.isArray(j.typos) ? j.typos : []};
+        }
+      }catch(e){}
+    }
+    var g = m[0].match(/"t"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"typos"|\}\s*$)/);
+    if(g) return {t: unesc(g[1]), typos: []};
+  }
+  var h = t.match(/"t"\s*:\s*"([\s\S]*)$/);
+  if(h){
+    var cut = h[1].replace(/"\s*,\s*"typos"[\s\S]*$/, "").replace(/"\s*\}?\s*$/, "");
+    if(cut.trim()) return {t: unesc(cut), typos: []};
+  }
+  t = t.replace(/^```[A-Za-z]*\s*/, "").replace(/\s*```$/, "").trim();
+  return {t: t, typos: []};
+}
+async function wordCardCall(i, btn, text, target){
+  var key = $("#key").value.trim();
+  var wlc = langOfWord(text, S.chunks[i] || "");
+  var wl = wlc === "ar" ? "Arabic" : wlc === "sv" ? "Swedish" : "English";
+  var sysW = "You build vocabulary cards for a language learner. All explanations are written in " + target + ".\n" +
+    "The word is " + wl + ". Sentence it appeared in, for disambiguation: " + JSON.stringify(S.chunks[i] || "") + "\n" +
+    "Fields:\n" +
+    "- meaning: explain as if to a five-year-old, simple and vivid, one or two sentences.\n" +
+    "- syllables: the word split with hyphens, e.g. car-bide.\n" +
+    "- ipa: IPA transcription between slashes." + (wlc === "sv" ? " The word is Swedish: return an empty string here, never guess Swedish pronunciation." : "") + "\n" +
+    "- arabic: the Arabic translation.\n" +
+    "- synonym: one synonym in the word's own language.\n" +
+    "- example: one short natural sentence using the word, in the word's own language.\n" +
+    "- exampleAr: the Arabic translation of that sentence.\n" +
+    "- etymology: a short vivid origin story, two sentences at most. If you are not confident about the origin, return an empty string instead of inventing one.\n" +
+    "Reply with JSON only, no fence and no commentary: " +
+    "{\"meaning\":\"\",\"syllables\":\"\",\"ipa\":\"\",\"arabic\":\"\",\"synonym\":\"\",\"example\":\"\",\"exampleAr\":\"\",\"etymology\":\"\"}";
+  btn.disabled = true;
+  var oldW = btn.textContent;
+  btn.textContent = "\u2026";
+  try{
+    var resW = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "x-api-key":key,
+                "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+      body: JSON.stringify({ model: $("#trModel").value, max_tokens: 1200, system: sysW,
+        messages:[{ role:"user", content: text }] })
+    });
+    var dataW = await resW.json();
+    btn.disabled = false; btn.textContent = oldW;
+    if(dataW.error){ cardNote(i, "\u062a\u0639\u0630\u0651\u0631: " + dataW.error.message, true); return; }
+    var rawW = (dataW.content || []).filter(function(c){ return c.type === "text"; })
+                                    .map(function(c){ return c.text; }).join("\n").trim();
+    var jm = rawW.match(/\{[\s\S]*\}/), d = null;
+    if(jm){
+      var tries = [jm[0], repairJson(jm[0])];
+      for(var q=0;q<tries.length;q++){ try{ d = JSON.parse(tries[q]); break; }catch(e){} }
+    }
+    if(!d || !d.meaning){ cardNote(i, "\u062a\u0639\u0630\u0651\u0631 \u0628\u0646\u0627\u0621 \u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0643\u0644\u0645\u0629 \u2014 \u062c\u0631\u0651\u0628 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649", true); return; }
+    S.extra[i] = S.extra[i] || [];
+    S.extra[i].push({wc: d, word: text});
+    render();
+  }catch(err){
+    btn.disabled = false; btn.textContent = oldW;
+    cardNote(i, "\u062a\u0639\u0630\u0651\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u0640 API", true);
+  }
+}
+async function askModel(kind, i, btn, lg, custom){
   var key = $("#key").value.trim();
   if(!key){
     cardNote(i, "الترجمة و«بسّط» تحتاجان مفتاح Anthropic API — ضعه في الإعدادات ثم أعد المحاولة.", true);
@@ -1331,20 +1563,34 @@ async function askModel(kind, i, btn, lg){
     cardNote(i, "الصفحة مفتوحة كملف محلي، والمتصفح يمنع الاتصال بالـ API من هنا. افتحها من رابط GitHub Pages.", true);
     return;
   }
-  var lang = lg || "ar";
-  var cacheKey = kind === "tr" ? i + "|" + lang : i;
-  var store = kind === "tr" ? S.tr : S.simp;
-  if(store[cacheKey]){ delete store[cacheKey]; render(); return; }
-  var text = S.chunks[i];
+  var lang = lg || (kind === "tr" ? "ar" : $("#exLang").value);
+  if(!custom){
+    var cacheKey = kind === "tr" ? i + "|" + lang : i;
+    var store = kind === "tr" ? S.tr : S.simp;
+    if(store[cacheKey]){ delete store[cacheKey]; render(); return; }
+  }
+  var text = custom || S.chunks[i];
   var gl = glossFor(text);
   var target = LANGNAME[lang];
-  var task = kind === "tr"
-    ? "Translate the text into " + target + ". Keep clinical meaning exact. Do not summarise, do not add anything."
-    : "Rewrite the text in much simpler " + target + ", short sentences, plain words, same meaning. Do not add new facts.";
-  var sys = "You help a dentist read Swedish clinical shorthand.\n" + task +
+  if(kind === "word") return wordCardCall(i, btn, text, target);
+  var task;
+  if(kind === "tr"){
+    task = "Task: translate the text into " + target + ". Keep the meaning exact, including any technical or clinical terms. Do not summarise and do not add anything.";
+  } else if(kind === "explain"){
+    task = "Task: explain in " + target + ", briefly and plainly, what the given text means. If it is an abbreviation, a code or a technical term, say what it stands for and what it means in practice. Three sentences at most.";
+  } else {
+    task = "Task: make the text genuinely easy to understand, written in " + target + ".\n" +
+      "Explain what is hard, technical, abstract or ambiguous: unpack the terms, spell out what the sentence is actually saying, " +
+      "and if an idea needs an everyday comparison to land, give one.\n" +
+      "Take exactly as much room as the difficulty requires — a dense clinical or technical passage may need several sentences, " +
+      "a plain one needs almost none. Never pad, never restate what is already obvious, and never add facts that are not in the text.\n" +
+      "Priority is clarity, not brevity: a short answer that leaves the reader still confused is a failure.";
+  }
+  var sys = "You are a precise text tool. The text can be about ANY subject whatsoever. " +
+    "Never comment on the subject, never say the text is outside your area, never add notes about yourself or the request.\n" + task +
     "\nThe text may contain typing errors. Do not silently fix them: list them separately.\n" +
-    (gl ? "Authoritative abbreviation meanings for this text (use these; if two meanings are listed, keep the abbreviation as-is and give both):\n" + gl + "\n" : "") +
-    "Reply with JSON only, no markdown fence: {\"t\":\"<result>\",\"typos\":[{\"w\":\"<word as written>\",\"s\":\"<suggestion>\"}]}\n" +
+    (gl ? "Abbreviation meanings that apply to this text (use these; if two meanings are listed, keep the abbreviation as-is and give both):\n" + gl + "\n" : "") +
+    "Reply with JSON only, no markdown fence and no commentary: {\"t\":\"<result>\",\"typos\":[{\"w\":\"<word as written>\",\"s\":\"<suggestion>\"}]}\n" +
     "If you find no typing errors, use an empty typos array.";
   btn.disabled = true;
   var old = btn.textContent;
@@ -1354,7 +1600,7 @@ async function askModel(kind, i, btn, lg){
       method:"POST",
       headers:{ "Content-Type":"application/json", "x-api-key":key,
                 "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-      body: JSON.stringify({ model: $("#trModel").value, max_tokens: 1200, system: sys,
+      body: JSON.stringify({ model: $("#trModel").value, max_tokens: 3000, system: sys,
         messages:[{ role:"user", content: text }] })
     });
     var data = await res.json();
@@ -1362,22 +1608,184 @@ async function askModel(kind, i, btn, lg){
     if(data.error){ cardNote(i, "تعذّر: " + data.error.message, true); return; }
     var raw = (data.content || []).filter(function(c){ return c.type === "text"; })
                                   .map(function(c){ return c.text; }).join("\n").trim();
-    var out = raw, typos = [];
-    try{
-      var j = JSON.parse(raw.replace(/^```(?:json)?/,"").replace(/```$/,"").trim());
-      if(j && typeof j.t === "string"){ out = j.t; typos = Array.isArray(j.typos) ? j.typos : []; }
-    }catch(e){}
+    var parsed = parseModelReply(raw);
+    var out = parsed.t, typos = parsed.typos;
     if(typos.length){
       out += "\n\n\u26A0 كلمات يُشتبه أنها مكتوبة خطأ: " +
              typos.map(function(t){ return t.w + " \u2190 " + t.s; }).join(" \u00B7 ");
     }
-    store[cacheKey] = out;
+    if(custom){
+      var short = custom.length > 42 ? custom.slice(0, 42) + "\u2026" : custom;
+      var hd = (kind === "tr" ? "ترجمة" : kind === "explain" ? "شرح" : "تبسيط") + ": \u00AB" + short + "\u00BB";
+      S.extra[i] = S.extra[i] || [];
+      S.extra[i].push({head: hd, body: out});
+    } else {
+      var st = kind === "tr" ? S.tr : S.simp;
+      st[kind === "tr" ? i + "|" + lang : i] = out;
+    }
     render();
   }catch(err){
     btn.disabled = false; btn.textContent = old;
     cardNote(i, "تعذّر الاتصال بالـ API: " + (err && err.message ? err.message : "سبب غير معروف"), true);
   }
 }
+
+/* ---------- proofreading ---------- */
+function apiKeyOr(msgTarget){
+  var key = $("#key").value.trim();
+  if(!key){
+    ocrStatus("هذه الوظيفة تحتاج مفتاح Anthropic API — ضعه في الإعدادات", true);
+    $("#settings").open = true; $("#key").focus();
+    return null;
+  }
+  if(location.protocol === "file:"){
+    ocrStatus("الصفحة مفتوحة كملف محلي — افتحها من رابط GitHub Pages لتعمل هذه الوظيفة", true);
+    return null;
+  }
+  return key;
+}
+async function proofread(){
+  var text = $("#input").value;
+  if(!text.trim()) return;
+  var key = apiKeyOr();
+  if(!key) return;
+  var btn = $("#btnProof");
+  btn.disabled = true;
+  var old = btn.textContent;
+  btn.textContent = "جاري التدقيق…";
+  var gl = glossFor(text);
+  var sys = "You are a spelling checker. Find words that are misspelled — typing errors of one or more characters, " +
+    "swapped letters, missing or doubled letters. Work in whatever language(s) the text uses.\n" +
+    "Rules:\n- Report ONLY clear misspellings, not style, grammar, punctuation or word choice.\n" +
+    "- Never report proper names, brand names, numbers, codes, or correctly spelled compound words.\n" +
+    (gl ? "- These abbreviations are correct as written, never report them:\n" + gl + "\n" : "") +
+    "- If everything is spelled correctly, return an empty list.\n" +
+    "Reply with JSON only, no fence and no commentary: {\"items\":[{\"w\":\"<word exactly as written>\",\"s\":\"<corrected spelling>\"}]}";
+  try{
+    var res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "x-api-key":key,
+                "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+      body: JSON.stringify({ model: $("#trModel").value, max_tokens: 1500, system: sys,
+        messages:[{ role:"user", content: text }] })
+    });
+    var data = await res.json();
+    btn.disabled = false; btn.textContent = old;
+    if(data.error){ ocrStatus("تعذّر التدقيق: " + data.error.message, true); return; }
+    var raw = (data.content || []).filter(function(c){ return c.type === "text"; })
+                                  .map(function(c){ return c.text; }).join("\n").trim();
+    var items = [];
+    var mm = raw.match(/\{[\s\S]*\}/);
+    if(mm){
+      try{
+        var j = JSON.parse(mm[0]);
+        if(j && Array.isArray(j.items)) items = j.items;
+      }catch(e){}
+    }
+    S.typos = {};
+    items.forEach(function(it){
+      if(it && it.w && it.s && it.w !== it.s) S.typos[String(it.w)] = String(it.s);
+    });
+    S.proofOf = text;
+    var n = Object.keys(S.typos).length;
+    ocrStatus(n ? "وجد " + n + " كلمة مشبوهة — تظهر بخط أحمر متموّج، اضغطها للتصحيح" : "لم يجد أخطاء إملائية", true);
+    if(S.chunks.length) render();
+    else if(n) run();
+  }catch(err){
+    btn.disabled = false; btn.textContent = old;
+    ocrStatus("تعذّر الاتصال بالـ API", true);
+  }
+}
+$("#btnProof").addEventListener("click", function(){ this.blur(); proofread(); });
+
+function showFix(orig, sug){
+  S.fix = {o:orig, s:sug};
+  $("#fixText").textContent = "\u00AB" + orig + "\u00BB \u2190 \u00AB" + sug + "\u00BB";
+  $("#fixbar").style.display = "block";
+}
+function hideFix(){ S.fix = null; $("#fixbar").style.display = "none"; }
+$("#fixClose").addEventListener("click", hideFix);
+$("#fixSkip").addEventListener("click", function(){
+  if(S.fix){ delete S.typos[S.fix.o]; render(); }
+  hideFix();
+});
+$("#fixApply").addEventListener("click", function(){
+  if(!S.fix) return;
+  var box = $("#input");
+  var re = new RegExp("(^|[^\\p{L}\\p{N}])" + S.fix.o.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "(?![\\p{L}\\p{N}])", "gu");
+  var before = box.value;
+  box.value = before.replace(re, function(m0, p1){ return p1 + S.fix.s; });
+  $("#count").textContent = box.value.length + " حرف";
+  delete S.typos[S.fix.o];
+  S.proofOf = box.value;
+  hideFix();
+  run();
+});
+
+/* ---------- selection toolbar ---------- */
+var SEL = {card:-1, text:""};
+function hideSel(){ $("#seltool").classList.remove("show"); SEL.card = -1; SEL.text = ""; }
+function buildSelTool(){
+  var t = $("#seltool");
+  t.innerHTML =
+    "<button data-a='copy'>نسخ</button>" +
+    "<button data-a='explain'>اشرح</button>" +
+    "<button data-a='word'>بطاقة كلمة</button>" +
+    "<button data-a='simp'>بسّط</button>" +
+    "<button data-a='tr' data-l='ar'>ترجم ع</button>" +
+    "<button data-a='tr' data-l='en'>EN</button>" +
+    "<button data-a='tr' data-l='sv'>SV</button>" +
+    "<button data-a='ab'>أضف للقاموس</button>";
+  t.addEventListener("mousedown", function(e){ e.preventDefault(); });
+  t.addEventListener("click", function(e){
+    var b = e.target.closest("button");
+    if(!b || SEL.card < 0) return;
+    var act = b.dataset.a, txt = SEL.text, ci = SEL.card;
+    if(act === "word" && /\s/.test(txt.trim())){
+      b.textContent = "كلمة واحدة فقط";
+      setTimeout(function(){ b.textContent = "بطاقة كلمة"; }, 1800);
+      return;
+    }
+    if(act === "copy"){
+      if(navigator.clipboard) navigator.clipboard.writeText(txt);
+      b.textContent = "تم \u2713";
+      setTimeout(function(){ b.textContent = "نسخ"; }, 1400);
+      return;
+    }
+    if(act === "ab"){
+      var f = window.prompt("معنى \u00AB" + txt + "\u00BB:", "");
+      if(f){ S.personal.push({g:"شخصي", a:[txt.trim()], f:f.trim()}); saveGloss(); render(); }
+      hideSel(); return;
+    }
+    hideSel();
+    askModel(act === "tr" ? "tr" : act, ci, b, act === "tr" ? b.dataset.l : null, txt);
+  });
+}
+buildSelTool();
+function onSelect(){
+  var sel = window.getSelection();
+  if(!sel || sel.isCollapsed || !sel.rangeCount){ hideSel(); return; }
+  var txt = String(sel).trim();
+  if(!txt || txt.length > 1200){ hideSel(); return; }
+  var node = sel.anchorNode;
+  var el = node && (node.nodeType === 1 ? node : node.parentElement);
+  var body = el && el.closest ? el.closest(".rcard .body") : null;
+  if(!body){ hideSel(); return; }
+  var card = body.closest(".rcard");
+  SEL.card = Number(card.dataset.i);
+  SEL.text = txt;
+  var r = sel.getRangeAt(0).getBoundingClientRect();
+  var t = $("#seltool");
+  t.classList.add("show");
+  var top = r.bottom + window.scrollY + 8;
+  var left = r.left + window.scrollX + r.width / 2 - t.offsetWidth / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - t.offsetWidth - 8));
+  t.style.top = top + "px";
+  t.style.left = left + "px";
+}
+document.addEventListener("mouseup", function(){ setTimeout(onSelect, 10); });
+document.addEventListener("keyup", function(e){ if(e.shiftKey || e.key === "Escape") setTimeout(onSelect, 10); });
+document.addEventListener("scroll", hideSel, true);
 
 /* ---------- settings persistence ---------- */
 function collect(){
@@ -1444,7 +1852,8 @@ function run(){
   if(!text.trim()) return;
   S.original = text;
   S.chunks = chunkText(text);
-  S.done = {}; S.idx = 0; S.tr = {}; S.simp = {};
+  S.done = {}; S.idx = 0; S.tr = {}; S.simp = {}; S.extra = {};
+  if(S.original !== S.proofOf){ S.typos = {}; }
   S.cal.t = Date.now();
   var ok = verify(S.chunks, S.original);
   var seal = $("#seal");
@@ -1469,7 +1878,7 @@ $("#input").addEventListener("keydown", function(e){
 $("#btnNew").addEventListener("click", function(){
   stopSpeech(); setFocus(false);
   $("#input").value = ""; $("#count").textContent = "0 حرف";
-  S.chunks = []; S.done = {}; S.idx = 0; S.fromImage = false; S.images = []; S.tr = {}; S.simp = {};
+  S.chunks = []; S.done = {}; S.idx = 0; S.fromImage = false; S.images = []; S.tr = {}; S.simp = {}; S.extra = {}; S.typos = {}; S.proofOf = "";
   paintShots(); ocrStatus("Ctrl + Enter", false);
   $("#cards").innerHTML = ""; $("#strip").classList.add("hidden");
   $("#input").focus();
@@ -1506,6 +1915,8 @@ $("#btnReadAll").addEventListener("click", function(){
   speakCard(document.body.classList.contains("focus") ? S.idx : 0, true);
 });
 $("#cards").addEventListener("click", function(e){
+  var sp = e.target.closest(".w.sp");
+  if(sp){ showFix(sp.dataset.orig, sp.dataset.sug); return; }
   var btn = e.target.closest("button");
   if(!btn) return;
   btn.blur();
@@ -1526,6 +1937,14 @@ $("#cards").addEventListener("click", function(e){
   } else if(btn.classList.contains("zoom")){
     if(document.body.classList.contains("focus") && S.idx === i){ setFocus(false); goTo(i); }
     else { S.idx = i; setFocus(true); }
+  } else if(btn.classList.contains("copy")){
+    var txt = S.chunks[i];
+    if(navigator.clipboard) navigator.clipboard.writeText(txt);
+    btn.textContent = "تم \u2713";
+    setTimeout(function(){ btn.textContent = "نسخ"; }, 1500);
+  } else if(btn.classList.contains("px")){
+    var pk = Number(btn.dataset.k);
+    if(S.extra[i]){ S.extra[i].splice(pk, 1); render(); }
   } else if(btn.classList.contains("trbtn")){
     askModel("tr", i, btn, btn.dataset.l);
   } else if(btn.classList.contains("spbtn")){
