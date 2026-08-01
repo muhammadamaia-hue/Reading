@@ -93,6 +93,12 @@ details[open].settings summary{color:var(--seal);border-color:var(--seal)}
 .seg.at{background:var(--ink);transform:scaleY(1.5)}
 .seg:hover{transform:scaleY(1.5)}
 .ratio{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.costwrap{position:relative;display:flex;align-items:center;justify-content:center;gap:9px;margin:20px 0 0;flex-wrap:wrap}
+#costBar{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 15px}
+#costPop{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:40;min-width:250px;max-height:290px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:8px 4px 4px}
+#costPop .cm{display:flex;justify-content:space-between;gap:18px;padding:7px 13px;font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums}
+#costPop .cm:nth-child(odd){background:color-mix(in srgb, var(--line) 34%, transparent)}
+#costPop .cr{font-size:11.5px;color:var(--muted);padding:9px 13px 6px;line-height:1.7;border-top:1px solid var(--line);margin-top:5px}
 
 #cards{margin-top:18px;display:flex;flex-direction:column;gap:14px}
 .rcard{--accent:var(--seal);background:color-mix(in srgb, var(--accent) 7%, var(--panel));border:1px solid color-mix(in srgb, var(--accent) 26%, var(--line));border-inline-start:5px solid var(--accent);border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 18px 11px;scroll-margin-top:92px}
@@ -419,6 +425,12 @@ body.ruler-on .ruler{display:block}
   </section>
 
   <section id="cards"></section>
+
+  <div class="costwrap">
+    <span id="costBar">الاستهلاك هذا الشهر &#128176; 0.00 kr</span>
+    <button class="chip" id="btnCostHist" title="الأشهر السابقة">الأشهر السابقة</button>
+    <div id="costPop" class="hidden"></div>
+  </div>
 
   <p class="hint" id="hint">التقسيم والقاموس يعملان داخل متصفحك — لا يخرج نصك من الجهاز إلا لو ضغطت «حسّن بالنموذج».</p>
 </main>
@@ -1616,6 +1628,7 @@ async function ocrApi(){
             { type:"text", text: OCR_PROMPT } ]}] })
       });
       var data = await res.json();
+      costTrack(data, $("#model").value);
       if(data.error){ ocrStatus("تعذّر الاستخراج: " + data.error.message, true); btn.disabled = false; return; }
       var txt = (data.content || []).filter(function(c){ return c.type === "text"; })
                                     .map(function(c){ return c.text; }).join("\n");
@@ -1714,6 +1727,7 @@ async function wordCardCall(i, btn, text, target){
         messages:[{ role:"user", content: text }] })
     });
     var dataW = await resW.json();
+    costTrack(dataW, $("#trModel").value);
     btn.disabled = false; btn.textContent = oldW;
     if(dataW.error){ cardNote(i, "\u062a\u0639\u0630\u0651\u0631: " + dataW.error.message, true); return; }
     var rawW = (dataW.content || []).filter(function(c){ return c.type === "text"; })
@@ -1786,6 +1800,7 @@ async function askModel(kind, i, btn, lg, custom){
         messages:[{ role:"user", content: text }] })
     });
     var data = await res.json();
+    costTrack(data, $("#trModel").value);
     btn.disabled = false; btn.textContent = old;
     if(data.error){ cardNote(i, "تعذّر: " + data.error.message, true); return; }
     var raw = (data.content || []).filter(function(c){ return c.type === "text"; })
@@ -2015,6 +2030,7 @@ async function proofread(force){
           messages:[{ role:"user", content: toCheck[i] }] })
       });
       var data = await res.json();
+      costTrack(data, model);
       if(data.error){
         btn.disabled = false; btn.textContent = old;
         ocrStatus("تعذّر التدقيق: " + data.error.message, true);
@@ -2490,6 +2506,125 @@ $("#fileImp").addEventListener("change", function(){
   r.readAsText(f);
   this.value = "";
 });
+/* ---------- عداد الاستهلاك الشهري ---------- */
+/* COST-PURE-BEGIN */
+function costPrice(m, nowMs){
+  m = String(m || "").toLowerCase();
+  if(m.indexOf("haiku") >= 0) return [1, 5];
+  if(m.indexOf("sonnet") >= 0) return (nowMs || Date.now()) >= Date.UTC(2026, 8, 1) ? [3, 15] : [2, 10];
+  if(m.indexOf("opus") >= 0) return [5, 25];
+  if(m.indexOf("fable") >= 0) return [10, 50];
+  return [3, 15];
+}
+function costOfUsage(u, m, nowMs){
+  if(!u) return 0;
+  var p = costPrice(m, nowMs);
+  return ((u.input_tokens || 0) * p[0] +
+          (u.cache_creation_input_tokens || 0) * p[0] * 1.25 +
+          (u.cache_read_input_tokens || 0) * p[0] * 0.1 +
+          (u.output_tokens || 0) * p[1]) / 1e6;
+}
+function costMonthKey(d){
+  d = d || new Date();
+  var mo = d.getMonth() + 1;
+  return d.getFullYear() + "-" + (mo < 10 ? "0" : "") + mo;
+}
+function costFmt(kr){
+  if(!(kr > 0)) return "0.00";
+  if(kr < 0.01) return kr.toFixed(3);
+  return kr.toFixed(2);
+}
+function costMonthName(key){
+  var p = key.split("-");
+  try{ return new Date(+p[0], +p[1] - 1, 1).toLocaleDateString("ar", {month: "long", year: "numeric"}); }
+  catch(e){ return key; }
+}
+/* COST-PURE-END */
+function costState(){
+  try{ var s = JSON.parse(LS.get("joyread.cost") || "null"); if(s && s.months) return s; }catch(e){}
+  return {months: {}};
+}
+function costRate(){
+  try{ var r = JSON.parse(LS.get("joyread.costRate") || "null"); if(r && r.v > 0) return r; }catch(e){}
+  return {v: 9.6, t: 0, src: "fallback"};
+}
+function costTrack(data, model){
+  try{
+    if(!data || !data.usage) return;
+    var usd = costOfUsage(data.usage, model);
+    if(!(usd > 0)) return;
+    var st = costState(), mk = costMonthKey();
+    st.months[mk] = (st.months[mk] || 0) + usd;
+    LS.set("joyread.cost", JSON.stringify(st));
+    costPaint();
+  }catch(e){}
+}
+function costPaint(){
+  var el = $("#costBar");
+  if(!el) return;
+  var st = costState(), r = costRate();
+  var kr = (st.months[costMonthKey()] || 0) * r.v;
+  el.textContent = "الاستهلاك هذا الشهر \uD83D\uDCB0 " + costFmt(kr) + " kr";
+  el.title = r.t
+    ? "1 دولار = " + r.v.toFixed(2) + " kr — سعر حي جُلب " + new Date(r.t).toLocaleString("ar")
+    : "1 دولار = " + r.v.toFixed(2) + " kr — سعر احتياطي ثابت (تعذّر جلب السعر الحي)";
+}
+function costFetchRate(){
+  function save(v, src){
+    LS.set("joyread.costRate", JSON.stringify({v: v, t: Date.now(), src: src}));
+    costPaint(); costPop(false);
+  }
+  fetch("https://open.er-api.com/v6/latest/USD")
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(j && j.rates && j.rates.SEK > 0) save(j.rates.SEK, "er-api");
+      else throw 0;
+    })
+    .catch(function(){
+      fetch("https://api.frankfurter.app/latest?from=USD&to=SEK")
+        .then(function(r){ return r.json(); })
+        .then(function(j){ if(j && j.rates && j.rates.SEK > 0) save(j.rates.SEK, "frankfurter"); })
+        .catch(function(){ costPaint(); });
+    });
+}
+function costPop(toggle){
+  var pop = $("#costPop");
+  if(!pop) return;
+  if(toggle) pop.classList.toggle("hidden");
+  if(pop.classList.contains("hidden")) return;
+  var st = costState(), r = costRate();
+  var keys = Object.keys(st.months).sort().reverse();
+  if(keys.indexOf(costMonthKey()) < 0) keys.unshift(costMonthKey());
+  pop.innerHTML = "";
+  keys.slice(0, 24).forEach(function(k){
+    var row = document.createElement("div");
+    row.className = "cm";
+    var a = document.createElement("span");
+    a.textContent = costMonthName(k);
+    var b = document.createElement("span");
+    b.textContent = costFmt((st.months[k] || 0) * r.v) + " kr";
+    row.appendChild(a); row.appendChild(b);
+    pop.appendChild(row);
+  });
+  var ft = document.createElement("div");
+  ft.className = "cr";
+  ft.textContent = r.t
+    ? "التحويل بسعر اليوم: 1 $ = " + r.v.toFixed(2) + " kr — يتحدّث عند فتح التطبيق"
+    : "سعر احتياطي ثابت: 1 $ = " + r.v.toFixed(2) + " kr — تعذّر جلب السعر الحي هذه الجلسة";
+  pop.appendChild(ft);
+}
+$("#btnCostHist").addEventListener("click", function(ev){
+  ev.stopPropagation();
+  this.blur();
+  costPop(true);
+});
+document.addEventListener("click", function(ev){
+  var pop = $("#costPop");
+  if(pop && !pop.classList.contains("hidden") && !pop.contains(ev.target)) pop.classList.add("hidden");
+});
+costFetchRate();
+costPaint();
+
 /* ---------- قاموسي الشخصي ---------- */
 /* DICT-PURE-BEGIN */
 function dictKeep(cp){
