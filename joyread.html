@@ -1007,7 +1007,7 @@ function srcFor(word, lang, field){
     if(lang === "ar") L.push(["المعاني", "https://www.almaany.com/ar/dict/ar-ar/" + w + "/"]);
     L.push(["صور", "https://www.google.com/search?tbm=isch&q=" + w + (lang === "sv" ? "+svenska" : "")]);
   } else if(field === "pron"){
-    if(lang === "sv") L.push(["Lexin", "https://lexin.nada.kth.se/lexin/#searchinfo=both,swe_swe," + w + ";"]);
+    if(lang === "sv") L.push(["Lexin", "https://lexin.nada.kth.se/lexin/#searchinfo=both,swe_ara," + w + ";"]);
     L.push(["YouGlish \u25B6", "https://youglish.com/pronounce/" + w + "/" + ygLang(lang)]);
   } else if(field === "use"){
     if(lang === "sv"){
@@ -1023,10 +1023,7 @@ function srcFor(word, lang, field){
   } else if(field === "ety"){
     if(lang === "sv") L.push(["SAOB", "https://svenska.se/tre/?sok=" + w]);
     if(lang === "en") L.push(["Etymonline", "https://www.etymonline.com/word/" + w]);
-    if(lang === "ar"){
-      L.push(["معجم الدوحة", "https://www.dohadictionary.org/dictionary/" + w]);
-      L.push(["المعاني", "https://www.almaany.com/ar/dict/ar-ar/" + w + "/"]);
-    }
+    if(lang === "ar") L.push(["معجم الدوحة", "https://www.dohadictionary.org/dictionary/" + w]);
   }
   return L;
 }
@@ -1088,12 +1085,12 @@ function wordCard(word, d, ctx, k){
 
   section("ما معناها؟", [["", d.meaning]], "meaning");
   section("كيف أنطقها؟", [["المقاطع", d.syllables], ["النطق", d.ipa, true]], "pron");
-  section("ما مقابلها وكيف تُستعمل؟", [
-    ["بالعربية", d.arabic],
-    ["مرادف", d.synonym],
-    ["مثال", d.example],
-    ["ترجمته", d.exampleAr]
-  ], "use");
+  var useRows = [];
+  if(lang !== "ar") useRows.push(["بالعربية", d.arabic]);
+  useRows.push(["مرادف", d.synonym]);
+  useRows.push(["مثال", d.example]);
+  if(lang !== "ar") useRows.push(["ترجمته", d.exampleAr]);
+  section("ما مقابلها وكيف تُستعمل؟", useRows, "use");
 
   var etyNode = null;
   if(d.etymology){
@@ -1570,10 +1567,12 @@ async function wordCardCall(i, btn, text, target){
     "- meaning: explain as if to a five-year-old, simple and vivid, one or two sentences.\n" +
     "- syllables: the word split with hyphens, e.g. car-bide.\n" +
     "- ipa: IPA transcription between slashes, for the word as pronounced in " + wl + ".\n" +
-    "- arabic: the Arabic translation.\n" +
+    (wlc === "ar" ? "- arabic: leave this an empty string, the word is already Arabic.\n"
+                  : "- arabic: the Arabic translation.\n") +
     "- synonym: one synonym in the word's own language.\n" +
     "- example: one short natural sentence using the word, in the word's own language.\n" +
-    "- exampleAr: the Arabic translation of that sentence.\n" +
+    (wlc === "ar" ? "- exampleAr: leave this an empty string, the sentence is already Arabic.\n"
+                  : "- exampleAr: the Arabic translation of that sentence.\n") +
     "- etymology: a short vivid origin story, two sentences at most. If you are not confident about the origin, return an empty string instead of inventing one.\n" +
     "Reply with JSON only, no fence and no commentary: " +
     "{\"meaning\":\"\",\"syllables\":\"\",\"ipa\":\"\",\"arabic\":\"\",\"synonym\":\"\",\"example\":\"\",\"exampleAr\":\"\",\"etymology\":\"\"}";
@@ -1711,13 +1710,19 @@ async function proofread(){
   var old = btn.textContent;
   btn.textContent = "جاري التدقيق…";
   var gl = glossFor(text);
-  var sys = "You are a spelling checker. Find words that are misspelled — typing errors of one or more characters, " +
-    "swapped letters, missing or doubled letters. Work in whatever language(s) the text uses.\n" +
-    "Rules:\n- Report ONLY clear misspellings, not style, grammar, punctuation or word choice.\n" +
-    "- Never report proper names, brand names, numbers, codes, or correctly spelled compound words.\n" +
+  var sys = "You proofread text for spelling. Go through the text word by word and find every word that is not spelled correctly " +
+    "in the language it is written in \u2014 typing errors, swapped letters, missing or doubled letters, wrong or missing endings, " +
+    "and words that are cut short.\n" +
+    "Medical, dental, anatomical, pharmaceutical and other technical terms COUNT and must be checked against their correct spelling. " +
+    "A term written in an incomplete or non-standard form is a misspelling, for example a Swedish medical term missing its ending " +
+    "(diabets \u2192 diabetes, hyperton \u2192 hypertoni, parodntit \u2192 parodontit).\n" +
+    "Rules:\n" +
+    "- Report ONLY spelling. Ignore grammar, word order, style, capitalisation, punctuation and word choice.\n" +
+    "- Report each distinct misspelled word once, written exactly as it appears in the text.\n" +
+    "- Do not report names of people, places or brands, numbers, tooth notation (24d, 26MOD), units, or the abbreviations listed below.\n" +
     (gl ? "- These abbreviations are correct as written, never report them:\n" + gl + "\n" : "") +
-    "- If everything is spelled correctly, return an empty list.\n" +
-    "Reply with JSON only, no fence and no commentary: {\"items\":[{\"w\":\"<word exactly as written>\",\"s\":\"<corrected spelling>\"}]}";
+    "- Do not invent errors. If every word is spelled correctly, return an empty list.\n" +
+    "Reply with JSON only, no fence and no commentary: {\"items\":[{\"w\":\"<word exactly as written>\",\"s\":\"<correct spelling>\"}]}";
   try{
     var res = await fetch("https://api.anthropic.com/v1/messages", {
       method:"POST",
@@ -1734,10 +1739,13 @@ async function proofread(){
     var items = [];
     var mm = raw.match(/\{[\s\S]*\}/);
     if(mm){
-      try{
-        var j = JSON.parse(mm[0]);
-        if(j && Array.isArray(j.items)) items = j.items;
-      }catch(e){}
+      var tries = [mm[0], repairJson(mm[0])];
+      for(var q=0;q<tries.length;q++){
+        try{
+          var j = JSON.parse(tries[q]);
+          if(j && Array.isArray(j.items)){ items = j.items; break; }
+        }catch(e){}
+      }
     }
     S.typos = {};
     items.forEach(function(it){
@@ -1745,7 +1753,10 @@ async function proofread(){
     });
     S.proofOf = text;
     var n = Object.keys(S.typos).length;
-    ocrStatus(n ? "وجد " + n + " كلمة مشبوهة — تظهر بخط أحمر متموّج، اضغطها للتصحيح" : "لم يجد أخطاء إملائية", true);
+    if(n) ocrStatus("وجد " + n + " كلمة مشبوهة — تظهر بخط أحمر متموّج، اضغطها للتصحيح", true);
+    else ocrStatus($("#trModel").value.indexOf("haiku") >= 0
+      ? "لم يجد أخطاء — للمصطلحات الطبية جرّب Sonnet من الإعدادات وأعد التدقيق"
+      : "لم يجد أخطاء إملائية", true);
     if(S.chunks.length) render();
     else if(n) run();
   }catch(err){
