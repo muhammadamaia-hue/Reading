@@ -198,7 +198,11 @@ body.ruler-on .ruler{display:block}
 #errbar button{float:inline-end;background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;border-radius:8px;font-size:12px;padding:3px 9px;cursor:pointer}
 .cardmsg{margin-top:8px;font-size:13.5px;line-height:1.7;padding:8px 11px;border-radius:10px;background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn)}
 .cardmsg.bad{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
-.w.sp{border-bottom:2px wavy var(--bad);cursor:pointer}
+.w.sp{cursor:pointer;background:var(--bad-soft);border-radius:5px;padding:0 3px;
+  text-decoration:underline;text-decoration-style:wavy;text-decoration-color:var(--bad);
+  text-decoration-thickness:2px;text-underline-offset:4px;
+  -webkit-text-decoration:underline wavy var(--bad);}
+.w.sp:hover{background:var(--bad);color:#fff}
 #fixbar{position:fixed;inset-inline:0;top:0;z-index:190;background:var(--warn);color:#fff;font-size:13.5px;padding:9px 14px;display:none;line-height:1.7}
 #fixbar button{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.6);color:#fff;border-radius:8px;font-size:12.5px;padding:4px 10px;cursor:pointer;margin-inline-start:8px}
 .hint{font-size:12.5px;color:var(--muted);text-align:center;margin:22px 0 0;font-weight:300;line-height:1.9}
@@ -809,7 +813,7 @@ function verify(chunks, original){
 }
 
 /* ---------- rendering ---------- */
-var HL_RE = /(\d+(?:[.,:\/-]\d+)*\s*(?:%|mm|cm|ml|mg|kg|g|kr|\u00E5r|st|min|tim|h)?|\([^)]{1,70}\)|\b[A-Z\u00C5\u00C4\u00D6]{2,6}\b)/g;
+var HL_RE = /(\d+(?:[.,:\/-]\d+)*(?:\s*(?:%|mm|cm|ml|mg|kg|kr|\u00E5r|st|min|tim))?(?![A-Za-z\u00C0-\u024F])|\([^)]{1,70}\)|\b[A-Z\u00C5\u00C4\u00D6]{2,6}\b)/g;
 function hlRanges(text){
   var r = [];
   if(!S.tog.hl) return r;
