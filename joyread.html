@@ -170,6 +170,26 @@ body.ruler-on .ruler{display:block}
 .tr{position:relative}
 .tr .px{position:absolute;inset-block-start:6px;inset-inline-start:8px;border:0;background:transparent;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;padding:2px 5px}
 .tr .px:hover{color:var(--bad)}
+.wc{margin-top:9px;border-radius:14px;padding:13px 15px 14px;background:color-mix(in srgb, var(--accent) 9%, var(--panel));border:1px solid color-mix(in srgb, var(--accent) 40%, var(--line));position:relative}
+.wc h4{margin:0 0 10px;font-size:clamp(20px,calc(var(--fs,26px) * .82),34px);font-weight:700;letter-spacing:-.2px;padding-inline-end:26px}
+.wc .sec{margin-top:12px;padding-top:11px;border-top:1px solid color-mix(in srgb, var(--accent) 24%, var(--line))}
+.wc .sec:first-of-type{margin-top:4px;padding-top:0;border-top:0}
+.wc .hd{display:inline-block;font-size:12.5px;font-weight:600;letter-spacing:.2px;color:#fff;background:var(--accent);padding:4px 12px;border-radius:999px;margin-bottom:9px}
+[data-theme="night"] .wc .hd{color:#0d1014}
+.wc .kv{display:grid;grid-template-columns:max-content 1fr;gap:5px 14px;align-items:baseline}
+.wc .k{font-size:clamp(12px,calc(var(--fs,26px) * .44),17px);color:var(--muted);font-weight:500;white-space:nowrap}
+.wc .v{font-size:clamp(14px,calc(var(--fs,26px) * .58),23px);line-height:1.8;unicode-bidi:isolate;overflow-wrap:break-word}
+.wc .kv .k:empty{display:none}
+.wc .kv .k:empty + .v{grid-column:1 / -1}
+.wc .ipa{font-family:ui-monospace,Consolas,monospace;letter-spacing:.5px}
+.wc .ety{background:var(--warn-soft);border:1px solid var(--warn);border-radius:11px;padding:9px 12px}
+.wc .ety .tag{display:block;font-size:11.5px;font-weight:600;color:var(--warn);margin-bottom:5px}
+.wc .etyb{margin:0;font-size:clamp(14px,calc(var(--fs,26px) * .55),22px);line-height:1.8;unicode-bidi:isolate}
+.wc .lnk{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.wc .lnk a{text-decoration:none;display:inline-block;border:1px solid color-mix(in srgb, var(--accent) 55%, var(--line));color:var(--ink);background:var(--panel);font-family:var(--ui);font-size:12.5px;font-weight:500;padding:7px 12px;border-radius:10px;line-height:1.2}
+.wc .lnk a:hover{border-color:var(--accent);background:color-mix(in srgb, var(--accent) 14%, var(--panel))}
+.wc .px{position:absolute;inset-block-start:8px;inset-inline-start:10px;border:0;background:transparent;color:var(--muted);font-size:17px;line-height:1;cursor:pointer;padding:2px 6px}
+.wc .px:hover{color:var(--bad)}
 .hlp{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:-2px}
 .field.off{opacity:.45;pointer-events:none}
 .dock-title{font-size:13px;font-weight:600;margin:0 0 6px}
@@ -525,6 +545,7 @@ var GLOSSARY = [
 (function(){
 "use strict";
 var $ = function(s){ return document.querySelector(s); };
+function safeScroll(el, o){ if(el && typeof el.scrollIntoView === "function"){ try{ el.scrollIntoView(o); }catch(e){} } }
 function showErr(msg){
   var b = document.getElementById("errbar");
   if(!b) return;
@@ -599,12 +620,19 @@ function esc(t){ return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/
 function arCount(t){ var m=t.match(AR); return m?m.length:0; }
 function latCount(t){ var m=t.match(LAT); return m?m.length:0; }
 function dirOf(t){ return arCount(t) >= latCount(t) ? "rtl" : "ltr"; }
+var SV_WORDS = /\b(och|att|som|inte|med|f\u00F6r|p\u00E5|den|det|av|till|inga|eller|en|ett|\u00e4r|var|han|hon|jag|vi|de|du|sig|men|om|kan|ska|skall|har|hade|blir|vid|efter|under|genom|mot|utan|samt|n\u00e4r|d\u00e5|d\u00e4r|h\u00e4r|mycket|bara|ocks\u00e5|hur|vilka|vilken|sin|sitt|sina|denna|detta|dessa|man|n\u00e5gon|n\u00e5got|alla|andra|fr\u00e5n|\u00f6ver|hos|mellan|kr|st)\b/gi;
+var SV_MORPH = /\w{4,}(?:ningen|ningar|erna|arna|ande|ende|else|heten|heter|aste|orna|ade|are|ast|het|isk|ing)\b/gi;
+function svScore(t){
+  var a = t.match(SV_WORDS), b = t.match(SV_MORPH);
+  return (a ? a.length : 0) + (b ? b.length : 0);
+}
 function langOf(t){
-  var pick = $("#voiceLang").value;
-  if(pick !== "auto") return pick;
+  var pick = $("#voiceLang") ? $("#voiceLang").value : "auto";
+  if(pick && pick !== "auto") return pick;
   if(dirOf(t) === "rtl") return "ar";
   if(/[\u00E5\u00E4\u00F6\u00C5\u00C4\u00D6]/.test(t)) return "sv";
-  if(/\b(och|att|som|inte|med|f\u00F6r|p\u00E5|den|det|av|till|inga|eller)\b/i.test(t)) return "sv";
+  var n = words(t), sv = svScore(t);
+  if(sv >= 2 || (n <= 6 && sv >= 1)) return "sv";
   return "en";
 }
 function words(t){ var m = t.match(/\S+/g); return m ? m.length : 0; }
@@ -969,89 +997,118 @@ function langOfWord(w, ctx){
   }
   return "en";
 }
-function srcLinks(word, lang){
-  var w = encodeURIComponent(word);
-  var out = [];
-  if(lang === "sv"){
-    out.push(["نطق في Lexin", "https://lexin.nada.kth.se/lexin/#searchinfo=both,swe_swe," + w + ";"]);
-    out.push(["الأصل في SAOB", "https://svenska.se/tre/?sok=" + w]);
-  } else if(lang === "ar"){
-    out.push(["الأصل في معجم الدوحة", "https://www.dohadictionary.org/dictionary/" + w]);
-  } else {
-    out.push(["الأصل في Etymonline", "https://www.etymonline.com/word/" + w]);
+function neLink(dict, w){ return "https://www.ne.se/ordb%C3%B6cker/search?d=" + dict + "&s=" + w; }
+function ygLang(lang){ return lang === "sv" ? "swedish" : lang === "ar" ? "arabic" : "english"; }
+function srcFor(word, lang, field){
+  var w = encodeURIComponent(word), L = [];
+  if(field === "meaning"){
+    if(lang === "sv") L.push(["NE ordbok", neLink("ne_sv_ordbok", w)]);
+    if(lang === "en") L.push(["Oxford", "https://www.oxfordlearnersdictionaries.com/definition/english/" + w]);
+    if(lang === "ar") L.push(["المعاني", "https://www.almaany.com/ar/dict/ar-ar/" + w + "/"]);
+    L.push(["صور", "https://www.google.com/search?tbm=isch&q=" + w + (lang === "sv" ? "+svenska" : "")]);
+  } else if(field === "pron"){
+    if(lang === "sv") L.push(["Lexin", "https://lexin.nada.kth.se/lexin/#searchinfo=both,swe_swe," + w + ";"]);
+    L.push(["YouGlish \u25B6", "https://youglish.com/pronounce/" + w + "/" + ygLang(lang)]);
+  } else if(field === "use"){
+    if(lang === "sv"){
+      L.push(["NE مرادفات", neLink("ne_sv_syno", w)]);
+      L.push(["NE سويدي\u2013إنجليزي", neLink("ne_en_pro", w)]);
+    }
+    if(lang === "en"){
+      L.push(["المعاني إنجليزي\u2013عربي", "https://www.almaany.com/ar/dict/ar-en/" + w + "/"]);
+      L.push(["NE إنجليزي\u2013سويدي", neLink("ne_en_pro", w)]);
+    }
+    if(lang === "ar") L.push(["المعاني عربي\u2013إنجليزي", "https://www.almaany.com/ar/dict/ar-en/" + w + "/"]);
+    if(S.tog.gloss && lang !== "ar") L.push(["Svensk MeSH", "https://mesh.kib.ki.se/Mesh/search/?searchterm=" + w]);
+  } else if(field === "ety"){
+    if(lang === "sv") L.push(["SAOB", "https://svenska.se/tre/?sok=" + w]);
+    if(lang === "en") L.push(["Etymonline", "https://www.etymonline.com/word/" + w]);
+    if(lang === "ar"){
+      L.push(["معجم الدوحة", "https://www.dohadictionary.org/dictionary/" + w]);
+      L.push(["المعاني", "https://www.almaany.com/ar/dict/ar-ar/" + w + "/"]);
+    }
   }
-  return out;
+  return L;
 }
 function wordCard(word, d, ctx, k){
   var lang = langOfWord(word, ctx);
   var el = document.createElement("div");
   el.className = "wc";
+
   var x = document.createElement("button");
   x.className = "px"; x.type = "button"; x.dataset.k = k;
   x.textContent = "\u00D7"; x.title = "أغلق";
   el.appendChild(x);
+
   var h = document.createElement("h4");
   h.setAttribute("dir", dirOf(word));
   h.textContent = word;
   el.appendChild(h);
-  function grp(q, rows){
-    var g = document.createElement("div");
-    g.className = "grp";
-    var qq = document.createElement("p");
-    qq.className = "qq"; qq.textContent = q;
-    g.appendChild(qq);
-    rows.forEach(function(r){
-      if(!r[1]) return;
-      var pp = document.createElement("p");
-      pp.className = "row";
-      if(r[0]){
-        var bb = document.createElement("b");
-        bb.textContent = r[0];
-        pp.appendChild(bb);
-      }
-      var sp = document.createElement("span");
-      if(r[2]) sp.className = "ipa";
-      sp.textContent = r[1];
-      pp.appendChild(sp);
-      g.appendChild(pp);
+
+  function linkRow(field){
+    var list = srcFor(word, lang, field);
+    if(!list.length) return null;
+    var box = document.createElement("div");
+    box.className = "lnk";
+    list.forEach(function(L){
+      var a = document.createElement("a");
+      a.href = L[1]; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.textContent = L[0];
+      box.appendChild(a);
     });
-    if(g.children.length > 1) el.appendChild(g);
+    return box;
   }
-  grp("ما معناها؟", [["", d.meaning]]);
-  grp("كيف أنطقها؟", [["المقاطع", d.syllables], ["النطق", lang === "sv" ? "" : d.ipa, true]]);
-  grp("ما مقابلها وكيف تُستعمل؟", [
+  function section(title, rows, field, extraNode){
+    var kept = rows.filter(function(r){ return r[1] && String(r[1]).trim(); });
+    var links = linkRow(field);
+    if(!kept.length && !extraNode && !links) return;
+    var sec = document.createElement("div");
+    sec.className = "sec";
+    var hd = document.createElement("div");
+    hd.className = "hd"; hd.textContent = title;
+    sec.appendChild(hd);
+    if(kept.length){
+      var kv = document.createElement("div");
+      kv.className = "kv";
+      kept.forEach(function(r){
+        var kEl = document.createElement("div");
+        kEl.className = "k"; kEl.textContent = r[0] || "";
+        var vEl = document.createElement("div");
+        vEl.className = "v" + (r[2] ? " ipa" : "");
+        vEl.setAttribute("dir", r[2] ? "ltr" : dirOf(String(r[1])));
+        vEl.textContent = r[1];
+        kv.appendChild(kEl); kv.appendChild(vEl);
+      });
+      sec.appendChild(kv);
+    }
+    if(extraNode) sec.appendChild(extraNode);
+    if(links) sec.appendChild(links);
+    el.appendChild(sec);
+  }
+
+  section("ما معناها؟", [["", d.meaning]], "meaning");
+  section("كيف أنطقها؟", [["المقاطع", d.syllables], ["النطق", d.ipa, true]], "pron");
+  section("ما مقابلها وكيف تُستعمل؟", [
     ["بالعربية", d.arabic],
     ["مرادف", d.synonym],
     ["مثال", d.example],
     ["ترجمته", d.exampleAr]
-  ]);
+  ], "use");
+
+  var etyNode = null;
   if(d.etymology){
-    var g4 = document.createElement("div");
-    g4.className = "grp";
-    var q4 = document.createElement("p");
-    q4.className = "qq"; q4.textContent = "من أين جاءت؟";
-    g4.appendChild(q4);
-    var ety = document.createElement("div");
-    ety.className = "ety";
+    etyNode = document.createElement("div");
+    etyNode.className = "ety";
     var tag = document.createElement("span");
     tag.className = "tag";
     tag.textContent = "\u26A0 رواية غير موثّقة \u2014 راجع المصدر";
     var bd = document.createElement("p");
-    bd.className = "row"; bd.style.margin = "0";
+    bd.className = "etyb";
+    bd.setAttribute("dir", dirOf(d.etymology));
     bd.textContent = d.etymology;
-    ety.appendChild(tag); ety.appendChild(bd);
-    g4.appendChild(ety);
-    el.appendChild(g4);
+    etyNode.appendChild(tag); etyNode.appendChild(bd);
   }
-  var srcd = document.createElement("div");
-  srcd.className = "src";
-  srcLinks(word, lang).forEach(function(L){
-    var a = document.createElement("a");
-    a.href = L[1]; a.target = "_blank"; a.rel = "noopener noreferrer";
-    a.textContent = L[0];
-    srcd.appendChild(a);
-  });
-  el.appendChild(srcd);
+  section("من أين جاءت؟", [], "ety", etyNode);
   return el;
 }
 function panelFor(src, txt, label, simp, k){
@@ -1100,7 +1157,7 @@ function goTo(i){
   else {
     var c = document.querySelector(".rcard[data-i='" + S.idx + "']");
     if(c){
-      c.scrollIntoView({block:"center", behavior:"smooth"});
+      safeScroll(c, {block:"center", behavior:"smooth"});
       if(S.tog.ruler){
         var r = c.getBoundingClientRect();
         setTimeout(function(){
@@ -1248,7 +1305,7 @@ function showFocus(){
   });
   updatePager();
   var a = document.querySelector(".rcard.active");
-  if(a) a.scrollIntoView({block:"center"});
+  if(a) safeScroll(a, {block:"center"});
 }
 function setFocus(on){
   document.body.classList.toggle("focus", on);
@@ -1512,7 +1569,7 @@ async function wordCardCall(i, btn, text, target){
     "Fields:\n" +
     "- meaning: explain as if to a five-year-old, simple and vivid, one or two sentences.\n" +
     "- syllables: the word split with hyphens, e.g. car-bide.\n" +
-    "- ipa: IPA transcription between slashes." + (wlc === "sv" ? " The word is Swedish: return an empty string here, never guess Swedish pronunciation." : "") + "\n" +
+    "- ipa: IPA transcription between slashes, for the word as pronounced in " + wl + ".\n" +
     "- arabic: the Arabic translation.\n" +
     "- synonym: one synonym in the word's own language.\n" +
     "- example: one short natural sentence using the word, in the word's own language.\n" +
@@ -1555,7 +1612,7 @@ async function askModel(kind, i, btn, lg, custom){
   if(!key){
     cardNote(i, "الترجمة و«بسّط» تحتاجان مفتاح Anthropic API — ضعه في الإعدادات ثم أعد المحاولة.", true);
     $("#settings").open = true;
-    $("#settings").scrollIntoView({block:"center"});
+    safeScroll($("#settings"), {block:"center"});
     $("#key").focus();
     return;
   }
@@ -1774,7 +1831,9 @@ function onSelect(){
   var card = body.closest(".rcard");
   SEL.card = Number(card.dataset.i);
   SEL.text = txt;
-  var r = sel.getRangeAt(0).getBoundingClientRect();
+  var rg = sel.getRangeAt(0);
+  var r = (rg && typeof rg.getBoundingClientRect === "function") ? rg.getBoundingClientRect() : null;
+  if(!r){ hideSel(); return; }
   var t = $("#seltool");
   t.classList.add("show");
   var top = r.bottom + window.scrollY + 8;
@@ -1863,7 +1922,7 @@ function run(){
   $("#strip").classList.remove("hidden");
   render();
   var first = document.querySelector(".rcard");
-  if(first) first.scrollIntoView({behavior:"smooth", block:"start"});
+  if(first) safeScroll(first, {behavior:"smooth", block:"start"});
 }
 
 /* ---------- events ---------- */
