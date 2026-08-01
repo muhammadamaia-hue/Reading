@@ -1977,6 +1977,8 @@ async function proofread(force){
     "An error may be one letter off or several letters off \u2014 report both.\n" +
     "Rules:\n" +
     "- Report ONLY spelling. Ignore grammar, word order, style, capitalisation, punctuation and word choice.\n" +
+    "- A word that is correctly spelled exactly as it stands is NEVER an error, even if a longer word or another form of it (plural, definite) would also fit the sentence. Choosing between valid forms (tand / tanden / t\u00e4nder) is grammar \u2014 never report it. In dental text, 'tand' followed by a tooth number (tand 46, tand 46d) is correct singular usage.\n" +
+    "- A word counts as cut short ONLY when the form as written is not a real word in its language (parodntit) \u2014 never when the written form is itself a real word.\n" +
     "- Copy the misspelled word into \"w\" character for character as it stands in the text, with no added or removed letters, " +
     "no added diacritics and no change of case. Put the corrected form in \"s\", in the same language.\n" +
     "- Report each distinct misspelled word once. If the same word is misspelled in two different ways, report both variants.\n" +
@@ -1992,7 +1994,7 @@ async function proofread(force){
         method:"POST",
         headers:{ "Content-Type":"application/json", "x-api-key":key,
                   "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-        body: JSON.stringify({ model: model, max_tokens: 2000, temperature: 0, system: sys,
+        body: JSON.stringify({ model: model, max_tokens: 6000, system: sys,
           messages:[{ role:"user", content: toCheck[i] }] })
       });
       var data = await res.json();
