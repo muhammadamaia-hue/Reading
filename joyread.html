@@ -98,6 +98,20 @@ details[open].settings summary{color:var(--seal);border-color:var(--seal)}
 #costPop{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:40;min-width:250px;max-height:290px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:8px 4px 4px}
 #costPop .cm{display:flex;justify-content:space-between;gap:18px;padding:7px 13px;font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums}
 #costPop .cm:nth-child(odd){background:color-mix(in srgb, var(--line) 34%, transparent)}
+.xfpick{display:flex;gap:16px;flex-wrap:wrap}
+.xfpick label{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:13.5px;color:var(--ink)}
+#abPanel{margin-top:10px}
+#abSearch{width:100%;font-family:var(--ui);font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
+#abCount{margin:7px 2px 4px}
+#abRows{max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:11px;background:var(--panel)}
+.abrow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid color-mix(in srgb, var(--line) 55%, transparent);direction:ltr;text-align:left}
+.abrow:last-child{border-bottom:0}
+.abrow .abk{font-family:var(--mono,var(--ui));font-weight:700;font-size:14.5px;color:var(--ink);min-width:74px;flex:none;overflow-wrap:anywhere}
+.abrow .abf{font-size:14.5px;color:var(--ink);flex:1;overflow-wrap:anywhere}
+.abrow .abtools{margin-left:auto;display:flex;gap:5px;flex:none}
+.abrow button{border:1px solid var(--line);background:var(--panel);color:var(--muted);font-family:var(--ui);font-size:11.5px;padding:4px 9px;border-radius:8px;cursor:pointer;line-height:1}
+.abrow button:hover{color:var(--accent);border-color:var(--accent)}
+.abrow button.abdel:hover{color:#b3261e;border-color:#b3261e}
 #costPop .cr{font-size:11.5px;color:var(--muted);padding:9px 13px 6px;line-height:1.7;border-top:1px solid var(--line);margin-top:5px}
 
 #cards{margin-top:18px;display:flex;flex-direction:column;gap:14px}
@@ -252,7 +266,7 @@ body.ruler-on .ruler{display:block}
       <div class="sub">نفس النص حرفياً — ترتيب أوضح</div>
     </div>
     <div class="spacer"></div>
-    <button class="ghost" id="btnClin" aria-pressed="false" title="قائمة Folktandvården وأسطح الأسنان وأرقامها">الوضع السريري</button>
+    <button class="ghost" id="btnClin" aria-pressed="false" title="يفكّ اختصارات الأسنان وأسطحها وأرقامها داخل النص">فكّ الاختصارات</button>
     <button class="ghost" id="btnRuler" aria-pressed="false">مسطرة</button>
     <button class="ghost" id="btnFocus" aria-pressed="false">وضع التركيز</button>
     <button class="ghost" id="btnNew">نص جديد</button>
@@ -371,13 +385,19 @@ body.ruler-on .ruler{display:block}
         <select id="trModel"><option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — أرخص</option><option value="claude-sonnet-5">Claude Sonnet 5 — أدق</option></select>
       </div>
 
-      <div class="sep">الوضع السريري — يُشغَّل من الشريط العلوي</div>
+      <div class="sep">الاختصارات — تعمل حين يكون زر «فكّ الاختصارات» مضاءً في الشريط العلوي</div>
       <div class="toggles">
         <button class="ghost" id="tGlossAuto" aria-pressed="true">إظهار المعاني تلقائياً تحت البطاقة</button>
         <button class="ghost" id="tSingle" aria-pressed="false">شمل الاختصارات ذات الحرف الواحد</button>
-        <button class="ghost" id="btnAddAb">أضف اختصاراً للقاموس</button>
+        <button class="ghost" id="btnAddAb">أضف اختصاراً</button>
+        <button class="ghost" id="btnAbList">جدول الاختصارات</button>
       </div>
-      <p class="hlp full">حين يكون الوضع السريري مطفأً لا يظهر أي خط ولا توسعة — قراءة عامة نظيفة. واقتراح تصحيح الاختصارات المكتوبة خطأ يعمل بصمت داخله وحده.</p>
+      <div class="field full hidden" id="abPanel">
+        <input type="search" id="abSearch" placeholder="ابحث في الاختصارات أو معانيها…" autocomplete="off">
+        <div id="abCount" class="hlp"></div>
+        <div id="abRows"></div>
+      </div>
+      <p class="hlp full">حين يكون «فكّ الاختصارات» مطفأً لا يظهر أي خط ولا توسعة — قراءة عامة نظيفة. واقتراح تصحيح الاختصارات المكتوبة خطأ يعمل بصمت داخله وحده. وجدول الاختصارات قائمة واحدة: عدّل أو احذف أيّ سطر، والتغيير يسري فوراً.</p>
 
       <div class="sep">استخراج النص من الصور</div>
       <div class="field"><label for="ocrLang">لغة الاستخراج المحلي</label>
@@ -402,13 +422,26 @@ body.ruler-on .ruler{display:block}
         <input type="file" id="fileDict" accept=".txt,text/plain" class="hidden">
       </div>
 
-      <div class="sep">الجهاز والحفظ</div>
+      <div class="sep">النقل بين الأجهزة</div>
+      <div class="field full">
+        <div class="xfpick">
+          <label><input type="checkbox" id="xfSet" checked> الإعدادات</label>
+          <label><input type="checkbox" id="xfAb" checked> الاختصارات</label>
+          <label><input type="checkbox" id="xfCost" checked> عدّاد الاستهلاك</label>
+        </div>
+        <div class="toggles" style="margin-top:8px">
+          <button class="ghost" id="btnExport">تصدير ملف</button>
+          <button class="ghost" id="btnImport">استيراد ملف</button>
+          <button class="ghost" id="btnLink">انسخ رابط إعداداتي</button>
+        </div>
+        <p class="hlp">اختر ما تريد نقله ثم «تصدير ملف» — يُنزَّل ملف واحد تنقله إلى الجهاز الآخر وتضغط «استيراد ملف». المستورَد <b>يحلّ محلّ</b> ما عندك، ويُنزَّل نسخة احتياطية تلقائياً قبل ذلك. و«انسخ رابط إعداداتي» ينقل الإعدادات والاختصارات بلا ملف — افتح الرابط في الجهاز الآخر فيُطبَّق ويُحفَظ.<br>
+        مفتاح الـ API لا يخرج في أي منهما. وقاموسي الشخصي أكبر من أن يُنقل هكذا — استورده في كل جهاز مرة.</p>
+      </div>
+
+      <div class="sep">الجهاز</div>
       <div class="toggles">
         <button class="ghost" id="btnCompat">افحص هذا المتصفح</button>
-        <button class="ghost" id="btnLink">انسخ رابط إعداداتي</button>
-        <button class="ghost" id="btnExport">تصدير الإعدادات والقاموس</button>
-        <button class="ghost" id="btnImport">استيراد</button>
-        <button class="ghost" id="btnWipe">امسح كل المحفوظات</button>
+        <button class="ghost" id="btnWipe">إعادة إقلاع — امسح كل المحفوظات</button>
         <button class="ghost" id="btnPrint">طباعة</button>
         <input type="file" id="fileImp" accept="application/json" class="hidden">
       </div>
@@ -671,7 +704,7 @@ function useFont(name){
 var S = { original:"", chunks:[], done:{}, idx:0, fromImage:false, images:[], personal:[], ideas:[],
           speakId:0, playing:-1, paused:false, cardHasAb:false, typos:{}, typosFold:{}, typoList:[], proofOf:"", fix:null, boundarySeen:false, voiceName:"", tr:{}, simp:{}, extra:{}, cal:{words:0,secs:0,t:0},
           tog:{bold:true,hl:true,word:true,punct:true,fold:true,bio:false,color:true,
-               gloss:false,glossAuto:true,single:false,fuzzy:true,surf:true,ruler:false}, toothNear:false };
+               gloss:false,glossAuto:true,single:false,fuzzy:true,surf:true,ruler:false}, toothNear:false, abbr:[] };
 
 var LS = {
   ok:function(){ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } },
@@ -785,7 +818,7 @@ var IDX = {}, MULTI = [], FUZZ = [];
 function latLen(s){ var m = s.match(/[A-Za-z\u00C0-\u024F]/g); return m ? m.length : 0; }
 function buildIndex(){
   IDX = {}; MULTI = []; FUZZ = [];
-  GLOSSARY.concat(S.personal).forEach(function(e){
+  S.abbr.forEach(function(e){
     (e.a || []).forEach(function(ab){
       var k = ab.toLowerCase();
       var rec = {f:e.f, g:e.g, ab:ab};
@@ -2166,7 +2199,7 @@ function buildSelTool(){
     }
     if(act === "ab"){
       var f = window.prompt("معنى \u00AB" + txt + "\u00BB:", "");
-      if(f){ S.personal.push({g:"شخصي", a:[txt.trim()], f:f.trim()}); saveGloss(); render(); }
+      if(f){ S.abbr.push({g:"شخصي", a:[txt.trim()], f:f.trim()}); saveGloss(); render(); }
       hideSel(); return;
     }
     hideSel();
@@ -2219,7 +2252,7 @@ function applySettings(o){
   document.body.classList.toggle("ruler-on", S.tog.ruler);
   applyStyle();
 }
-function saveGloss(){ LS.set("joyread.gloss", JSON.stringify(S.personal)); buildIndex(); }
+function saveGloss(){ LS.set("joyread.abbr", JSON.stringify(S.abbr)); buildIndex(); if(typeof abPaint === "function") abPaint(); }
 
 /* ---------- compatibility ---------- */
 function compat(){
@@ -2460,7 +2493,7 @@ $("#btnAddAb").addEventListener("click", function(){
   if(!ab) return;
   var f = window.prompt("معناه الكامل:", "");
   if(!f) return;
-  S.personal.push({g:"شخصي", a:[ab.trim()], f:f.trim()});
+  S.abbr.push({g:"شخصي", a:[ab.trim()], f:f.trim()});
   saveGloss();
   if(S.chunks.length) render();
 });
@@ -2474,7 +2507,7 @@ function b64dec(str){
 }
 $("#btnLink").addEventListener("click", function(){
   this.blur();
-  var payload = b64enc(JSON.stringify({settings:collect(), gloss:S.personal}));
+  var payload = b64enc(JSON.stringify({settings:collect(), abbr:S.abbr}));
   var url = location.origin + location.pathname + "#s=" + payload;
   var self = this;
   function done(ok){
@@ -2486,30 +2519,116 @@ $("#btnLink").addEventListener("click", function(){
     navigator.clipboard.writeText(url).then(function(){ done(true); }, function(){ done(false); });
   } else done(false);
 });
-$("#btnExport").addEventListener("click", function(){
-  var blob = new Blob([JSON.stringify({settings:collect(), gloss:S.personal, ideas:S.ideas}, null, 2)], {type:"application/json"});
-  var a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = "joyread-settings.json"; a.click();
-  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+/* ---------- جدول الاختصارات ---------- */
+function abKey(e){ return (e.a || []).join(" \u00B7 "); }
+function abPaint(){
+  var box = $("#abRows");
+  if(!box) return;
+  var q = ($("#abSearch").value || "").trim().toLowerCase();
+  box.innerHTML = "";
+  var shown = 0;
+  S.abbr.forEach(function(e, i){
+    var k = abKey(e), f = e.f || "";
+    if(q && (k + " " + f).toLowerCase().indexOf(q) < 0) return;
+    shown++;
+    var row = document.createElement("div");
+    row.className = "abrow";
+    var ke = document.createElement("span"); ke.className = "abk"; ke.textContent = k;
+    var fe = document.createElement("span"); fe.className = "abf"; fe.textContent = f;
+    var tools = document.createElement("span"); tools.className = "abtools";
+    var ed = document.createElement("button"); ed.type = "button"; ed.textContent = "تعديل";
+    var dl = document.createElement("button"); dl.type = "button"; dl.className = "abdel"; dl.textContent = "حذف";
+    ed.addEventListener("click", function(){
+      var na = window.prompt("الاختصار (افصل بين البدائل بفاصلة):", (e.a || []).join(","));
+      if(na === null) return;
+      var nf = window.prompt("معناه الكامل:", e.f || "");
+      if(nf === null) return;
+      var arr = na.split(",").map(function(x){ return x.trim(); }).filter(Boolean);
+      if(!arr.length || !nf.trim()) return;
+      S.abbr[i] = {g: e.g || "شخصي", a: arr, f: nf.trim()};
+      saveGloss();
+      if(S.chunks.length) render();
+    });
+    dl.addEventListener("click", function(){
+      if(!window.confirm("حذف \u00AB" + k + "\u00BB؟")) return;
+      S.abbr.splice(i, 1);
+      saveGloss();
+      if(S.chunks.length) render();
+    });
+    tools.appendChild(ed); tools.appendChild(dl);
+    row.appendChild(ke); row.appendChild(fe); row.appendChild(tools);
+    box.appendChild(row);
+  });
+  $("#abCount").textContent = q
+    ? shown + " من " + S.abbr.length + " اختصاراً"
+    : S.abbr.length + " اختصاراً — التعديل والحذف يسريان فوراً على النص المفتوح";
+}
+$("#btnAbList").addEventListener("click", function(){
+  this.blur();
+  var pnl = $("#abPanel");
+  pnl.classList.toggle("hidden");
+  if(!pnl.classList.contains("hidden")){ abPaint(); $("#abSearch").focus(); }
 });
-$("#btnImport").addEventListener("click", function(){ $("#fileImp").click(); });
+$("#abSearch").addEventListener("input", abPaint);
+
+/* ---------- النقل بين الأجهزة ---------- */
+function xfBuild(){
+  var o = {v: 2};
+  if($("#xfSet").checked) o.settings = collect();
+  if($("#xfAb").checked) o.abbr = S.abbr;
+  if($("#xfCost").checked){ o.cost = costState(); o.costRate = costRate(); }
+  return o;
+}
+function xfDownload(obj, name){
+  var blob = new Blob([JSON.stringify(obj, null, 2)], {type: "application/json"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+}
+function xfStamp(){
+  var d = new Date(), p = function(x){ return (x < 10 ? "0" : "") + x; };
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function xfBackup(){
+  xfDownload({v: 2, settings: collect(), abbr: S.abbr, ideas: S.ideas, cost: costState()},
+             "joyread-backup-" + xfStamp() + ".json");
+}
+$("#btnExport").addEventListener("click", function(){
+  this.blur();
+  var o = xfBuild();
+  if(!o.settings && !o.abbr && !o.cost){ ocrStatus("لم تختر شيئاً للتصدير", true); return; }
+  xfDownload(o, "joyread-" + xfStamp() + ".json");
+  ocrStatus("صُدِّر الملف إلى مجلد التنزيلات", false);
+});
+$("#btnImport").addEventListener("click", function(){ this.blur(); $("#fileImp").click(); });
 $("#fileImp").addEventListener("change", function(){
   var f = this.files[0];
+  this.value = "";
   if(!f) return;
   var r = new FileReader();
   r.onload = function(){
-    try{
-      var o = JSON.parse(r.result);
-      if(o.settings) applySettings(o.settings);
-      if(Array.isArray(o.gloss)){ S.personal = o.gloss; saveGloss(); }
-      if(Array.isArray(o.ideas)){ S.ideas = o.ideas; paintIdeas(); }
-      saveSettings();
-      if(S.chunks.length) render();
-      ocrStatus("تم الاستيراد", false);
-    }catch(err){ ocrStatus("ملف غير صالح", true); }
+    var o;
+    try{ o = JSON.parse(r.result); }catch(err){ ocrStatus("ملف غير صالح", true); return; }
+    if(!o || typeof o !== "object"){ ocrStatus("ملف غير صالح", true); return; }
+    var incAb = Array.isArray(o.abbr) ? o.abbr : (Array.isArray(o.gloss) ? o.gloss : null);
+    var lines = [], take = {set: false, ab: false, cost: false};
+    if($("#xfSet").checked && o.settings){ take.set = true; lines.push("\u2022 الإعدادات"); }
+    if($("#xfAb").checked && incAb){ take.ab = true; lines.push("\u2022 الاختصارات: عندك " + S.abbr.length + " \u2014 وفي الملف " + incAb.length + " \u2014 ستحلّ محلّها"); }
+    if($("#xfCost").checked && o.cost && o.cost.months){ take.cost = true; lines.push("\u2022 عدّاد الاستهلاك \u2014 يُدمج مع أرقام هذا الجهاز"); }
+    if(!lines.length){ ocrStatus("لا شيء مشترك بين الملف وما اخترته أعلاه", true); return; }
+    if(!window.confirm("سيُستورد:\n" + lines.join("\n") + "\n\nوتُنزَّل نسخة احتياطية أولاً. متابعة؟")) return;
+    xfBackup();
+    if(take.set){ applySettings(o.settings); saveSettings(); }
+    if(take.ab){ S.abbr = incAb; saveGloss(); }
+    if(take.cost){ costMerge(o.cost); costPaint(); }
+    if(Array.isArray(o.ideas) && !S.ideas.length){ S.ideas = o.ideas; paintIdeas(); }
+    if(S.chunks.length) render();
+    abPaint();
+    ocrStatus("تم الاستيراد \u2014 نسخة احتياطية في مجلد التنزيلات", false);
   };
   r.readAsText(f);
-  this.value = "";
 });
 /* ---------- عداد الاستهلاك الشهري ---------- */
 /* COST-PURE-BEGIN */
@@ -2545,9 +2664,41 @@ function costMonthName(key){
   catch(e){ return key; }
 }
 /* COST-PURE-END */
+function costDev(){
+  var d = LS.get("joyread.dev");
+  if(!d){ d = "d" + Math.random().toString(36).slice(2, 9); LS.set("joyread.dev", d); }
+  return d;
+}
 function costState(){
-  try{ var s = JSON.parse(LS.get("joyread.cost") || "null"); if(s && s.months) return s; }catch(e){}
-  return {months: {}};
+  var s = null;
+  try{ s = JSON.parse(LS.get("joyread.cost") || "null"); }catch(e){}
+  if(!s || !s.months) return {months: {}};
+  var dev = costDev(), changed = false;
+  Object.keys(s.months).forEach(function(k){
+    if(typeof s.months[k] === "number"){ var v = s.months[k]; s.months[k] = {}; s.months[k][dev] = v; changed = true; }
+  });
+  if(changed) LS.set("joyread.cost", JSON.stringify(s));
+  return s;
+}
+function costMonthTotal(m){
+  if(!m) return 0;
+  var t = 0;
+  Object.keys(m).forEach(function(d){ if(typeof m[d] === "number") t += m[d]; });
+  return t;
+}
+function costMerge(inc){
+  if(!inc || !inc.months) return;
+  var st = costState();
+  Object.keys(inc.months).forEach(function(k){
+    var im = inc.months[k];
+    if(typeof im === "number") im = {imported: im};
+    st.months[k] = st.months[k] || {};
+    Object.keys(im).forEach(function(d){
+      if(typeof im[d] !== "number") return;
+      if(!(st.months[k][d] > im[d])) st.months[k][d] = im[d];
+    });
+  });
+  LS.set("joyread.cost", JSON.stringify(st));
 }
 function costRate(){
   try{ var r = JSON.parse(LS.get("joyread.costRate") || "null"); if(r && r.v > 0) return r; }catch(e){}
@@ -2558,8 +2709,9 @@ function costTrack(data, model){
     if(!data || !data.usage) return;
     var usd = costOfUsage(data.usage, model);
     if(!(usd > 0)) return;
-    var st = costState(), mk = costMonthKey();
-    st.months[mk] = (st.months[mk] || 0) + usd;
+    var st = costState(), mk = costMonthKey(), dev = costDev();
+    st.months[mk] = st.months[mk] || {};
+    st.months[mk][dev] = (st.months[mk][dev] || 0) + usd;
     LS.set("joyread.cost", JSON.stringify(st));
     costPaint();
   }catch(e){}
@@ -2568,7 +2720,7 @@ function costPaint(){
   var el = $("#costBar");
   if(!el) return;
   var st = costState(), r = costRate();
-  var kr = (st.months[costMonthKey()] || 0) * r.v;
+  var kr = costMonthTotal(st.months[costMonthKey()]) * r.v;
   el.textContent = "الاستهلاك هذا الشهر \uD83D\uDCB0 " + costFmt(kr) + " kr";
   el.title = r.t
     ? "1 دولار = " + r.v.toFixed(2) + " kr — سعر حي جُلب " + new Date(r.t).toLocaleString("ar")
@@ -2607,7 +2759,7 @@ function costPop(toggle){
     var a = document.createElement("span");
     a.textContent = costMonthName(k);
     var b = document.createElement("span");
-    b.textContent = costFmt((st.months[k] || 0) * r.v) + " kr";
+    b.textContent = costFmt(costMonthTotal(st.months[k]) * r.v) + " kr";
     row.appendChild(a); row.appendChild(b);
     pop.appendChild(row);
   });
@@ -2887,6 +3039,7 @@ $("#fileDict").addEventListener("change", function(){
   rd.onload = function(){
     var txt = String(rd.result || "");
     if(txt.charCodeAt(0) === 0xFEFF) txt = txt.slice(1);
+    txt = txt.replace(/\r\n?/g, "\n");
     if(!txt.trim()){ st.textContent = "الملف فارغ — لم يتغير شيء."; return; }
     dictSetFromText(txt);
     var n = DICT.lines.filter(function(l){ return l.trim(); }).length;
@@ -2914,17 +3067,26 @@ $("#btnDictDel").addEventListener("click", function(){
 dictRefreshStatus();
 
 $("#btnWipe").addEventListener("click", function(){
-  if(!window.confirm("مسح الإعدادات والقاموس الشخصي ودفتر الأفكار من هذا المتصفح؟")) return;
-  LS.del("joyread.settings"); LS.del("joyread.gloss"); LS.del("joyread.ideas"); LS.del("joyread.key");
+  var typed = window.prompt("إعادة إقلاع: سيُمحى كل شيء من هذا المتصفح — الإعدادات والاختصارات ودفتر الأفكار والقاموس الشخصي وعدّاد الاستهلاك.\nتُنزَّل نسخة احتياطية أولاً.\n\nاكتب: امسح", "");
+  if(typed === null) return;
+  if(String(typed).trim() !== "امسح"){ ocrStatus("أُلغي — لم يُمسح شيء", true); return; }
+  try{ xfBackup(); }catch(e){}
+  LS.del("joyread.settings"); LS.del("joyread.gloss"); LS.del("joyread.abbr"); LS.del("joyread.ideas"); LS.del("joyread.key"); LS.del("joyread.cost");
   LS.del("joyread.dictMeta"); DICT.lines = null; DICT.norm = null; DICT.loading = null;
   idbDel("text").catch(function(){}); dictRefreshStatus();
   $("#key").value = ""; $("#keySave").checked = false;
-  S.personal = []; S.ideas = []; buildIndex(); paintIdeas();
+  S.abbr = GLOSSARY.slice(); S.ideas = []; saveGloss(); paintIdeas();
   ocrStatus("تم المسح — أعد تحميل الصفحة للعودة للافتراضي", true);
 });
 
 /* ---------- init ---------- */
-try{ S.personal = JSON.parse(LS.get("joyread.gloss") || "[]") || []; }catch(e){ S.personal = []; }
+try{ S.abbr = JSON.parse(LS.get("joyread.abbr") || "null"); }catch(e){ S.abbr = null; }
+if(!Array.isArray(S.abbr) || !S.abbr.length){
+  var legacyAb = [];
+  try{ legacyAb = JSON.parse(LS.get("joyread.gloss") || "[]") || []; }catch(e){ legacyAb = []; }
+  S.abbr = GLOSSARY.concat(legacyAb);
+  LS.set("joyread.abbr", JSON.stringify(S.abbr));
+}
 try{ S.ideas = JSON.parse(LS.get("joyread.ideas") || "[]") || []; }catch(e){ S.ideas = []; }
 buildIndex();
 paintIdeas();
@@ -2933,7 +3095,8 @@ if(location.hash.indexOf("#s=") === 0){
   try{
     var inc = JSON.parse(b64dec(location.hash.slice(3)));
     if(inc.settings) applySettings(inc.settings);
-    if(Array.isArray(inc.gloss)){ S.personal = inc.gloss; saveGloss(); }
+    if(Array.isArray(inc.abbr)){ S.abbr = inc.abbr; saveGloss(); }
+    else if(Array.isArray(inc.gloss)){ S.abbr = S.abbr.concat(inc.gloss); saveGloss(); }
     saveSettings();
     history.replaceState(null, "", location.pathname);
     ocrStatus("طُبّقت إعداداتك من الرابط وحُفظت على هذا الجهاز", false);
