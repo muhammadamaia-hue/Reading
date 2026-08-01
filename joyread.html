@@ -180,6 +180,12 @@ body.ruler-on .ruler{display:block}
 .wc .k{font-size:clamp(12px,calc(var(--fs,26px) * .44),17px);color:var(--muted);font-weight:500;white-space:nowrap}
 .wc .v{font-size:clamp(14px,calc(var(--fs,26px) * .58),23px);line-height:1.8;unicode-bidi:isolate;overflow-wrap:break-word}
 .wc .kv .k:empty{display:none}
+.dictCnt{font-size:12.5px;color:var(--muted);margin:6px 2px 4px}
+.dictBox{margin-top:6px;max-height:300px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:4px 0}
+.dictLine{padding:7px 13px;font-size:clamp(14px,calc(var(--fs,26px) * .58),22px);line-height:1.8;border-bottom:1px dashed color-mix(in srgb, var(--line) 60%, transparent);unicode-bidi:isolate;overflow-wrap:break-word;white-space:pre-wrap}
+.dictLine:last-child{border-bottom:0}
+.dictHit{background:color-mix(in srgb, var(--accent) 26%, transparent);border-radius:4px;padding:0 2px;font-weight:700}
+.dictDup{font-size:11.5px;color:var(--muted);background:color-mix(in srgb, var(--line) 70%, transparent);border-radius:999px;padding:1px 7px;margin-inline-start:8px;unicode-bidi:isolate}
 .wc .kv .k:empty + .v{grid-column:1 / -1}
 .wc .ipa{font-family:ui-monospace,Consolas,monospace;letter-spacing:.5px}
 .wc .ety{background:var(--warn-soft);border:1px solid var(--warn);border-radius:11px;padding:9px 12px}
@@ -377,6 +383,16 @@ body.ruler-on .ruler{display:block}
         <input type="password" id="key" placeholder="sk-ant-..." autocomplete="off">
         <p class="hlp"><label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--ink)"><input type="checkbox" id="keySave"> تذكّر المفتاح في هذا المتصفح</label><br>
         بدون تفعيلها تكتبه في كل جلسة. مع تفعيلها يُخزَّن نصاً صريحاً في هذا المتصفح وحده — لا يدخل في ملف التصدير، ويُمسح بزر «امسح كل المحفوظات».</p>
+      </div>
+
+      <div class="sep">قاموسي الشخصي</div>
+      <div class="field full">
+        <div class="toggles" style="margin-bottom:6px">
+          <button class="ghost" id="btnDict">استورد قاموسي (.txt)</button>
+          <button class="ghost hidden" id="btnDictDel">احذف القاموس من هذا المتصفح</button>
+        </div>
+        <p class="hlp" id="dictStatus">لم يُستورد بعد. استورد ملف قاموسي.txt مرة واحدة ويُحفظ داخل هذا المتصفح وحده — لا يغادر جهازك ولا يُرسل منه شيء إلى الإنترنت، ولا يدخل في ملف التصدير. زر «من قاموسي» يظهر أسفل بطاقة الكلمة.</p>
+        <input type="file" id="fileDict" accept=".txt,text/plain" class="hidden">
       </div>
 
       <div class="sep">الجهاز والحفظ</div>
@@ -1080,7 +1096,7 @@ function render(){
     });
     if(S.simp[i]) card.appendChild(panelFor(text, S.simp[i], "صياغة مبسّطة \u2014 ليست نصك الأصلي", true));
     (S.extra[i] || []).forEach(function(pn, k){
-      if(pn.wc) card.appendChild(wordCard(pn.word, pn.wc, text, k));
+      if(pn.wc) card.appendChild(wordCard(pn.word, pn.wc, text, k, pn));
       else card.appendChild(panelFor(text, pn.body, pn.head, true, k));
     });
     var gh = glossHtml(found);
@@ -1134,7 +1150,7 @@ function srcFor(word, lang, field){
   }
   return L;
 }
-function wordCard(word, d, ctx, k){
+function wordCard(word, d, ctx, k, pn){
   var lang = langOfWord(word, ctx);
   var el = document.createElement("div");
   el.className = "wc";
@@ -1215,6 +1231,7 @@ function wordCard(word, d, ctx, k){
     etyNode.appendChild(tag); etyNode.appendChild(bd);
   }
   section("من أين جاءت؟", [], "ety", etyNode);
+  el.appendChild(dictSection(word, pn || {}));
   return el;
 }
 function panelFor(src, txt, label, simp, k){
@@ -2473,9 +2490,294 @@ $("#fileImp").addEventListener("change", function(){
   r.readAsText(f);
   this.value = "";
 });
+/* ---------- قاموسي الشخصي ---------- */
+/* DICT-PURE-BEGIN */
+function dictKeep(cp){
+  if(cp >= 0x064B && cp <= 0x065F) return false;
+  if(cp === 0x0670 || cp === 0x0640) return false;
+  if(cp >= 0xE000 && cp <= 0xF8FF) return false;
+  if(cp >= 0xF0000) return false;
+  if(cp >= 0x200B && cp <= 0x200F) return false;
+  if(cp === 0xFEFF) return false;
+  return true;
+}
+function dictMapChar(cp){
+  if(cp === 0x0623 || cp === 0x0625 || cp === 0x0622 || cp === 0x0671) return "\u0627";
+  if(cp === 0x0649) return "\u064A";
+  return String.fromCodePoint(cp).toLowerCase();
+}
+function dictNorm(s){
+  var out = "", i = 0, cp;
+  s = String(s);
+  while(i < s.length){
+    cp = s.codePointAt(i);
+    if(dictKeep(cp)) out += dictMapChar(cp);
+    i += cp > 0xFFFF ? 2 : 1;
+  }
+  return out;
+}
+function dictNormMap(s){
+  var out = "", map = [], i = 0, cp, ch, j;
+  s = String(s);
+  while(i < s.length){
+    cp = s.codePointAt(i);
+    if(dictKeep(cp)){
+      ch = dictMapChar(cp);
+      for(j = 0; j < ch.length; j++) map.push(i);
+      out += ch;
+    }
+    i += cp > 0xFFFF ? 2 : 1;
+  }
+  return {n: out, map: map};
+}
+function dictSearchCore(normLines, rawLines, word){
+  var q = dictNorm(String(word || "").trim());
+  var hits = [];
+  if(!q) return {q: q, hits: hits};
+  for(var i = 0; i < normLines.length; i++){
+    if(normLines[i].indexOf(q) >= 0 && rawLines[i].trim()) hits.push(i);
+  }
+  return {q: q, hits: hits};
+}
+function dictGroup(rawLines, hits){
+  var groups = [], byKey = {};
+  hits.forEach(function(i){
+    var key = rawLines[i].trim();
+    if(byKey[key] === undefined){ byKey[key] = groups.length; groups.push({line: rawLines[i], c: 1}); }
+    else groups[byKey[key]].c++;
+  });
+  return groups;
+}
+function dictHitSpans(orig, q){
+  var nm = dictNormMap(orig), spans = [], at = nm.n.indexOf(q);
+  while(at >= 0){
+    var b = at + q.length;
+    var oA = nm.map[at];
+    var last = nm.map[b - 1];
+    var lcp = orig.codePointAt(last);
+    var oB = last + (lcp > 0xFFFF ? 2 : 1);
+    if(!spans.length || oA >= spans[spans.length - 1][1]) spans.push([oA, oB]);
+    at = nm.n.indexOf(q, b);
+  }
+  return spans;
+}
+/* DICT-PURE-END */
+var DICT = { lines: null, norm: null, loading: null };
+function idbOpen(){
+  return new Promise(function(res, rej){
+    try{
+      var rq = indexedDB.open("joyread-dict", 1);
+      rq.onupgradeneeded = function(){ rq.result.createObjectStore("kv"); };
+      rq.onsuccess = function(){ res(rq.result); };
+      rq.onerror = function(){ rej(rq.error); };
+    }catch(e){ rej(e); }
+  });
+}
+function idbGet(k){
+  return idbOpen().then(function(db){
+    return new Promise(function(res, rej){
+      var rq = db.transaction("kv").objectStore("kv").get(k);
+      rq.onsuccess = function(){ res(rq.result); db.close(); };
+      rq.onerror = function(){ rej(rq.error); db.close(); };
+    });
+  });
+}
+function idbSet(k, v){
+  return idbOpen().then(function(db){
+    return new Promise(function(res, rej){
+      var t = db.transaction("kv", "readwrite");
+      t.objectStore("kv").put(v, k);
+      t.oncomplete = function(){ res(true); db.close(); };
+      t.onerror = function(){ rej(t.error); db.close(); };
+    });
+  });
+}
+function idbDel(k){
+  return idbOpen().then(function(db){
+    return new Promise(function(res, rej){
+      var t = db.transaction("kv", "readwrite");
+      t.objectStore("kv").delete(k);
+      t.oncomplete = function(){ res(true); db.close(); };
+      t.onerror = function(){ rej(t.error); db.close(); };
+    });
+  });
+}
+function dictMeta(){
+  try{ return JSON.parse(LS.get("joyread.dictMeta") || "null"); }catch(e){ return null; }
+}
+function dictSetFromText(txt, normTxt){
+  DICT.lines = txt.split("\n");
+  DICT.norm = normTxt ? normTxt.split("\n") : DICT.lines.map(dictNorm);
+  if(DICT.norm.length !== DICT.lines.length) DICT.norm = DICT.lines.map(dictNorm);
+  DICT.loading = null;
+}
+function dictEnsure(){
+  if(DICT.norm) return Promise.resolve(true);
+  if(!DICT.loading){
+    DICT.loading = Promise.all([idbGet("text"), idbGet("norm").catch(function(){ return null; })]).then(function(rr){
+      if(!rr[0]){ DICT.loading = null; return false; }
+      dictSetFromText(rr[0], rr[1]);
+      return true;
+    }, function(){ DICT.loading = null; return false; });
+  }
+  return DICT.loading;
+}
+function dictRefreshStatus(){
+  var st = $("#dictStatus"), del = $("#btnDictDel");
+  if(!st) return;
+  var m = dictMeta();
+  if(m && m.n){
+    st.textContent = "القاموس محمّل في هذا المتصفح: " + m.n + " سطراً (" + (m.name || "قاموسي.txt") + "، " +
+      new Date(m.t).toLocaleDateString("ar") + "). بعد تعديل ملفك أعد استيراده ليتحدّث. لا يغادر جهازك ولا يدخل في ملف التصدير.";
+    del.classList.remove("hidden");
+  } else {
+    st.textContent = "لم يُستورد بعد. استورد ملف قاموسي.txt مرة واحدة ويُحفظ داخل هذا المتصفح وحده — لا يغادر جهازك ولا يُرسل منه شيء إلى الإنترنت، ولا يدخل في ملف التصدير. زر «من قاموسي» يظهر أسفل بطاقة الكلمة.";
+    del.classList.add("hidden");
+  }
+}
+function dictHiRow(orig, q){
+  var row = document.createElement("div");
+  row.className = "dictLine";
+  row.setAttribute("dir", "auto");
+  var spans = dictHitSpans(orig, q), cur = 0;
+  spans.forEach(function(sp){
+    if(sp[0] > cur) row.appendChild(document.createTextNode(orig.slice(cur, sp[0])));
+    var mk = document.createElement("span");
+    mk.className = "dictHit";
+    mk.textContent = orig.slice(sp[0], sp[1]);
+    row.appendChild(mk);
+    cur = sp[1];
+  });
+  if(cur < orig.length) row.appendChild(document.createTextNode(orig.slice(cur)));
+  return row;
+}
+function dictSection(word, pn){
+  var sec = document.createElement("div");
+  sec.className = "sec";
+  var b = document.createElement("button");
+  b.className = "ghost"; b.type = "button";
+  b.textContent = "من قاموسي";
+  sec.appendChild(b);
+  var slot = document.createElement("div");
+  sec.appendChild(slot);
+  function rowFor(gr, q){
+    var row = dictHiRow(gr.line, q);
+    if(gr.c > 1){
+      var dd = document.createElement("span");
+      dd.className = "dictDup"; dd.textContent = "\u00D7" + gr.c;
+      row.appendChild(dd);
+    }
+    return row;
+  }
+  function paint(){
+    slot.innerHTML = "";
+    if(!pn.dictOpen || !DICT.norm) return;
+    var r = dictSearchCore(DICT.norm, DICT.lines, word);
+    var head = document.createElement("div");
+    head.className = "dictCnt";
+    if(!r.hits.length){
+      head.textContent = "لا شيء عن «" + word + "» في قاموسك";
+      slot.appendChild(head);
+      return;
+    }
+    var groups = dictGroup(DICT.lines, r.hits);
+    head.textContent = "وردت في " + r.hits.length + " سطراً" +
+      (groups.length < r.hits.length ? " — " + groups.length + " بعد دمج المكرر" : "");
+    slot.appendChild(head);
+    var box = document.createElement("div");
+    box.className = "dictBox";
+    var CAP = 400, shown = Math.min(groups.length, CAP);
+    for(var g = 0; g < shown; g++) box.appendChild(rowFor(groups[g], r.q));
+    slot.appendChild(box);
+    if(groups.length > CAP){
+      var more = document.createElement("button");
+      more.className = "ghost"; more.type = "button";
+      more.textContent = "أظهر البقية (" + (groups.length - CAP) + ")";
+      more.addEventListener("click", function(){
+        for(var g2 = CAP; g2 < groups.length; g2++) box.appendChild(rowFor(groups[g2], r.q));
+        this.remove();
+      });
+      slot.appendChild(more);
+    }
+  }
+  b.addEventListener("click", function(){
+    b.blur();
+    if(pn.dictOpen){ pn.dictOpen = false; slot.innerHTML = ""; return; }
+    if(!dictMeta() && !DICT.norm){
+      slot.innerHTML = "";
+      var m = document.createElement("div");
+      m.className = "dictCnt";
+      m.textContent = "لم يُستورد قاموسك بعد — الإعدادات ← «قاموسي الشخصي».";
+      slot.appendChild(m);
+      $("#settings").open = true;
+      safeScroll($("#btnDict"), {behavior: "smooth", block: "center"});
+      return;
+    }
+    b.disabled = true;
+    var o = b.textContent;
+    b.textContent = "\u2026";
+    dictEnsure().then(function(ok){
+      b.disabled = false; b.textContent = o;
+      if(!ok){
+        slot.innerHTML = "";
+        var m2 = document.createElement("div");
+        m2.className = "dictCnt";
+        m2.textContent = "تعذّر تحميل القاموس من المتصفح — أعد استيراده من الإعدادات.";
+        slot.appendChild(m2);
+        return;
+      }
+      pn.dictOpen = true;
+      paint();
+    });
+  });
+  if(pn.dictOpen){
+    if(DICT.norm) paint();
+    else dictEnsure().then(function(ok){ if(ok) paint(); });
+  }
+  return sec;
+}
+$("#btnDict").addEventListener("click", function(){ this.blur(); $("#fileDict").click(); });
+$("#fileDict").addEventListener("change", function(){
+  var f = this.files && this.files[0];
+  this.value = "";
+  if(!f) return;
+  var st = $("#dictStatus");
+  st.textContent = "جارٍ الاستيراد\u2026";
+  var rd = new FileReader();
+  rd.onload = function(){
+    var txt = String(rd.result || "");
+    if(txt.charCodeAt(0) === 0xFEFF) txt = txt.slice(1);
+    if(!txt.trim()){ st.textContent = "الملف فارغ — لم يتغير شيء."; return; }
+    dictSetFromText(txt);
+    var n = DICT.lines.filter(function(l){ return l.trim(); }).length;
+    idbSet("norm", DICT.norm.join("\n")).catch(function(){});
+    idbSet("text", txt).then(function(){
+      LS.set("joyread.dictMeta", JSON.stringify({n: n, name: f.name, t: Date.now()}));
+      dictRefreshStatus();
+      ocrStatus("قاموسك جاهز: " + n + " سطراً — زر «من قاموسي» على بطاقة الكلمة", true);
+    }, function(){
+      st.textContent = "حُمِّل لهذه الجلسة فقط (" + n + " سطراً) — المتصفح رفض الحفظ الدائم (IndexedDB).";
+    });
+  };
+  rd.onerror = function(){ st.textContent = "تعذّرت قراءة الملف."; };
+  rd.readAsText(f, "utf-8");
+});
+$("#btnDictDel").addEventListener("click", function(){
+  this.blur();
+  if(!window.confirm("حذف القاموس الشخصي من هذا المتصفح؟ ملفك الأصلي على جهازك لا يتأثر.")) return;
+  DICT.lines = null; DICT.norm = null; DICT.loading = null;
+  LS.del("joyread.dictMeta");
+  idbDel("text").catch(function(){});
+  dictRefreshStatus();
+  ocrStatus("حُذف القاموس من المتصفح", true);
+});
+dictRefreshStatus();
+
 $("#btnWipe").addEventListener("click", function(){
   if(!window.confirm("مسح الإعدادات والقاموس الشخصي ودفتر الأفكار من هذا المتصفح؟")) return;
   LS.del("joyread.settings"); LS.del("joyread.gloss"); LS.del("joyread.ideas"); LS.del("joyread.key");
+  LS.del("joyread.dictMeta"); DICT.lines = null; DICT.norm = null; DICT.loading = null;
+  idbDel("text").catch(function(){}); dictRefreshStatus();
   $("#key").value = ""; $("#keySave").checked = false;
   S.personal = []; S.ideas = []; buildIndex(); paintIdeas();
   ocrStatus("تم المسح — أعد تحميل الصفحة للعودة للافتراضي", true);
