@@ -345,8 +345,9 @@ body.ruler-on .ruler{display:block}
           <option value="night">ليلي داكن</option>
         </select>
       </div>
-      <div class="field"><label for="voiceLang">لغة القراءة الصوتية</label>
-        <select id="voiceLang"><option value="auto">تلقائي حسب البطاقة</option><option value="ar">العربية</option><option value="sv">Svenska</option><option value="en">English</option></select>
+      <div class="field full"><label for="voiceLang">لغة النص — القراءة الصوتية وبطاقة الكلمة</label>
+        <select id="voiceLang"><option value="auto">تلقائي — يُخمَّن من النص</option><option value="ar">العربية</option><option value="sv">Svenska</option><option value="en">English</option></select>
+        <p class="hlp">تحكم لغةَ الصوت، ونطقَ بطاقة الكلمة ومرادفها ومثالها، واتجاهَ النص وخطه. «تلقائي» يخمّن من النص نفسه وقد يخطئ في نص قصير أو مختلط — لو أخطأ، اختر اللغة هنا صراحةً فيتوقف التخمين تماماً.</p>
       </div>
       <div class="field"><label for="voice">الصوت</label><select id="voice"><option value="">الافتراضي</option></select></div>
       <div class="field"><label for="rate">سرعة القراءة — <span id="rateVal">0.95</span>×</label><input type="range" id="rate" min="0.6" max="1.5" step="0.05" value="0.95"></div>
@@ -754,19 +755,23 @@ function locateWord(text, w){
 function arCount(t){ var m=t.match(AR); return m?m.length:0; }
 function latCount(t){ var m=t.match(LAT); return m?m.length:0; }
 function dirOf(t){ return arCount(t) >= latCount(t) ? "rtl" : "ltr"; }
-var SV_WORDS = /\b(och|att|som|inte|med|f\u00F6r|p\u00E5|den|det|av|till|inga|eller|en|ett|\u00e4r|var|han|hon|jag|vi|de|du|sig|men|om|kan|ska|skall|har|hade|blir|vid|efter|under|genom|mot|utan|samt|n\u00e4r|d\u00e5|d\u00e4r|h\u00e4r|mycket|bara|ocks\u00e5|hur|vilka|vilken|sin|sitt|sina|denna|detta|dessa|man|n\u00e5gon|n\u00e5got|alla|andra|fr\u00e5n|\u00f6ver|hos|mellan|kr|st)\b/gi;
-var SV_MORPH = /\w{4,}(?:ningen|ningar|erna|arna|ande|ende|else|heten|heter|aste|orna|ade|are|ast|het|isk|ing)\b/gi;
+var SV_STRONG = /\b(och|att|som|inte|med|f\u00F6r|p\u00E5|den|det|av|till|inga|eller|ett|\u00e4r|han|hon|jag|vi|du|sig|men|kan|ska|skall|har|hade|blir|vid|efter|genom|mot|utan|samt|n\u00e4r|d\u00e5|d\u00e4r|h\u00e4r|mycket|bara|ocks\u00e5|hur|vilka|vilken|sin|sitt|sina|denna|detta|dessa|n\u00e5gon|n\u00e5got|alla|andra|fr\u00e5n|\u00f6ver|hos|mellan)\b/gi;
+var SV_WEAK = /\b(en|var|de|om|under|man|kr|st)\b/gi;
+var SV_MORPH = /\w{4,}(?:ningen|ningar|erna|arna|ande|ende|else|heten|heter|aste|orna|ade|are|ast|het|isk|ing|f\u00f6rs|ades|ats|ens|ets)\b/gi;
+var EN_STRONG = /\b(the|and|is|are|was|were|of|to|in|that|this|it|he|she|they|you|we|his|her|their|there|what|which|who|would|could|should|been|have|has|had|will|not|but|for|with|from|about|into|very|said|put|one|once|can|my|its|inside|outside)\b/gi;
+function rxCount(t, re){ var m = t.match(re); return m ? m.length : 0; }
 function svScore(t){
-  var a = t.match(SV_WORDS), b = t.match(SV_MORPH);
-  return (a ? a.length : 0) + (b ? b.length : 0);
+  return rxCount(t, SV_STRONG) * 2 + rxCount(t, SV_MORPH) * 2 + rxCount(t, SV_WEAK);
 }
 function langOf(t){
   var pick = $("#voiceLang") ? $("#voiceLang").value : "auto";
   if(pick && pick !== "auto") return pick;
   if(dirOf(t) === "rtl") return "ar";
   if(/[\u00E5\u00E4\u00F6\u00C5\u00C4\u00D6]/.test(t)) return "sv";
-  var n = words(t), sv = svScore(t);
-  if(sv >= 2 || (n <= 6 && sv >= 1)) return "sv";
+  var sv = svScore(t), en = rxCount(t, EN_STRONG);
+  if(en > sv) return "en";
+  var n = words(t);
+  if(sv >= 4 || (n <= 6 && (rxCount(t, SV_STRONG) >= 1 || rxCount(t, SV_MORPH) >= 1))) return "sv";
   return "en";
 }
 function words(t){ var m = t.match(/\S+/g); return m ? m.length : 0; }
