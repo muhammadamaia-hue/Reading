@@ -289,7 +289,7 @@ body.ruler-on .ruler{display:block}
     <button class="ghost" id="btnClin" aria-pressed="false" title="يفكّ اختصارات الأسنان وأسطحها وأرقامها داخل النص">فكّ الاختصارات</button>
     <button class="ghost" id="btnRuler" aria-pressed="false" title="شريط أفقي يتبع الماوس ليثبّت عينك على السطر">مسطرة</button>
     <button class="ghost" id="btnFocus" aria-pressed="false" title="يعرض بطاقة واحدة تملأ الشاشة — المسافة والأسهم وS تعمل داخله">وضع التركيز</button>
-    <button class="ghost" id="btnGuide" title="شرح كل زر ومفتاح في التطبيق">؟ الدليل</button>
+    <button class="ghost" id="btnGuide" title="شرح كل زر ومفتاح في التطبيق">الدليل</button>
     <button class="ghost" id="btnNew" title="يمسح النص والبطاقات ويعيدك لصندوق اللصق — لا يمسّ الإعدادات ولا القاموس">نص جديد</button>
   </div>
 </header>
@@ -704,7 +704,13 @@ var ACCENTS = ["#0b6e5f","#3f5f9e","#8a5a2b","#6a4a7c","#4a7c3f","#a1543d"];
 var CTRL = ["fs","lh","ws","len","wpm","rh","mode","font","theme","voiceLang","rate","ocrLang","model","trModel","exLang"];
 var TOG = {tBold:"bold",tHl:"hl",tWord:"word",tPunct:"punct",tFold:"fold",tBio:"bio",tColor:"color",
            tGlossAuto:"glossAuto",tSingle:"single",btnClin:"gloss",btnRuler:"ruler"};
-var OCR_PROMPT = "Transcribe every piece of text in this image exactly as it appears.\nRules:\n- Output ONLY the transcribed text, nothing else.\n- Keep the original language exactly. Never translate.\n- Keep the original line breaks, order and numbering.\n- Do not correct spelling, grammar, numbers or units.\n- Do not add headings, comments, explanations or markdown.\n- If a character is genuinely unreadable, write [?] in its place.";
+/* Sonnet 5 / Opus 4.7+ reject temperature with a 400; Haiku 4.5 accepts it.
+   Transcription and proofreading must not be creative, so pin it to 0 where allowed. */
+function sampling(model){
+  var m = String(model || "").toLowerCase();
+  return (m.indexOf("haiku") >= 0) ? {temperature: 0} : {};
+}
+var OCR_PROMPT = "You are a transcription tool, not an assistant. Copy the text in this image character by character.\nRules:\n- Output ONLY the transcribed text, nothing else.\n- Copy what is written. Never paraphrase, rewrite, summarise or improve any wording.\n- Keep the original language exactly. Never translate.\n- Keep the original line breaks, order and numbering.\n- Do not correct spelling, grammar, numbers or units, even when the text looks wrong.\n- Do not add headings, comments, explanations or markdown.\n- Arabic: read the dots carefully. Words differing by one dot are different words. Never substitute a word that merely looks similar or fits the context better.\n- Preserve every diacritic you can actually see, and add none that you cannot.\n- If a character or word is genuinely unreadable, write [?] rather than guessing.";
 
 var FONTS = {
   "Readex Pro":{w:"300;400;500;600;700",stack:'"Readex Pro","Segoe UI",system-ui,sans-serif'},
@@ -1002,7 +1008,10 @@ function chunkText(text){
   });
   var cur = null;
   units.forEach(function(u){
-    if(cur && cur.p === u.p && (cur.t + "\n" + u.t).trim().length <= maxLen){ cur.t = cur.t + "\n" + u.t; }
+    /* a blank line is no longer a wall: neighbours join while the card stays under the
+       user's limit, and the original blank line is kept so the card looks like the source */
+    var glue = (cur && cur.p !== u.p) ? "\n\n" : "\n";
+    if(cur && (cur.t + glue + u.t).trim().length <= maxLen){ cur.t = cur.t + glue + u.t; cur.p = u.p; }
     else { if(cur) cards.push(cur.t); cur = {t:u.t, p:u.p}; }
   });
   if(cur) cards.push(cur.t);
@@ -1611,16 +1620,44 @@ function putText(joined){
   S.fromImage = true;
   S.images = []; paintShots();
 }
+/* JPEG compression smears the dots and thin strokes that distinguish Arabic letters
+   (\u0644\u0635\u0642 vs \u0635\u062F\u0642), so small screenshots are sent lossless and upscaled instead. */
+/* the commonest local-OCR failure is a language mismatch: Arabic image read with a
+   Latin alphabet comes back as gibberish, so compare the script we got with the one chosen */
+function ocrLangWarn(txt, lang){
+  var ar = (txt.match(/[\u0621-\u064A]/g) || []).length;
+  var la = (txt.match(/[A-Za-z\u00C0-\u024F]/g) || []).length;
+  var tot = ar + la;
+  if(tot < 40) return "";
+  var arShare = ar / tot;
+  if(lang === "ara" && arShare < 0.2)
+    return "النص المستخرَج لاتيني وأنت اخترت «عربي» — بدّل لغة الاستخراج وأعد المحاولة";
+  if(lang !== "ara" && arShare > 0.5)
+    return "النص المستخرَج عربي وأنت اخترت لغة لاتينية — بدّل لغة الاستخراج إلى «عربي» وأعد المحاولة";
+  return "";
+}
+function ocrLangName(){
+  var sel = $("#ocrLang");
+  return sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : sel.value;
+}
 function shrink(url, type){
   return new Promise(function(res){
     var img = new Image();
     img.onload = function(){
-      var max = 1400, w = img.width, h = img.height, sc = Math.min(1, max / Math.max(w, h));
+      var w = img.width, h = img.height, big = Math.max(w, h);
+      var sc = 1;
+      if(big > 1800) sc = 1800 / big;            // huge photo: shrink
+      else if(big < 1100) sc = Math.min(2, 1400 / big); // small screenshot: enlarge for legibility
       var c = document.createElement("canvas");
-      c.width = Math.max(1, Math.round(w * sc)); c.height = Math.max(1, Math.round(h * sc));
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      var out = c.toDataURL("image/jpeg", 0.92);
-      res({data: out.split(",")[1], type:"image/jpeg"});
+      c.width = Math.max(1, Math.round(w * sc));
+      c.height = Math.max(1, Math.round(h * sc));
+      var ctx = c.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      try{ ctx.imageSmoothingQuality = "high"; }catch(e){}
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      var lossless = c.width * c.height <= 2600000;
+      var out = lossless ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.95);
+      res({data: out.split(",")[1], type: lossless ? "image/png" : "image/jpeg"});
     };
     img.onerror = function(){ res({data: url.split(",")[1], type: type || "image/png"}); };
     img.src = url;
@@ -1658,8 +1695,10 @@ async function ocrLocal(){
     await worker.terminate();
     btn.disabled = false;
     if(!parts.length){ ocrStatus("ما تعرّف على نص — جرّب «حسّن بالنموذج»", true); return; }
-    putText(parts.join("\n\n"));
-    ocrStatus("استخراج محلي مجاني — راجع النص قبل الترتيب", true);
+    var joined = parts.join("\n\n");
+    putText(joined);
+    var warn = ocrLangWarn(joined, $("#ocrLang").value);
+    ocrStatus(warn || ("استخراج محلي بلغة «" + ocrLangName() + "» — إن كانت لغة الصورة غير ذلك فبدّلها وأعد المحاولة"), true);
   }catch(err){
     if(worker){ try{ await worker.terminate(); }catch(e2){} }
     btn.disabled = false;
@@ -1683,10 +1722,10 @@ async function ocrApi(){
         method:"POST",
         headers:{ "Content-Type":"application/json", "x-api-key":key,
                   "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-        body: JSON.stringify({ model: $("#model").value, max_tokens: 4000,
+        body: JSON.stringify(Object.assign({ model: $("#model").value, max_tokens: 4000,
           messages:[{ role:"user", content:[
             { type:"image", source:{ type:"base64", media_type: im.type, data: im.data } },
-            { type:"text", text: OCR_PROMPT } ]}] })
+            { type:"text", text: OCR_PROMPT } ]}] }, sampling($("#model").value)))
       });
       var data = await res.json();
       costTrack(data, $("#model").value);
@@ -1784,8 +1823,8 @@ async function wordCardCall(i, btn, text, target){
       method:"POST",
       headers:{ "Content-Type":"application/json", "x-api-key":key,
                 "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-      body: JSON.stringify({ model: $("#trModel").value, max_tokens: 1200, system: sysW,
-        messages:[{ role:"user", content: text }] })
+      body: JSON.stringify(Object.assign({ model: $("#trModel").value, max_tokens: 1200, system: sysW,
+        messages:[{ role:"user", content: text }] }, sampling($("#trModel").value)))
     });
     var dataW = await resW.json();
     costTrack(dataW, $("#trModel").value);
@@ -2087,8 +2126,8 @@ async function proofread(force){
         method:"POST",
         headers:{ "Content-Type":"application/json", "x-api-key":key,
                   "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-        body: JSON.stringify({ model: model, max_tokens: 6000, system: sys,
-          messages:[{ role:"user", content: toCheck[i] }] })
+        body: JSON.stringify(Object.assign({ model: model, max_tokens: 6000, system: sys,
+          messages:[{ role:"user", content: toCheck[i] }] }, sampling(model)))
       });
       var data = await res.json();
       costTrack(data, model);
@@ -2561,7 +2600,7 @@ $("#btnLink").addEventListener("click", function(){
   } else done(false);
 });
 /* ---------- دليل الاستخدام ---------- */
-var GUIDE = [["الشريط العلوي",[["؟ الدليل","يفتح هذه الصفحة. يُغلق بزر «أغلق» أو بمفتاح Esc."],["نص جديد","يمسح النص الحالي والبطاقات ويعيدك إلى صندوق اللصق. لا يمسّ إعداداتك ولا قاموسك."],["وضع التركيز","يُخفي كل شيء ويعرض بطاقة واحدة تملأ الشاشة. مفاتيح المسافة والأسهم وS تعمل داخله."],["مسطرة","شريط أفقي يتبع مؤشر الماوس ليثبّت عينك على السطر. ارتفاعه يُضبط من الإعدادات."],["فكّ الاختصارات","يشغّل قراءة مصطلحات الأسنان المختصرة: يضع خطاً تحت كل اختصار ويعرض معناه. مطفأً لا يظهر أي خط."]]],["أزرار البطاقة",[["تم ✓","يعلّم البطاقة كمقروءة، ونقرة ثانية تلغي ذلك. يُستعمل في حساب ما تبقّى من وقت القراءة."],["🔊","يقرأ البطاقة صوتياً. أثناء القراءة يوقف مؤقتاً، والضغطة التالية تستأنف."],["ع / SV / EN","يترجم البطاقة إلى العربية أو السويدية أو الإنجليزية. يستهلك من مفتاح الـ API."],["بسّط","يعيد صياغة البطاقة بلغة أسهل مع شرح. يستهلك من مفتاح الـ API."],["نسخ","ينسخ نص البطاقة إلى الحافظة."],["⌗","يفتح البطاقة وحدها في وضع التركيز."],["تظليل كلمة","ظلّل أي كلمة بالماوس فتظهر بطاقة كلمة: المعنى والنطق والمقاطع والمرادف ومثال وترجمته، وزر «من قاموسي»."],["من قاموسي","يبحث عن الكلمة في قاموسك الشخصي المستورد ويعرض كل سطر ورد فيه. بحث محلي لا يكلّف شيئاً."]]],["مفاتيح لوحة المفاتيح",[["↑ ↓","البطاقة السابقة / التالية — تعمل في كل الأوضاع.","key"],["N","يفتح دفتر الأفكار.","key"],["Esc","يغلق دفتر الأفكار أو الدليل، ويوقف القراءة الصوتية، ويخرج من وضع التركيز.","key"],["Space","البطاقة التالية — في وضع التركيز فقط.","key"],["← →","البطاقة السابقة / التالية — في وضع التركيز فقط.","key"],["S","يقرأ البطاقة صوتياً، ويوقف ويستأنف — في وضع التركيز فقط.","key"],["Ctrl+Enter","في صندوق النص: يرتّب البطاقات. وفي دفتر الأفكار: يحفظ الفكرة.","key"],["ملاحظة اللوحة العربية","مفاتيح الحروف N وS تعمل على اللوحة العربية أيضاً — التطبيق يقرأ موضع المفتاح لا الحرف."]]],["المظهر والقراءة",[["حجم الخط · تباعد الأسطر · تباعد الكلمات","تضبط راحة العين. التغيير فوري ويُحفظ تلقائياً."],["حدّ طول البطاقة","أقصى عدد حروف في البطاقة الواحدة. أصغر = بطاقات أكثر وأقصر."],["سرعة قراءتك","تُستعمل لحساب الوقت المتبقي على كل بطاقة. اضبطها أو قسها بالزر التالي."],["قياس سرعتك الحقيقية","يقيس سرعتك أثناء القراءة الفعلية ثم يعرض زر «استعمل سرعتي المقاسة»."],["ارتفاع المسطرة","سُمك شريط المسطرة بالبكسل."],["طريقة التقسيم","أين يقطع النص: عند الجمل أو الفقرات أو بعدد الحروف."],["الخط · الخلفية","نوع الخط وثيمة الألوان. تشمل خطوطاً مريحة لعسر القراءة."],["لغة النص","تحكم الصوت ونطق بطاقة الكلمة واتجاه النص وخطه. «تلقائي» يخمّن من النص وقد يخطئ — عندها اختر اللغة صراحةً."],["الصوت · سرعة القراءة","أي صوت من أصوات نظامك، وبأي سرعة يقرأ."],["خط عريض","يجعل نص البطاقات أثقل وزناً."],["تظليل الأرقام","يلوّن الأرقام في النص لتبرز — مفيد لأرقام الأسنان والجرعات."],["تظليل الكلمة أثناء القراءة","يضيء كل كلمة لحظة نطقها أثناء القراءة الصوتية."],["تجاهل علامات الترقيم في النطق","يمنع الصوت من التوقف عند الفواصل والنقاط فتصير القراءة أكثر انسياباً."],["طيّ البطاقة المقروءة","يطوي البطاقة تلقائياً بمجرد أن تعلّمها «تم»، فتبقى أمامك البطاقات غير المقروءة."],["قراءة بيونك (لاتيني)","يسوّد أول 40% من حروف كل كلمة لاتينية لتعطي العين نقطة ارتكاز. لا أثر له على العربية."],["ألوان متبدّلة","يلوّن البطاقات بألوان متناوبة ليسهل تمييز بعضها من بعض."]]],["مصطلحات الأسنان المختصرة",[["أضف اختصاراً","يضيف اختصاراً جديداً: ترمز له ثم تكتب معناه الكامل."],["جدول الاختصارات","يعرض كل الاختصارات في قائمة واحدة مع بحث، ولكل سطر تعديل وحذف. التغيير يسري فوراً."],["إظهار المعاني تلقائياً","يضع سطراً تحت كل بطاقة يفكّ كل اختصار ورد فيها. أطفئه لتبقى البطاقة نظيفة."],["شمل الاختصارات ذات الحرف الواحد","يشمل اختصارات من حرف واحد مثل c وa. مطفأ افتراضياً لأنه يعطي تفسيرات خاطئة في النص العادي."]]],["الترجمة والذكاء",[["لغة التبسيط والشرح","بأي لغة يُكتب لك الشرح والتبسيط وبطاقة الكلمة."],["نموذج الترجمة والتبسيط","Haiku أرخص ويكفي الترجمة والتبسيط؛ Sonnet أدقّ ويفيد في بطاقة الكلمة والتدقيق."],["دقّق النص","يبحث عن الأخطاء الإملائية ويقترح تصحيحها. يستهلك من مفتاح الـ API."],["مفتاح Anthropic API","يُحفظ في هذا المتصفح وحده. لا يخرج في ملف التصدير ولا في رابط الإعدادات."]]],["الصور والقاموس",[["أضف صورة","يرفع صورة لاستخراج النص منها."],["استخرج محلياً (مجاني)","يستخرج النص داخل متصفحك بلا إنترنت وبلا تكلفة. دقته أقل مع الخطوط الصعبة."],["حسّن بالنموذج","يعيد استخراج النص بنموذج ذكاء فيصحّح ما أخطأ فيه الاستخراج المحلي. يستهلك من مفتاح الـ API."],["استورد قاموسي (.txt)","يستورد قاموسك الشخصي. الاستيراد يستبدل النسخة السابقة بالكامل. احفظ الملف بترميز UTF-8."],["احذف القاموس","يحذف القاموس من هذا المتصفح وحده. ملفك الأصلي عندك لا يُمسّ."]]],["الحفظ والنقل والتكلفة",[["الاستهلاك هذا الشهر 💰","ما أنفقته فعلياً هذا الشهر بالكرونة. يتحدّث بعد كل عملية، ويبدأ من الصفر مع أول كل شهر."],["الأشهر السابقة","يعرض إنفاق كل شهر مضى، وسعر صرف الدولار المستعمل."],["تصدير ملف · استيراد ملف","ينقل ما تختاره من إعدادات واختصارات وعدّاد إلى جهاز آخر. الاستيراد يستبدل، وينزّل نسخة احتياطية أولاً."],["انسخ رابط إعداداتي","يحزم الإعدادات والاختصارات في رابط. افتحه في جهاز آخر فيُطبَّق ويُحفظ."],["دفتر الأفكار","مسوّدة سريعة لتدوين ما يخطر لك أثناء القراءة. لا يدخل في التصدير."],["افحص هذا المتصفح","يفحص ما إذا كان متصفحك يدعم الأصوات والتخزين وبقية الوظائف."],["إعادة إقلاع","يمحو كل شيء من هذا المتصفح للبدء من الصفر. يطلب كتابة كلمة تأكيد وينزّل نسخة احتياطية أولاً."],["طباعة","يطبع البطاقات الحالية."]]]];
+var GUIDE = [["الشريط العلوي",[["الدليل","يفتح هذه الصفحة. يُغلق بزر «أغلق» أو بمفتاح Esc."],["نص جديد","يمسح النص الحالي والبطاقات ويعيدك إلى صندوق اللصق. لا يمسّ إعداداتك ولا قاموسك."],["وضع التركيز","يُخفي كل شيء ويعرض بطاقة واحدة تملأ الشاشة. مفاتيح المسافة والأسهم وS تعمل داخله."],["مسطرة","شريط أفقي يتبع مؤشر الماوس ليثبّت عينك على السطر. ارتفاعه يُضبط من الإعدادات."],["فكّ الاختصارات","يشغّل قراءة مصطلحات الأسنان المختصرة: يضع خطاً تحت كل اختصار ويعرض معناه. مطفأً لا يظهر أي خط."]]],["أزرار البطاقة",[["تم ✓","يعلّم البطاقة كمقروءة، ونقرة ثانية تلغي ذلك. يُستعمل في حساب ما تبقّى من وقت القراءة."],["🔊","يقرأ البطاقة صوتياً. أثناء القراءة يوقف مؤقتاً، والضغطة التالية تستأنف."],["ع / SV / EN","يترجم البطاقة إلى العربية أو السويدية أو الإنجليزية. يستهلك من مفتاح الـ API."],["بسّط","يعيد صياغة البطاقة بلغة أسهل مع شرح. يستهلك من مفتاح الـ API."],["نسخ","ينسخ نص البطاقة إلى الحافظة."],["⌗","يفتح البطاقة وحدها في وضع التركيز."],["تظليل كلمة","ظلّل أي كلمة بالماوس فتظهر بطاقة كلمة: المعنى والنطق والمقاطع والمرادف ومثال وترجمته، وزر «من قاموسي»."],["من قاموسي","يبحث عن الكلمة في قاموسك الشخصي المستورد ويعرض كل سطر ورد فيه. بحث محلي لا يكلّف شيئاً."]]],["مفاتيح لوحة المفاتيح",[["↑ ↓","البطاقة السابقة / التالية — تعمل في كل الأوضاع.","key"],["N","يفتح دفتر الأفكار.","key"],["Esc","يغلق دفتر الأفكار أو الدليل، ويوقف القراءة الصوتية، ويخرج من وضع التركيز.","key"],["Space","البطاقة التالية — في وضع التركيز فقط.","key"],["← →","البطاقة السابقة / التالية — في وضع التركيز فقط.","key"],["S","يقرأ البطاقة صوتياً، ويوقف ويستأنف — في وضع التركيز فقط.","key"],["Ctrl+Enter","في صندوق النص: يرتّب البطاقات. وفي دفتر الأفكار: يحفظ الفكرة.","key"],["ملاحظة اللوحة العربية","مفاتيح الحروف N وS تعمل على اللوحة العربية أيضاً — التطبيق يقرأ موضع المفتاح لا الحرف."]]],["المظهر والقراءة",[["حجم الخط · تباعد الأسطر · تباعد الكلمات","تضبط راحة العين. التغيير فوري ويُحفظ تلقائياً."],["حدّ طول البطاقة","أقصى عدد حروف في البطاقة الواحدة. أصغر = بطاقات أكثر وأقصر."],["سرعة قراءتك","تُستعمل لحساب الوقت المتبقي على كل بطاقة. اضبطها أو قسها بالزر التالي."],["قياس سرعتك الحقيقية","يقيس سرعتك أثناء القراءة الفعلية ثم يعرض زر «استعمل سرعتي المقاسة»."],["ارتفاع المسطرة","سُمك شريط المسطرة بالبكسل."],["طريقة التقسيم","أين يقطع النص: عند الجمل أو الفقرات أو بعدد الحروف."],["الخط · الخلفية","نوع الخط وثيمة الألوان. تشمل خطوطاً مريحة لعسر القراءة."],["لغة النص","تحكم الصوت ونطق بطاقة الكلمة واتجاه النص وخطه. «تلقائي» يخمّن من النص وقد يخطئ — عندها اختر اللغة صراحةً."],["الصوت · سرعة القراءة","أي صوت من أصوات نظامك، وبأي سرعة يقرأ."],["خط عريض","يجعل نص البطاقات أثقل وزناً."],["تظليل الأرقام","يلوّن الأرقام في النص لتبرز — مفيد لأرقام الأسنان والجرعات."],["تظليل الكلمة أثناء القراءة","يضيء كل كلمة لحظة نطقها أثناء القراءة الصوتية."],["تجاهل علامات الترقيم في النطق","يمنع الصوت من التوقف عند الفواصل والنقاط فتصير القراءة أكثر انسياباً."],["طيّ البطاقة المقروءة","يطوي البطاقة تلقائياً بمجرد أن تعلّمها «تم»، فتبقى أمامك البطاقات غير المقروءة."],["قراءة بيونك (لاتيني)","يسوّد أول 40% من حروف كل كلمة لاتينية لتعطي العين نقطة ارتكاز. لا أثر له على العربية."],["ألوان متبدّلة","يلوّن البطاقات بألوان متناوبة ليسهل تمييز بعضها من بعض."]]],["مصطلحات الأسنان المختصرة",[["أضف اختصاراً","يضيف اختصاراً جديداً: ترمز له ثم تكتب معناه الكامل."],["جدول الاختصارات","يعرض كل الاختصارات في قائمة واحدة مع بحث، ولكل سطر تعديل وحذف. التغيير يسري فوراً."],["إظهار المعاني تلقائياً","يضع سطراً تحت كل بطاقة يفكّ كل اختصار ورد فيها. أطفئه لتبقى البطاقة نظيفة."],["شمل الاختصارات ذات الحرف الواحد","يشمل اختصارات من حرف واحد مثل c وa. مطفأ افتراضياً لأنه يعطي تفسيرات خاطئة في النص العادي."]]],["الترجمة والذكاء",[["لغة التبسيط والشرح","بأي لغة يُكتب لك الشرح والتبسيط وبطاقة الكلمة."],["نموذج الترجمة والتبسيط","Haiku أرخص ويكفي الترجمة والتبسيط؛ Sonnet أدقّ ويفيد في بطاقة الكلمة والتدقيق."],["دقّق النص","يبحث عن الأخطاء الإملائية ويقترح تصحيحها. يستهلك من مفتاح الـ API."],["مفتاح Anthropic API","يُحفظ في هذا المتصفح وحده. لا يخرج في ملف التصدير ولا في رابط الإعدادات."]]],["الصور والقاموس",[["أضف صورة","يرفع صورة لاستخراج النص منها."],["استخرج محلياً (مجاني)","يستخرج النص داخل متصفحك بلا إنترنت وبلا تكلفة. دقته أقل مع الخطوط الصعبة."],["حسّن بالنموذج","يعيد استخراج النص بنموذج ذكاء فيصحّح ما أخطأ فيه الاستخراج المحلي. يستهلك من مفتاح الـ API."],["استورد قاموسي (.txt)","يستورد قاموسك الشخصي. الاستيراد يستبدل النسخة السابقة بالكامل. احفظ الملف بترميز UTF-8."],["احذف القاموس","يحذف القاموس من هذا المتصفح وحده. ملفك الأصلي عندك لا يُمسّ."]]],["الحفظ والنقل والتكلفة",[["الاستهلاك هذا الشهر 💰","ما أنفقته فعلياً هذا الشهر بالكرونة. يتحدّث بعد كل عملية، ويبدأ من الصفر مع أول كل شهر."],["الأشهر السابقة","يعرض إنفاق كل شهر مضى، وسعر صرف الدولار المستعمل."],["تصدير ملف · استيراد ملف","ينقل ما تختاره من إعدادات واختصارات وعدّاد إلى جهاز آخر. الاستيراد يستبدل، وينزّل نسخة احتياطية أولاً."],["انسخ رابط إعداداتي","يحزم الإعدادات والاختصارات في رابط. افتحه في جهاز آخر فيُطبَّق ويُحفظ."],["دفتر الأفكار","مسوّدة سريعة لتدوين ما يخطر لك أثناء القراءة. لا يدخل في التصدير."],["افحص هذا المتصفح","يفحص ما إذا كان متصفحك يدعم الأصوات والتخزين وبقية الوظائف."],["إعادة إقلاع","يمحو كل شيء من هذا المتصفح للبدء من الصفر. يطلب كتابة كلمة تأكيد وينزّل نسخة احتياطية أولاً."],["طباعة","يطبع البطاقات الحالية."]]]];
 function guidePaint(){
   var q = ($("#gSearch").value || "").trim().toLowerCase();
   var body = $("#gBody");
