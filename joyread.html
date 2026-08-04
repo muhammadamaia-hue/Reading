@@ -302,6 +302,14 @@ body.ruler-on .ruler{display:block}
     <div class="input-foot">
       <button class="primary" id="btnGo" title="يقسّم النص إلى بطاقات قصيرة">رتّب البطاقات</button>
       <button class="ghost" id="btnProof" title="يبحث عن الأخطاء الإملائية ويقترح تصحيحها — يستهلك من مفتاح الـ API">دقّق النص</button>
+      <button class="ghost" id="btnMic" title="إملاء لحظي مجاني بمحرّك المتصفح — الوقفات لا توقفه، والإيقاف بالزر وحده">&#127908; إملاء</button>
+      <button class="ghost" id="btnMicPaid" title="يسجّل صوتك ويرسله إلى Gemini — أدقّ، ويكلّف من مفتاح Google">إملاء مدفوع</button>
+      <select id="dictLang" title="لغة الإملاء">
+        <option value="ar">عربي</option>
+        <option value="sv">سويدي</option>
+        <option value="en">إنجليزي</option>
+      </select>
+      <span class="count" id="micNote"></span>
       <button class="ghost" id="btnPick" title="يرفع صورة لاستخراج النص منها">أضف صورة</button>
       <button class="ghost hidden" id="btnOcrLocal" title="يستخرج النص داخل متصفحك — بلا إنترنت وبلا تكلفة">استخرج محلياً (مجاني)</button>
       <button class="ghost hidden" id="btnOcrApi" title="يعيد الاستخراج بنموذج ذكاء فيصحّح أخطاء الاستخراج المحلي — يستهلك من مفتاح الـ API">حسّن بالنموذج</button>
@@ -444,6 +452,11 @@ body.ruler-on .ruler{display:block}
         <p class="hlp"><label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--ink)"><input type="checkbox" id="keySave"> تذكّر المفتاح في هذا المتصفح</label><br>
         بدون تفعيلها تكتبه في كل جلسة. مع تفعيلها يُخزَّن نصاً صريحاً في هذا المتصفح وحده — لا يدخل في ملف التصدير، ويُمسح بزر «امسح كل المحفوظات».</p>
       </div>
+      <div class="field full"><label for="gkey">مفتاح Google AI API — لزرّ «إملاء مدفوع» فقط</label>
+        <input type="password" id="gkey" placeholder="AIza..." autocomplete="off">
+        <p class="hlp"><label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--ink)"><input type="checkbox" id="gkeySave"> تذكّر المفتاح في هذا المتصفح</label><br>
+        تحصل عليه من Google AI Studio. الدفع حسب الاستخدام لا اشتراك، وفيه طبقة مجانية. يُحفظ مثل مفتاح Anthropic تماماً — في هذا المتصفح وحده، ولا يدخل في التصدير. بدونه يعمل زرّ الإملاء المجاني وحده.</p>
+      </div>
 
       <div class="sep">قاموسي الشخصي</div>
       <div class="field full">
@@ -488,7 +501,7 @@ body.ruler-on .ruler{display:block}
     <div class="segs" id="segs" title="اضغط أو اسحب للتنقل بين البطاقات"></div>
     <span class="ratio" id="ratio">0 / 0</span>
     <span class="ratio" id="left">~0 د</span>
-    <button class="chip" id="btnReadAll" title="يقرأ كل البطاقات صوتياً بالتتابع">▶︎ اقرأ الكل</button>
+    <button class="chip" id="btnReadAll" aria-pressed="false" title="فعّله ثم اضغط أي زرّ في أي بطاقة فيسري على كل البطاقات">طبّق على كل البطاقات</button>
   </section>
 
   <section id="cards"></section>
@@ -521,6 +534,7 @@ body.ruler-on .ruler{display:block}
     <p class="dock-title">دفتر الأفكار</p>
     <textarea id="ideaText" placeholder="خطرت لك فكرة أو مهمة وأنت تقرأ؟ اكتبها هنا بدل ما تلاحقها، وارجع للنص."></textarea>
     <div class="dock-row">
+      <button class="chip" id="btnIdeaMic" title="إملاء لحظي مجاني داخل الدفتر">&#127908; إملاء</button>
       <button class="chip" id="btnIdeaAdd">احفظ الفكرة</button>
       <button class="chip" id="btnIdeaCopy">انسخ كل الأفكار</button>
       <button class="chip" id="btnIdeaClear">امسح الكل</button>
@@ -701,7 +715,7 @@ function cardNote(i, msg, bad){
 var AR = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
 var LAT = /[A-Za-z\u00C0-\u024F]/g;
 var ACCENTS = ["#0b6e5f","#3f5f9e","#8a5a2b","#6a4a7c","#4a7c3f","#a1543d"];
-var CTRL = ["fs","lh","ws","len","wpm","rh","mode","font","theme","voiceLang","rate","ocrLang","model","trModel","exLang"];
+var CTRL = ["fs","lh","ws","len","wpm","rh","mode","font","theme","voiceLang","rate","ocrLang","model","trModel","exLang","dictLang"];
 var TOG = {tBold:"bold",tHl:"hl",tWord:"word",tPunct:"punct",tFold:"fold",tBio:"bio",tColor:"color",
            tGlossAuto:"glossAuto",tSingle:"single",btnClin:"gloss",btnRuler:"ruler"};
 /* Sonnet 5 / Opus 4.7+ reject temperature with a 400; Haiku 4.5 accepts it.
@@ -740,7 +754,7 @@ function useFont(name){
   }
   document.documentElement.style.setProperty("--read", f.stack);
 }
-var S = { original:"", chunks:[], done:{}, idx:0, fromImage:false, images:[], personal:[], ideas:[],
+var S = { original:"", chunks:[], done:{}, idx:0, fromImage:false, images:[], personal:[], ideas:[], all:false,
           speakId:0, playing:-1, paused:false, cardHasAb:false, typos:{}, typosFold:{}, typoList:[], proofOf:"", fix:null, boundarySeen:false, voiceName:"", tr:{}, simp:{}, extra:{}, cal:{words:0,secs:0,t:0},
           tog:{bold:true,hl:true,word:true,punct:true,fold:true,bio:false,color:true,
                gloss:false,glossAuto:true,single:false,fuzzy:true,surf:true,ruler:false}, toothNear:false, abbr:[] };
@@ -1436,11 +1450,7 @@ function setSpeakUI(){
     b.classList.toggle("on", !!on);
     b.title = on ? (S.paused ? "تابع القراءة" : "إيقاف مؤقت — Esc لإيقاف كامل") : "اقرأ بصوت";
   });
-  var all = document.getElementById("btnReadAll");
-  if(all){
-    all.textContent = S.playing < 0 ? "\u25B6\uFE0E اقرأ الكل" : (S.paused ? "\u25B6\uFE0E تابع" : "\u23F8 إيقاف مؤقت");
-    all.title = S.playing >= 0 ? "Esc لإيقاف القراءة نهائياً" : "";
-  }
+  if(typeof setAllUI === "function") setAllUI();
 }
 function togglePause(){
   if(!window.speechSynthesis || S.playing < 0) return;
@@ -1475,6 +1485,9 @@ function markWord(card, origIndex){
 }
 function speakCard(i, chain){
   if(!window.speechSynthesis || !S.chunks[i]) return;
+  /* the mic must never transcribe the app reading aloud */
+  if(typeof D !== "undefined" && D.on) dictStop();
+  if(typeof D !== "undefined" && D.mr) return;
   var text = S.chunks[i], list = segs(text);
   if(!list.length) list = [{say:text, map:[]}];
   var el = document.querySelector(".rcard[data-i='" + i + "']");
@@ -2316,6 +2329,370 @@ function applySettings(o){
 }
 function saveGloss(){ LS.set("joyread.abbr", JSON.stringify(S.abbr)); buildIndex(); if(typeof abPaint === "function") abPaint(); }
 
+/* ---------- dictation ----------
+   Free mode  : the browser's own Web Speech API. Chrome routes it to Google,
+                Edge routes it to Microsoft Azure — same code, different engine,
+                so we always label which one is listening.
+   Paid mode  : MediaRecorder captures the audio, Gemini transcribes it. Silence
+                never ends a recording, so thinking pauses cost nothing but time.
+   Both modes stop only when the user says stop. */
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+/* Arabic has no single code that every engine accepts. Syrian first because it is
+   his own dialect; the rest are tried in order of closeness if it is rejected. */
+var DICT_LANGS = { ar:["ar-SY","ar-LB","ar-JO","ar-SA"], sv:["sv-SE"], en:["en-US"] };
+var D = { rec:null, on:false, stop:false, target:null, base:"", li:0,
+          mr:null, stream:null, blobs:[], recTimer:null, recStart:0, busy:false };
+var PAID_MAX_SECS = 300;
+
+function dictEngine(){
+  var ua = navigator.userAgent;
+  if(/Edg\//.test(ua)) return { key:"ms", name:"مايكروسوفت (عبر Edge)" };
+  if(/Firefox\//.test(ua)) return { key:"none", name:"غير مدعوم في فايرفوكس" };
+  if(/Chrome\//.test(ua)) return { key:"google", name:"جوجل (عبر كروم)" };
+  return { key:"other", name:"محرّك المتصفح" };
+}
+function micNote(msg, bad){
+  var el = $("#micNote");
+  if(!el) return;
+  el.textContent = msg || "";
+  el.style.color = bad ? "var(--bad)" : "var(--muted)";
+}
+function dictButtons(){
+  var free = $("#btnMic"), paid = $("#btnMicPaid"), idea = $("#btnIdeaMic");
+  var live = D.on && !D.mr, rec = !!D.mr;
+  if(free){
+    var inIdea = D.target && D.target.id === "ideaText";
+    free.textContent = (live && !inIdea) ? "\u23F9 أوقف الإملاء" : "\uD83C\uDFA4 إملاء";
+    free.classList.toggle("on", live && !inIdea);
+  }
+  if(idea){
+    var onIdea = live && D.target && D.target.id === "ideaText";
+    idea.textContent = onIdea ? "\u23F9 أوقف" : "\uD83C\uDFA4 إملاء";
+    idea.classList.toggle("on", !!onIdea);
+  }
+  if(paid){
+    paid.textContent = rec ? "\u23F9 أوقف وأرسل" : "إملاء مدفوع";
+    paid.classList.toggle("on", rec);
+  }
+}
+function dictInsert(el, text){
+  if(!el || !text) return;
+  var cur = el.value;
+  var sep = (cur && !/\s$/.test(cur)) ? " " : "";
+  el.value = cur + sep + text;
+  el.dispatchEvent(new Event("input", {bubbles:true}));
+}
+
+/* free, live dictation */
+function dictStart(el){
+  if(!SR){
+    micNote("هذا المتصفح لا يدعم الإملاء. كروم أو Edge يدعمانه؛ فايرفوكس لا.", true);
+    return;
+  }
+  if(D.mr){ micNote("الإملاء المدفوع يسجّل الآن — أوقفه أولاً.", true); return; }
+  stopSpeech();
+  D.target = el;
+  D.stop = false;
+  D.li = 0;
+  dictRun();
+}
+function dictRun(){
+  var codes = DICT_LANGS[$("#dictLang").value] || DICT_LANGS.en;
+  var code = codes[Math.min(D.li, codes.length - 1)];
+  var r = new SR();
+  D.rec = r;
+  r.lang = code;
+  r.continuous = true;
+  r.interimResults = true;
+  r.onstart = function(){
+    D.on = true;
+    dictButtons();
+    micNote("يستمع — " + dictEngine().name + " · " + code);
+  };
+  r.onresult = function(ev){
+    var done = "";
+    for(var k = ev.resultIndex; k < ev.results.length; k++){
+      if(ev.results[k].isFinal) done += ev.results[k][0].transcript;
+    }
+    if(done) dictInsert(D.target, done.trim());
+  };
+  r.onerror = function(ev){
+    var e = ev.error;
+    if(e === "language-not-supported" || e === "bad-grammar"){
+      /* this Arabic code was refused — fall back to the next closest one */
+      var list = DICT_LANGS[$("#dictLang").value] || [];
+      if(D.li < list.length - 1){ D.li++; return; }
+      micNote("لا يوجد رمز عربي مقبول في هذا المتصفح.", true);
+      D.stop = true;
+      return;
+    }
+    if(e === "not-allowed" || e === "service-not-allowed"){
+      D.stop = true;
+      micNote("الميكروفون محظور. انقر الأيقونة يسار شريط العنوان ← الميكروفون ← السماح، ثم حدّث الصفحة.", true);
+      return;
+    }
+    if(e === "audio-capture"){
+      D.stop = true;
+      micNote("لا يجد ميكروفوناً. تحقّق من توصيله ومن جهاز الإدخال الافتراضي في ويندوز.", true);
+      return;
+    }
+    if(e === "network"){
+      D.stop = true;
+      micNote("تعذّر الاتصال بخدمة التعرّف على الكلام.", true);
+      return;
+    }
+    /* "no-speech" and "aborted" are normal: onend restarts us */
+  };
+  r.onend = function(){
+    D.on = false;
+    if(D.stop){ D.rec = null; dictButtons(); if(!/محظور|يجد|تعذّر|رمز/.test($("#micNote").textContent)) micNote(""); return; }
+    /* silence ended the session, not the user — start listening again at once */
+    try{ dictRun(); }catch(err){ D.rec = null; dictButtons(); micNote("توقّف الإملاء: " + err.message, true); }
+  };
+  try{ r.start(); }
+  catch(err){ micNote("تعذّر بدء الإملاء: " + err.message, true); D.rec = null; dictButtons(); }
+}
+function dictStop(){
+  D.stop = true;
+  if(D.rec){ try{ D.rec.stop(); }catch(e){} }
+  D.on = false;
+  D.rec = null;
+  dictButtons();
+}
+
+/* paid dictation through Gemini */
+function paidMime(){
+  var want = ["audio/ogg;codecs=opus","audio/webm;codecs=opus","audio/webm"];
+  for(var i=0;i<want.length;i++){
+    if(window.MediaRecorder && MediaRecorder.isTypeSupported(want[i])) return want[i];
+  }
+  return "";
+}
+async function paidStart(){
+  if(D.busy) return;
+  if(D.on){ micNote("الإملاء المجاني يعمل — أوقفه أولاً.", true); return; }
+  var key = $("#gkey").value.trim();
+  if(!key){
+    micNote("ضع مفتاح Google AI في الإعدادات أولاً.", true);
+    $("#settings").open = true; $("#gkey").focus();
+    return;
+  }
+  if(!window.MediaRecorder || !navigator.mediaDevices){
+    micNote("هذا المتصفح لا يدعم تسجيل الصوت.", true);
+    return;
+  }
+  stopSpeech();
+  try{
+    D.stream = await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(err){
+    micNote("تعذّر فتح الميكروفون: " + (err.name === "NotAllowedError"
+      ? "الإذن محظور — انقر الأيقونة يسار شريط العنوان ← الميكروفون ← السماح."
+      : err.message), true);
+    return;
+  }
+  var mime = paidMime();
+  D.blobs = [];
+  D.mr = new MediaRecorder(D.stream, mime ? {mimeType:mime} : undefined);
+  D.mr.ondataavailable = function(e){ if(e.data && e.data.size) D.blobs.push(e.data); };
+  D.mr.onstop = paidSend;
+  D.mr.start();
+  D.recStart = Date.now();
+  dictButtons();
+  D.recTimer = setInterval(function(){
+    var s = Math.round((Date.now() - D.recStart) / 1000);
+    if(s >= PAID_MAX_SECS){ micNote("بلغ الحدّ الأقصى — يُرسل الآن."); paidStop(); return; }
+    micNote("يسجّل " + s + " ث — الصمت يُسجَّل ويُحاسب عليه");
+  }, 1000);
+}
+function paidStop(){
+  if(!D.mr) return;
+  clearInterval(D.recTimer); D.recTimer = null;
+  try{ D.mr.stop(); }catch(e){}
+}
+function paidSend(){
+  var mime = (D.mr && D.mr.mimeType) ? D.mr.mimeType.split(";")[0] : "audio/webm";
+  var blob = new Blob(D.blobs, {type:mime});
+  var secs = Math.round((Date.now() - D.recStart) / 1000);
+  if(D.stream){ D.stream.getTracks().forEach(function(t){ t.stop(); }); D.stream = null; }
+  D.mr = null; D.blobs = [];
+  dictButtons();
+  if(secs < 1 || !blob.size){ micNote("لم يُسجَّل شيء."); return; }
+  D.busy = true;
+  micNote("يُرسل " + secs + " ث إلى Gemini …");
+  var fr = new FileReader();
+  fr.onload = async function(){
+    var b64 = String(fr.result).split(",")[1];
+    var langName = {ar:"Arabic (Levantine/Syrian dialect, may mix in Modern Standard Arabic)",
+                    sv:"Swedish", en:"English"}[$("#dictLang").value] || "English";
+    try{
+      var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent($("#gkey").value.trim()), {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          contents:[{ parts:[
+            { inline_data:{ mime_type:mime, data:b64 } },
+            { text:"Transcribe this audio verbatim in " + langName + ". Output the transcription only — no preamble, no translation, no commentary, no quotation marks. If the audio is silent, output nothing." }
+          ]}],
+          generationConfig:{ temperature:0 }
+        })
+      });
+      var data = await res.json();
+      D.busy = false;
+      if(data.error){ micNote("Gemini: " + data.error.message, true); return; }
+      var out = "";
+      ((data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [])
+        .forEach(function(p){ if(p.text) out += p.text; });
+      out = out.trim();
+      geminiCost(data);
+      if(!out){ micNote("لم يفهم Gemini شيئاً من التسجيل.", true); return; }
+      dictInsert(D.target || $("#input"), out);
+      micNote("تم — " + secs + " ث · Gemini");
+    }catch(err){
+      D.busy = false;
+      micNote("تعذّر الإرسال: " + err.message, true);
+    }
+  };
+  fr.onerror = function(){ D.busy = false; micNote("تعذّرت قراءة التسجيل.", true); };
+  fr.readAsDataURL(blob);
+}
+function geminiCost(data){
+  try{
+    var u = data.usageMetadata;
+    if(!u) return;
+    /* Gemini 2.5 Flash: about $0.30 per 1M in, $2.50 per 1M out */
+    var usd = ((u.promptTokenCount || 0) * 0.30 + (u.candidatesTokenCount || 0) * 2.50) / 1e6;
+    if(!(usd > 0)) return;
+    var st = costState(), mk = costMonthKey(), dev = costDev();
+    st.months[mk] = st.months[mk] || {};
+    st.months[mk][dev] = (st.months[mk][dev] || 0) + usd;
+    LS.set("joyread.cost", JSON.stringify(st));
+    costPaint();
+  }catch(e){}
+}
+
+$("#btnMic").addEventListener("click", function(){
+  this.blur();
+  if(D.on && D.target && D.target.id !== "ideaText") dictStop();
+  else dictStart($("#input"));
+});
+$("#btnIdeaMic").addEventListener("click", function(){
+  this.blur();
+  if(D.on && D.target && D.target.id === "ideaText") dictStop();
+  else dictStart($("#ideaText"));
+});
+$("#btnMicPaid").addEventListener("click", function(){
+  this.blur();
+  if(D.mr) paidStop(); else paidStart();
+});
+$("#dictLang").addEventListener("change", function(){
+  D.li = 0;
+  saveSettings();
+  if(D.on){ dictStop(); setTimeout(function(){ dictStart($("#input")); }, 250); }
+});
+/* initialised here rather than at the end of the file, so a failure anywhere
+   later in startup can never leave the dictation controls unlabelled */
+try{
+  var savedGKey = LS.get("joyread.gkey");
+  if(savedGKey){ $("#gkey").value = savedGKey; $("#gkeySave").checked = true; }
+  dictButtons();
+  setAllUI();
+  if(!SR) micNote("الإملاء غير مدعوم في هذا المتصفح — استعمل كروم أو Edge.", true);
+  else if(dictEngine().key === "ms") micNote("المحرّك هنا: " + dictEngine().name);
+}catch(e){}
+
+/* ---------- apply to all cards ---------- */
+function setAllUI(){
+  var b = $("#btnReadAll");
+  if(!b) return;
+  if(S.playing >= 0){
+    b.textContent = S.paused ? "\u25B6\uFE0E تابع" : "\u23F8 إيقاف مؤقت";
+    b.title = "Esc لإيقاف القراءة نهائياً";
+    b.classList.remove("on");
+    return;
+  }
+  b.textContent = S.all ? "\u2713 يسري على كل البطاقات" : "طبّق على كل البطاقات";
+  b.classList.toggle("on", S.all);
+  b.setAttribute("aria-pressed", String(S.all));
+  b.title = S.all
+    ? "أي زرّ تضغطه في أي بطاقة سيسري على الجميع. اضغط هنا لإطفائه."
+    : "فعّله ثم اضغط أي زرّ في أي بطاقة فيسري على كل البطاقات";
+}
+/* Batches are sized by characters, not by a fixed count: everything goes in one
+   request when it fits, and only splits when the reply would risk being cut off. */
+function batchIdx(list){
+  var BUDGET = 5000, out = [], cur = [], n = 0;
+  list.forEach(function(i){
+    var len = (S.chunks[i] || "").length;
+    if(cur.length && n + len > BUDGET){ out.push(cur); cur = []; n = 0; }
+    cur.push(i); n += len;
+  });
+  if(cur.length) out.push(cur);
+  return out;
+}
+async function askAll(kind, lang){
+  var key = $("#key").value.trim();
+  if(!key){ $("#settings").open = true; $("#key").focus(); return; }
+  if(location.protocol === "file:"){
+    cardNote(0, "الصفحة مفتوحة كملف محلي، والمتصفح يمنع الاتصال بالـ API من هنا. افتحها من رابط GitHub Pages.", true);
+    return;
+  }
+  var store = kind === "tr" ? S.tr : S.simp;
+  var todo = [];
+  S.chunks.forEach(function(t, i){
+    if(!store[kind === "tr" ? i + "|" + lang : i]) todo.push(i);
+  });
+  if(!todo.length){ /* everything already done — second press clears it */
+    S.chunks.forEach(function(t, i){ delete store[kind === "tr" ? i + "|" + lang : i]; });
+    render(); return;
+  }
+  var groups = batchIdx(todo), doneN = 0;
+  var target = LANGNAME[lang];
+  var task = kind === "tr"
+    ? "Task: translate each item into " + target + ". Keep the meaning exact, including technical or clinical terms. Do not summarise and do not add anything."
+    : "Task: rewrite each item in plainer " + target + " and explain what it means. Take as much room as the difficulty requires; never pad. Priority is clarity, not brevity.";
+  var sys = "You are a precise text tool. The text can be about ANY subject whatsoever. " +
+    "Never comment on the subject, never say the text is outside your area, never add notes about yourself or the request.\n" + task +
+    "\nYou receive a JSON array of strings. Reply with JSON only, no markdown fence and no commentary: " +
+    "an array of the same length and order, each element the result for the matching input.";
+  var btn = $("#btnReadAll");
+  btn.disabled = true;
+  for(var g = 0; g < groups.length; g++){
+    var ids = groups[g];
+    btn.textContent = "… " + doneN + " / " + todo.length;
+    try{
+      var res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "x-api-key":key,
+                  "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+        body: JSON.stringify({ model: $("#trModel").value, max_tokens: 8000, system: sys,
+          messages:[{ role:"user", content: JSON.stringify(ids.map(function(i){ return S.chunks[i]; })) }] })
+      });
+      var data = await res.json();
+      costTrack(data, $("#trModel").value);
+      if(data.error){ cardNote(ids[0], "تعذّر: " + data.error.message, true); break; }
+      var raw = (data.content || []).filter(function(c){ return c.type === "text"; })
+                                    .map(function(c){ return c.text; }).join("\n").trim();
+      raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/,"").trim();
+      var arr = JSON.parse(raw);
+      if(!Array.isArray(arr) || arr.length !== ids.length){
+        cardNote(ids[0], "ردّ النموذج لم يطابق عدد البطاقات — جرّب بطاقة بطاقة.", true);
+        break;
+      }
+      ids.forEach(function(i, k){
+        store[kind === "tr" ? i + "|" + lang : i] = String(arr[k]);
+      });
+      doneN += ids.length;
+      render();
+    }catch(err){
+      cardNote(ids[0], "تعذّر: " + err.message, true);
+      break;
+    }
+  }
+  btn.disabled = false;
+  setAllUI();
+  render();
+}
+
 /* ---------- compatibility ---------- */
 function compat(){
   var box = $("#compat");
@@ -2334,8 +2711,29 @@ function compat(){
   html += row("تظليل الكلمة أثناء النطق", S.boundarySeen ? 1 : 2, S.boundarySeen ? "يعمل على هذا المتصفح" : "يُختبر عند أول قراءة");
   html += row("لصق الصور", 1, "مدعوم");
   html += row("الاستخراج المحلي", 2, window.Tesseract ? "المحرك محمّل" : "يُحمّل عند أول استعمال");
+  html += row("الإملاء الصوتي", SR ? 1 : 0, SR ? "مدعوم" : "غير مدعوم في هذا المتصفح");
+  var eng = dictEngine();
+  html += row("محرّك التعرّف", eng.key === "google" ? 1 : eng.key === "none" ? 0 : 2, eng.name);
+  html += row("إذن الميكروفون", 2, "يُفحص …");
+  var online = navigator.onLine !== false, local = location.protocol === "file:";
+  html += row("الاتصال", (online && !local) ? 1 : 0,
+    local ? "الصفحة مفتوحة كملف محلي — الاتصال بالنماذج محجوب"
+          : (online ? "متصل" : "لا اتصال بالإنترنت"));
   box.innerHTML = html;
   box.classList.remove("hidden");
+  /* permission state is async, so it is filled in once it resolves */
+  var micRow = box.children[box.children.length - 2];
+  function setMic(state, txt){
+    if(!micRow) return;
+    micRow.innerHTML = "<span style='min-width:190px'>إذن الميكروفون</span><span class='" +
+      (state === 1 ? "ok" : state === 0 ? "no" : "maybe") + "'>" + txt + "</span>";
+  }
+  if(navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({name:"microphone"}).then(function(p){
+      setMic(p.state === "granted" ? 1 : p.state === "denied" ? 0 : 2,
+        p.state === "granted" ? "ممنوح" : p.state === "denied" ? "محظور — انقر الأيقونة يسار شريط العنوان ← الميكروفون ← السماح" : "لم يُطلب بعد");
+    }).catch(function(){ setMic(2, "لا يمكن فحصه في هذا المتصفح"); });
+  } else setMic(2, "لا يمكن فحصه في هذا المتصفح");
 }
 
 /* ---------- style ---------- */
@@ -2362,6 +2760,7 @@ function run(){
   S.original = text;
   S.chunks = chunkText(text);
   S.done = {}; S.idx = 0; S.tr = {}; S.simp = {}; S.extra = {};
+  S.all = false;   /* a fresh text must never inherit a live apply-to-all */
   if(S.original !== S.proofOf){
     S.typos = {}; S.typosFold = {}; S.typoList = [];
     $("#proofBox").classList.add("hidden");
@@ -2423,9 +2822,11 @@ panel.addEventListener("drop", function(e){ if(e.dataTransfer) addImages(e.dataT
 
 $("#btnReadAll").addEventListener("click", function(){
   this.blur();
+  /* while something is being read this button is the pause control */
   if(S.playing >= 0){ togglePause(); return; }
   if(window.speechSynthesis && window.speechSynthesis.speaking){ stopSpeech(); return; }
-  speakCard(document.body.classList.contains("focus") ? S.idx : 0, true);
+  S.all = !S.all;
+  setAllUI();
 });
 $("#cards").addEventListener("click", function(e){
   var sp = e.target.closest(".w.sp");
@@ -2446,12 +2847,13 @@ $("#cards").addEventListener("click", function(e){
     updateProgress();
   } else if(btn.classList.contains("speak")){
     if(S.playing === i){ togglePause(); }
+    else if(S.all){ stopSpeech(); speakCard(i, true); }
     else { stopSpeech(); speakCard(i, false); }
   } else if(btn.classList.contains("zoom")){
     if(document.body.classList.contains("focus") && S.idx === i){ setFocus(false); goTo(i); }
     else { S.idx = i; setFocus(true); }
   } else if(btn.classList.contains("copy")){
-    var txt = S.chunks[i];
+    var txt = S.all ? S.chunks.join("\n\n") : S.chunks[i];
     if(navigator.clipboard) navigator.clipboard.writeText(txt);
     btn.textContent = "تم \u2713";
     setTimeout(function(){ btn.textContent = "نسخ"; }, 1500);
@@ -2459,9 +2861,11 @@ $("#cards").addEventListener("click", function(e){
     var pk = Number(btn.dataset.k);
     if(S.extra[i]){ S.extra[i].splice(pk, 1); render(); }
   } else if(btn.classList.contains("trbtn")){
-    askModel("tr", i, btn, btn.dataset.l);
+    if(S.all) askAll("tr", btn.dataset.l);
+    else askModel("tr", i, btn, btn.dataset.l);
   } else if(btn.classList.contains("spbtn")){
-    askModel("simp", i, btn);
+    if(S.all) askAll("simp", $("#exLang").value);
+    else askModel("simp", i, btn);
   }
 });
 function step(d){ stopSpeech(); goTo(S.idx + d); }
@@ -2557,6 +2961,12 @@ function syncKey(){
 }
 $("#key").addEventListener("input", syncKey);
 $("#keySave").addEventListener("change", syncKey);
+function syncGKey(){
+  if($("#gkeySave").checked) LS.set("joyread.gkey", $("#gkey").value.trim());
+  else LS.del("joyread.gkey");
+}
+$("#gkey").addEventListener("input", syncGKey);
+$("#gkeySave").addEventListener("change", syncGKey);
 $("#btnCal").addEventListener("click", function(){
   var w = Number(this.dataset.w || 0);
   if(!w){ $("#calMsg").textContent = "لسه ما فيه قياس كافٍ \u2014 علّم بضع بطاقات بـ«تم» وأنت تقرأ."; return; }
@@ -2600,7 +3010,7 @@ $("#btnLink").addEventListener("click", function(){
   } else done(false);
 });
 /* ---------- دليل الاستخدام ---------- */
-var GUIDE = [["الشريط العلوي",[["الدليل","يفتح هذه الصفحة. يُغلق بزر «أغلق» أو بمفتاح Esc."],["نص جديد","يمسح النص الحالي والبطاقات ويعيدك إلى صندوق اللصق. لا يمسّ إعداداتك ولا قاموسك."],["وضع التركيز","يُخفي كل شيء ويعرض بطاقة واحدة تملأ الشاشة. مفاتيح المسافة والأسهم وS تعمل داخله."],["مسطرة","شريط أفقي يتبع مؤشر الماوس ليثبّت عينك على السطر. ارتفاعه يُضبط من الإعدادات."],["فكّ الاختصارات","يشغّل قراءة مصطلحات الأسنان المختصرة: يضع خطاً تحت كل اختصار ويعرض معناه. مطفأً لا يظهر أي خط."]]],["أزرار البطاقة",[["تم ✓","يعلّم البطاقة كمقروءة، ونقرة ثانية تلغي ذلك. يُستعمل في حساب ما تبقّى من وقت القراءة."],["🔊","يقرأ البطاقة صوتياً. أثناء القراءة يوقف مؤقتاً، والضغطة التالية تستأنف."],["ع / SV / EN","يترجم البطاقة إلى العربية أو السويدية أو الإنجليزية. يستهلك من مفتاح الـ API."],["بسّط","يعيد صياغة البطاقة بلغة أسهل مع شرح. يستهلك من مفتاح الـ API."],["نسخ","ينسخ نص البطاقة إلى الحافظة."],["⌗","يفتح البطاقة وحدها في وضع التركيز."],["تظليل كلمة","ظلّل أي كلمة بالماوس فتظهر بطاقة كلمة: المعنى والنطق والمقاطع والمرادف ومثال وترجمته، وزر «من قاموسي»."],["من قاموسي","يبحث عن الكلمة في قاموسك الشخصي المستورد ويعرض كل سطر ورد فيه. بحث محلي لا يكلّف شيئاً."]]],["مفاتيح لوحة المفاتيح",[["↑ ↓","البطاقة السابقة / التالية — تعمل في كل الأوضاع.","key"],["N","يفتح دفتر الأفكار.","key"],["Esc","يغلق دفتر الأفكار أو الدليل، ويوقف القراءة الصوتية، ويخرج من وضع التركيز.","key"],["Space","البطاقة التالية — في وضع التركيز فقط.","key"],["← →","البطاقة السابقة / التالية — في وضع التركيز فقط.","key"],["S","يقرأ البطاقة صوتياً، ويوقف ويستأنف — في وضع التركيز فقط.","key"],["Ctrl+Enter","في صندوق النص: يرتّب البطاقات. وفي دفتر الأفكار: يحفظ الفكرة.","key"],["ملاحظة اللوحة العربية","مفاتيح الحروف N وS تعمل على اللوحة العربية أيضاً — التطبيق يقرأ موضع المفتاح لا الحرف."]]],["المظهر والقراءة",[["حجم الخط · تباعد الأسطر · تباعد الكلمات","تضبط راحة العين. التغيير فوري ويُحفظ تلقائياً."],["حدّ طول البطاقة","أقصى عدد حروف في البطاقة الواحدة. أصغر = بطاقات أكثر وأقصر."],["سرعة قراءتك","تُستعمل لحساب الوقت المتبقي على كل بطاقة. اضبطها أو قسها بالزر التالي."],["قياس سرعتك الحقيقية","يقيس سرعتك أثناء القراءة الفعلية ثم يعرض زر «استعمل سرعتي المقاسة»."],["ارتفاع المسطرة","سُمك شريط المسطرة بالبكسل."],["طريقة التقسيم","أين يقطع النص: عند الجمل أو الفقرات أو بعدد الحروف."],["الخط · الخلفية","نوع الخط وثيمة الألوان. تشمل خطوطاً مريحة لعسر القراءة."],["لغة النص","تحكم الصوت ونطق بطاقة الكلمة واتجاه النص وخطه. «تلقائي» يخمّن من النص وقد يخطئ — عندها اختر اللغة صراحةً."],["الصوت · سرعة القراءة","أي صوت من أصوات نظامك، وبأي سرعة يقرأ."],["خط عريض","يجعل نص البطاقات أثقل وزناً."],["تظليل الأرقام","يلوّن الأرقام في النص لتبرز — مفيد لأرقام الأسنان والجرعات."],["تظليل الكلمة أثناء القراءة","يضيء كل كلمة لحظة نطقها أثناء القراءة الصوتية."],["تجاهل علامات الترقيم في النطق","يمنع الصوت من التوقف عند الفواصل والنقاط فتصير القراءة أكثر انسياباً."],["طيّ البطاقة المقروءة","يطوي البطاقة تلقائياً بمجرد أن تعلّمها «تم»، فتبقى أمامك البطاقات غير المقروءة."],["قراءة بيونك (لاتيني)","يسوّد أول 40% من حروف كل كلمة لاتينية لتعطي العين نقطة ارتكاز. لا أثر له على العربية."],["ألوان متبدّلة","يلوّن البطاقات بألوان متناوبة ليسهل تمييز بعضها من بعض."]]],["مصطلحات الأسنان المختصرة",[["أضف اختصاراً","يضيف اختصاراً جديداً: ترمز له ثم تكتب معناه الكامل."],["جدول الاختصارات","يعرض كل الاختصارات في قائمة واحدة مع بحث، ولكل سطر تعديل وحذف. التغيير يسري فوراً."],["إظهار المعاني تلقائياً","يضع سطراً تحت كل بطاقة يفكّ كل اختصار ورد فيها. أطفئه لتبقى البطاقة نظيفة."],["شمل الاختصارات ذات الحرف الواحد","يشمل اختصارات من حرف واحد مثل c وa. مطفأ افتراضياً لأنه يعطي تفسيرات خاطئة في النص العادي."]]],["الترجمة والذكاء",[["لغة التبسيط والشرح","بأي لغة يُكتب لك الشرح والتبسيط وبطاقة الكلمة."],["نموذج الترجمة والتبسيط","Haiku أرخص ويكفي الترجمة والتبسيط؛ Sonnet أدقّ ويفيد في بطاقة الكلمة والتدقيق."],["دقّق النص","يبحث عن الأخطاء الإملائية ويقترح تصحيحها. يستهلك من مفتاح الـ API."],["مفتاح Anthropic API","يُحفظ في هذا المتصفح وحده. لا يخرج في ملف التصدير ولا في رابط الإعدادات."]]],["الصور والقاموس",[["أضف صورة","يرفع صورة لاستخراج النص منها."],["استخرج محلياً (مجاني)","يستخرج النص داخل متصفحك بلا إنترنت وبلا تكلفة. دقته أقل مع الخطوط الصعبة."],["حسّن بالنموذج","يعيد استخراج النص بنموذج ذكاء فيصحّح ما أخطأ فيه الاستخراج المحلي. يستهلك من مفتاح الـ API."],["استورد قاموسي (.txt)","يستورد قاموسك الشخصي. الاستيراد يستبدل النسخة السابقة بالكامل. احفظ الملف بترميز UTF-8."],["احذف القاموس","يحذف القاموس من هذا المتصفح وحده. ملفك الأصلي عندك لا يُمسّ."]]],["الحفظ والنقل والتكلفة",[["الاستهلاك هذا الشهر 💰","ما أنفقته فعلياً هذا الشهر بالكرونة. يتحدّث بعد كل عملية، ويبدأ من الصفر مع أول كل شهر."],["الأشهر السابقة","يعرض إنفاق كل شهر مضى، وسعر صرف الدولار المستعمل."],["تصدير ملف · استيراد ملف","ينقل ما تختاره من إعدادات واختصارات وعدّاد إلى جهاز آخر. الاستيراد يستبدل، وينزّل نسخة احتياطية أولاً."],["انسخ رابط إعداداتي","يحزم الإعدادات والاختصارات في رابط. افتحه في جهاز آخر فيُطبَّق ويُحفظ."],["دفتر الأفكار","مسوّدة سريعة لتدوين ما يخطر لك أثناء القراءة. لا يدخل في التصدير."],["افحص هذا المتصفح","يفحص ما إذا كان متصفحك يدعم الأصوات والتخزين وبقية الوظائف."],["إعادة إقلاع","يمحو كل شيء من هذا المتصفح للبدء من الصفر. يطلب كتابة كلمة تأكيد وينزّل نسخة احتياطية أولاً."],["طباعة","يطبع البطاقات الحالية."]]]];
+var GUIDE = [["الشريط العلوي",[["الدليل","يفتح هذه الصفحة. يُغلق بزر «أغلق» أو بمفتاح Esc."],["نص جديد","يمسح النص الحالي والبطاقات ويعيدك إلى صندوق اللصق. لا يمسّ إعداداتك ولا قاموسك."],["وضع التركيز","يُخفي كل شيء ويعرض بطاقة واحدة تملأ الشاشة. مفاتيح المسافة والأسهم وS تعمل داخله."],["مسطرة","شريط أفقي يتبع مؤشر الماوس ليثبّت عينك على السطر. ارتفاعه يُضبط من الإعدادات."],["فكّ الاختصارات","يشغّل قراءة مصطلحات الأسنان المختصرة: يضع خطاً تحت كل اختصار ويعرض معناه. مطفأً لا يظهر أي خط."]]],["الإملاء الصوتي",[["🎤 إملاء","إملاء مجاني بمحرّك متصفحك. اضغطه فيبدأ الاستماع، وتكلّم كما تشاء — الوقفات القصيرة للتفكير لا توقفه، ولا ينتهي إلا بضغطك عليه ثانية. النص يظهر وأنت تتكلم، ويُضاف إلى ما في الصندوق ولا يستبدله. لا يكلّف شيئاً."],["إملاء مدفوع","يسجّل صوتك، ثم يرسله إلى Gemini عند ضغط «أوقف وأرسل». أدقّ عادةً، لكن لا نص قبل أن توقف، والصمت يُسجَّل ويُحاسَب عليه كأنه كلام. بجانبه عدّاد ثوانٍ، وتوقّف تلقائي عند خمس دقائق حتى لا يبقى مفتوحاً منسياً. يحتاج مفتاح Google AI من الإعدادات."],["لغة الإملاء","عربي أو سويدي أو إنجليزي. العربية تبدأ بالرمز السوري، فإن رفضه المتصفح انتقلت وحدها إلى الأقرب. واللافتة بجانب الأزرار تقول لك أي محرّك يستمع وأي رمز يعمل الآن."],["أي محرّك يسمعني","كروم يرسل صوتك إلى جوجل، وEdge يرسله إلى مايكروسوفت — نفس الزرّ ومحرّك مختلف، ولذلك قد تختلف الدقة بين جهاز وآخر. وفايرفوكس لا يدعم الإملاء إطلاقاً."],["الميكروفون نفسه","يُختار من ويندوز ومن إعدادات المتصفح، لا من التطبيق. وإن بدّلته أثناء إملاء جارٍ، أوقف وشغّل من جديد ليُلتقط الجهاز الجديد."],["إن حُظر الإذن","لا شيء يضيع: انقر الأيقونة على يسار شريط العنوان ← الميكروفون ← السماح ← حدّث الصفحة. والتطبيق يقول لك ذلك في حينه."],["مع القراءة الصوتية","لا يعملان معاً — بدء أحدهما يوقف الآخر، حتى لا يكتب الميكروفون صوت التطبيق نفسه."],["دفتر الأفكار","له زرّ إملاء خاص به يعمل بنفس الطريقة."]]],["أزرار البطاقة",[["طبّق على كل البطاقات","مفتاح في شريط التقدّم، محلّ «اقرأ الكل» السابق. فعّله ثم اضغط أي زرّ في أي بطاقة — قراءة أو ترجمة أو «بسّط» أو نسخ — فيسري على البطاقات كلها بدل واحدة. يبقى مفعّلاً حتى تطفئه، ويُطفأ وحده مع كل نص جديد. وأثناء القراءة الصوتية يتحوّل الزرّ نفسه إلى إيقاف مؤقت."],["تم ✓","يعلّم البطاقة كمقروءة، ونقرة ثانية تلغي ذلك. يُستعمل في حساب ما تبقّى من وقت القراءة."],["🔊","يقرأ البطاقة صوتياً. أثناء القراءة يوقف مؤقتاً، والضغطة التالية تستأنف."],["ع / SV / EN","يترجم البطاقة إلى العربية أو السويدية أو الإنجليزية. يستهلك من مفتاح الـ API."],["بسّط","يعيد صياغة البطاقة بلغة أسهل مع شرح. يستهلك من مفتاح الـ API."],["نسخ","ينسخ نص البطاقة إلى الحافظة."],["⌗","يفتح البطاقة وحدها في وضع التركيز."],["تظليل كلمة","ظلّل أي كلمة بالماوس فتظهر بطاقة كلمة: المعنى والنطق والمقاطع والمرادف ومثال وترجمته، وزر «من قاموسي»."],["من قاموسي","يبحث عن الكلمة في قاموسك الشخصي المستورد ويعرض كل سطر ورد فيه. بحث محلي لا يكلّف شيئاً."]]],["مفاتيح لوحة المفاتيح",[["↑ ↓","البطاقة السابقة / التالية — تعمل في كل الأوضاع.","key"],["N","يفتح دفتر الأفكار.","key"],["Esc","يغلق دفتر الأفكار أو الدليل، ويوقف القراءة الصوتية، ويخرج من وضع التركيز.","key"],["Space","البطاقة التالية — في وضع التركيز فقط.","key"],["← →","البطاقة السابقة / التالية — في وضع التركيز فقط.","key"],["S","يقرأ البطاقة صوتياً، ويوقف ويستأنف — في وضع التركيز فقط.","key"],["Ctrl+Enter","في صندوق النص: يرتّب البطاقات. وفي دفتر الأفكار: يحفظ الفكرة.","key"],["ملاحظة اللوحة العربية","مفاتيح الحروف N وS تعمل على اللوحة العربية أيضاً — التطبيق يقرأ موضع المفتاح لا الحرف."]]],["المظهر والقراءة",[["حجم الخط · تباعد الأسطر · تباعد الكلمات","تضبط راحة العين. التغيير فوري ويُحفظ تلقائياً."],["حدّ طول البطاقة","أقصى عدد حروف في البطاقة الواحدة. أصغر = بطاقات أكثر وأقصر."],["سرعة قراءتك","تُستعمل لحساب الوقت المتبقي على كل بطاقة. اضبطها أو قسها بالزر التالي."],["قياس سرعتك الحقيقية","يقيس سرعتك أثناء القراءة الفعلية ثم يعرض زر «استعمل سرعتي المقاسة»."],["ارتفاع المسطرة","سُمك شريط المسطرة بالبكسل."],["طريقة التقسيم","أين يقطع النص: عند الجمل أو الفقرات أو بعدد الحروف."],["الخط · الخلفية","نوع الخط وثيمة الألوان. تشمل خطوطاً مريحة لعسر القراءة."],["لغة النص","تحكم الصوت ونطق بطاقة الكلمة واتجاه النص وخطه. «تلقائي» يخمّن من النص وقد يخطئ — عندها اختر اللغة صراحةً."],["الصوت · سرعة القراءة","أي صوت من أصوات نظامك، وبأي سرعة يقرأ."],["خط عريض","يجعل نص البطاقات أثقل وزناً."],["تظليل الأرقام","يلوّن الأرقام في النص لتبرز — مفيد لأرقام الأسنان والجرعات."],["تظليل الكلمة أثناء القراءة","يضيء كل كلمة لحظة نطقها أثناء القراءة الصوتية."],["تجاهل علامات الترقيم في النطق","يمنع الصوت من التوقف عند الفواصل والنقاط فتصير القراءة أكثر انسياباً."],["طيّ البطاقة المقروءة","يطوي البطاقة تلقائياً بمجرد أن تعلّمها «تم»، فتبقى أمامك البطاقات غير المقروءة."],["قراءة بيونك (لاتيني)","يسوّد أول 40% من حروف كل كلمة لاتينية لتعطي العين نقطة ارتكاز. لا أثر له على العربية."],["ألوان متبدّلة","يلوّن البطاقات بألوان متناوبة ليسهل تمييز بعضها من بعض."]]],["مصطلحات الأسنان المختصرة",[["أضف اختصاراً","يضيف اختصاراً جديداً: ترمز له ثم تكتب معناه الكامل."],["جدول الاختصارات","يعرض كل الاختصارات في قائمة واحدة مع بحث، ولكل سطر تعديل وحذف. التغيير يسري فوراً."],["إظهار المعاني تلقائياً","يضع سطراً تحت كل بطاقة يفكّ كل اختصار ورد فيها. أطفئه لتبقى البطاقة نظيفة."],["شمل الاختصارات ذات الحرف الواحد","يشمل اختصارات من حرف واحد مثل c وa. مطفأ افتراضياً لأنه يعطي تفسيرات خاطئة في النص العادي."]]],["الترجمة والذكاء",[["لغة التبسيط والشرح","بأي لغة يُكتب لك الشرح والتبسيط وبطاقة الكلمة."],["نموذج الترجمة والتبسيط","Haiku أرخص ويكفي الترجمة والتبسيط؛ Sonnet أدقّ ويفيد في بطاقة الكلمة والتدقيق."],["دقّق النص","يبحث عن الأخطاء الإملائية ويقترح تصحيحها. يستهلك من مفتاح الـ API."],["مفتاح Anthropic API","يُحفظ في هذا المتصفح وحده. لا يخرج في ملف التصدير ولا في رابط الإعدادات."],["مفتاح Google AI API","لزرّ «إملاء مدفوع» وحده. الدفع حسب الاستخدام لا اشتراك. يُحفظ ويُعامَل مثل مفتاح Anthropic تماماً — في هذا المتصفح وحده، وخارج التصدير."]]],["الصور والقاموس",[["أضف صورة","يرفع صورة لاستخراج النص منها."],["استخرج محلياً (مجاني)","يستخرج النص داخل متصفحك بلا إنترنت وبلا تكلفة. دقته أقل مع الخطوط الصعبة."],["حسّن بالنموذج","يعيد استخراج النص بنموذج ذكاء فيصحّح ما أخطأ فيه الاستخراج المحلي. يستهلك من مفتاح الـ API."],["استورد قاموسي (.txt)","يستورد قاموسك الشخصي. الاستيراد يستبدل النسخة السابقة بالكامل. احفظ الملف بترميز UTF-8."],["احذف القاموس","يحذف القاموس من هذا المتصفح وحده. ملفك الأصلي عندك لا يُمسّ."]]],["الحفظ والنقل والتكلفة",[["الاستهلاك هذا الشهر 💰","ما أنفقته فعلياً هذا الشهر بالكرونة. يتحدّث بعد كل عملية، ويبدأ من الصفر مع أول كل شهر."],["الأشهر السابقة","يعرض إنفاق كل شهر مضى، وسعر صرف الدولار المستعمل."],["تصدير ملف · استيراد ملف","ينقل ما تختاره من إعدادات واختصارات وعدّاد إلى جهاز آخر. الاستيراد يستبدل، وينزّل نسخة احتياطية أولاً."],["انسخ رابط إعداداتي","يحزم الإعدادات والاختصارات في رابط. افتحه في جهاز آخر فيُطبَّق ويُحفظ."],["دفتر الأفكار","مسوّدة سريعة لتدوين ما يخطر لك أثناء القراءة. لا يدخل في التصدير."],["افحص هذا المتصفح","يفحص ما إذا كان متصفحك يدعم الأصوات والتخزين وبقية الوظائف. ويقول لك أيضاً: هل الإملاء مدعوم، وأي محرّك يستمع إليك، وهل إذن الميكروفون ممنوح أم محظور، وهل الاتصال قائم. هذا أول مكان تذهب إليه إن أساء الإملاء التصرّف."],["إعادة إقلاع","يمحو كل شيء من هذا المتصفح للبدء من الصفر. يطلب كتابة كلمة تأكيد وينزّل نسخة احتياطية أولاً."],["طباعة","يطبع البطاقات الحالية."]]]];
 function guidePaint(){
   var q = ($("#gSearch").value || "").trim().toLowerCase();
   var body = $("#gBody");
@@ -3240,7 +3650,7 @@ $("#btnWipe").addEventListener("click", function(){
   if(typed === null) return;
   if(String(typed).trim() !== "امسح"){ ocrStatus("أُلغي — لم يُمسح شيء", true); return; }
   try{ xfBackup(); }catch(e){}
-  LS.del("joyread.settings"); LS.del("joyread.gloss"); LS.del("joyread.abbr"); LS.del("joyread.ideas"); LS.del("joyread.key"); LS.del("joyread.cost");
+  LS.del("joyread.settings"); LS.del("joyread.gloss"); LS.del("joyread.abbr"); LS.del("joyread.ideas"); LS.del("joyread.key"); LS.del("joyread.gkey"); LS.del("joyread.cost");
   LS.del("joyread.dictMeta"); DICT.lines = null; DICT.norm = null; DICT.loading = null;
   idbDel("text").catch(function(){}); dictRefreshStatus();
   $("#key").value = ""; $("#keySave").checked = false;
