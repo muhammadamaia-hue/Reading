@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JoyRead — جارٍ الفتح</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       background:#eef1f4;color:#5d6b78;font:400 15px/1.8 system-ui,"Segoe UI",sans-serif}
+  p{text-align:center}
+  a{color:#0b6e5f}
+</style>
+<p>جارٍ فتح أحدث نسخة من JoyRead…<br>
+   <a id="fb" href="joyread.html">اضغط هنا إن لم تُفتح تلقائياً</a></p>
+<script>
+/* This page never changes, so the browser may cache it freely. Every visit it sends
+   you on to joyread.html under an address the browser has never seen, which forces
+   a fresh copy. Settings and the dictionary are stored per-site, not per-address,
+   so nothing of yours is affected. */
+var url = "joyread.html?v=" + Date.now();
+document.getElementById("fb").href = url;
+location.replace(url);
+</script>
+</html>
