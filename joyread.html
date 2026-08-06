@@ -1008,17 +1008,34 @@ function dirOf(t){ return arCount(t) >= latCount(t) ? "rtl" : "ltr"; }
    get nothing, so they keep following the paragraph exactly as before.
    The attribute rides on the existing word span: no new element, so the
    read-aloud highlighter still finds the same .w nodes in the same order. */
+/* rtl, ltr, or "" for a token carrying no strong letters — a bare number, a dash */
 function tokDir(w){
   var a = arCount(w), l = latCount(w);
   if(!a && !l) return "";
-  return a >= l ? " dir='rtl'" : " dir='ltr'";
+  return a >= l ? "rtl" : "ltr";
 }
+/* Isolating each word on its own reversed the Swedish sentence: every word became
+   its own island, and islands are laid out in the paragraph's direction, so they
+   marched right to left. The isolation has to wrap the whole run of same-direction
+   words at once — then the run reads correctly inside itself and only the run as a
+   whole takes its place in the Arabic line, punctuation included.
+   A token with no strong letters joins whichever run it is standing in. */
 /* same isolation, for places that render plain text instead of word spans */
 function bidiTokens(text, bio){
-  return String(text).replace(/\S+/g, function(w){
-    var d = tokDir(w), inner = bio ? bionicWord(esc(w)) : esc(w);
-    return d ? "<span" + d + ">" + inner + "</span>" : inner;
-  });
+  var t = String(text), re = /\S+/g, m, last = 0, out = "", cur = "", open = false;
+  while((m = re.exec(t)) !== null){
+    var w = m[0], d = tokDir(w), gap = esc(t.slice(last, m.index));
+    if(d && d !== cur){
+      if(open){ out += "</span>"; open = false; }
+      out += gap;
+      out += "<span dir='" + d + "'>";
+      open = true; cur = d;
+    } else out += gap;
+    out += bio ? bionicWord(esc(w)) : esc(w);
+    last = m.index + w.length;
+  }
+  if(open) out += "</span>";
+  return out + esc(t.slice(last));
 }
 var SV_STRONG = /\b(och|att|som|inte|med|f\u00F6r|p\u00E5|den|det|av|till|inga|eller|ett|\u00e4r|han|hon|jag|vi|du|sig|men|kan|ska|skall|har|hade|blir|vid|efter|genom|mot|utan|samt|n\u00e4r|d\u00e5|d\u00e4r|h\u00e4r|mycket|bara|ocks\u00e5|hur|vilka|vilken|sin|sitt|sina|denna|detta|dessa|n\u00e5gon|n\u00e5got|alla|andra|fr\u00e5n|\u00f6ver|hos|mellan)\b/gi;
 var SV_WEAK = /\b(en|var|de|om|under|man|kr|st)\b/gi;
@@ -1269,10 +1286,19 @@ function buildBody(text, found){
   S.cardHasAb = S.tog.gloss && hasKnownAb(text);
   var ranges = hlRanges(text), out = "", last = 0, m;
   var toks = [], re = /\S+/g;
+  var curDir = "", openDir = false;
   while((m = re.exec(text)) !== null) toks.push({w:m[0], s:m.index, e:m.index + m[0].length});
   for(var ti=0; ti<toks.length; ti++){
     var T = toks[ti], word = T.w, s0 = T.s, e0 = T.e, touched = false;
-    if(s0 > last) out += runs(text.slice(last, s0), last, ranges);
+    var gap = (s0 > last) ? runs(text.slice(last, s0), last, ranges) : "";
+    var wDir = tokDir(word);
+    if(wDir && wDir !== curDir){
+      /* the space between two scripts belongs to neither run */
+      if(openDir){ out += "</span>"; openDir = false; }
+      out += gap;
+      out += "<span dir='" + wDir + "'>";
+      openDir = true; curDir = wDir;
+    } else out += gap;
     for(var i=s0;i<e0;i++){ if(inRange(ranges, i)){ touched = true; break; } }
     var inner = touched ? runs(word, s0, ranges) : (S.tog.bio ? bionicWord(esc(word)) : esc(word));
     var cls = "w", extra = "";
@@ -1312,9 +1338,10 @@ function buildBody(text, found){
     } else if(sug0){
       cls += " sp"; extra = spAttr(sug0, hit0.o);
     }
-    out += "<span class='" + cls + "' data-s='" + s0 + "' data-e='" + e0 + "'" + tokDir(word) + extra + ">" + inner + "</span>";
+    out += "<span class='" + cls + "' data-s='" + s0 + "' data-e='" + e0 + "'" + extra + ">" + inner + "</span>";
     last = e0;
   }
+  if(openDir) out += "</span>";
   if(last < text.length) out += runs(text.slice(last), last, ranges);
   if(S.tog.gloss){
     var low = text.toLowerCase();
