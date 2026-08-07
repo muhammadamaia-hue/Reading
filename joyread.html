@@ -2687,7 +2687,7 @@ var DICT_LANGS = { ar:["ar-SY","ar-LB","ar-JO","ar-SA"], sv:["sv-SE"], en:["en-U
 var D = { rec:null, on:false, stop:false, target:null, base:"", li:0,
           mr:null, stream:null, blobs:[], recTimer:null, recStart:0, busy:false,
           retryTimer:null, cancelRetry:false,
-          sess:"", lastChunk:"", sessStart:0,
+          kept:[], written:0,
           lastHeard:0, idleTimer:null, idleQuit:false };
 var PAID_MAX_SECS = 300;
 
@@ -2829,17 +2829,59 @@ function idleWatch(){
     if(quiet > 4000) micNote("صمت — يتوقف بعد " + left + " ث");
   }, 1000);
 }
-/* One recognition result folded into what we already hold.
-   Comparison ignores spacing only; the text kept is always the engine's own,
-   never a re-spaced copy of it, so nothing the user said is altered. */
-function foldPiece(acc, piece){
-  var a = String(acc || "").replace(/\s+/g, " ").trim();
-  var p = String(piece || "").replace(/\s+/g, " ").trim();
-  if(!a) return piece;
-  if(!p) return acc;
-  if(p.indexOf(a) === 0) return piece;   /* same sentence, grown — take the longer */
-  if(a.indexOf(p) === 0) return acc;     /* a shorter re-send of what we hold */
-  return acc + piece;                    /* genuinely new speech — join as before */
+/* Key used ONLY to decide whether two results are the same sentence.
+   The engine revises its own wording as a sentence settles — it capitalises the
+   first word and adds a full stop, so "hej" becomes "Hej då." Comparing the raw
+   strings misses that they are the same sentence, and the sentence gets written
+   twice. Compare on this flattened key instead. The text kept and written is
+   always the engine's own, never this key, so nothing he said is altered. */
+function cmpKey(s){
+  var t = String(s || "").toLowerCase();
+  /* the engine also revises accents and diacritics as it settles — "gor" becomes
+     "gör" — so flatten those too, or the same sentence reads as two */
+  try{ t = t.normalize("NFD").replace(/[\u0300-\u036F\u064B-\u0652\u0670]/g, ""); }catch(e){}
+  return t
+    .replace(/[.,!?;:'"()\[\]{}«»…\u060C\u061B\u061F\u2010-\u2015]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+/* Fold one event's results into a list of distinct sentences.
+   Each new piece is judged against the LAST sentence held, not against
+   everything held: a short word that happens to repeat the opening of some
+   earlier sentence is new speech, and comparing it to the whole transcript
+   was what swallowed it. */
+function foldRun(parts){
+  var kept = [];
+  for(var i = 0; i < parts.length; i++){
+    var p = parts[i], pk = cmpKey(p);
+    if(!pk){
+      /* only spacing or punctuation — it belongs to the sentence before it */
+      if(kept.length) kept[kept.length - 1] += p;
+      else if(p) kept.push(p);
+      continue;
+    }
+    if(!kept.length){ kept.push(p); continue; }
+    var lk = cmpKey(kept[kept.length - 1]);
+    if(pk.indexOf(lk) === 0){ kept[kept.length - 1] = p; continue; } /* same sentence, grown */
+    /* Anything else is new speech. There is deliberately no rule for "shorter
+       than what we hold": a sentence revised downward is revised in place, at
+       its own index, and the rebuild above already catches that. Treating a
+       short piece as a re-send is what swallowed a real word in the notebook —
+       when in doubt, keep his words. */
+    kept.push(p);
+  }
+  return kept;
+}
+/* Write settled sentences up to and including index `upto` into the target box.
+   Called with kept.length-2 while listening, so the last sentence — the one the
+   engine may still recapitalise or punctuate — is left alone, and with
+   kept.length when the session ends, where nothing is left open. */
+function dictFlush(upto){
+  while(D.written <= upto && D.written < D.kept.length){
+    var t = String(D.kept[D.written] || "").trim();
+    D.written++;
+    if(t) dictInsert(D.target, t);
+  }
 }
 function dictStart(el){
   if(!SR){
@@ -2852,7 +2894,8 @@ function dictStart(el){
   D.stop = false;
   D.idleQuit = false;
   D.li = 0;
-  D.lastChunk = "";
+  D.kept = [];
+  D.written = 0;
   idleWatch();
   dictRun();
 }
@@ -2862,8 +2905,8 @@ function dictRun(){
   var r = new SR();
   D.rec = r;
   /* every session starts its own transcript: results are numbered from zero again */
-  D.sess = "";
-  D.sessStart = Date.now();
+  D.kept = [];
+  D.written = 0;
   r.lang = code;
   r.continuous = true;
   r.interimResults = true;
@@ -2873,41 +2916,28 @@ function dictRun(){
     micNote("يستمع — " + dictEngine().name + " \u00B7 " + code + " \u00B7 " + voiceDest(false));
   };
   r.onresult = function(ev){
-    /* Desktop sends each sentence once, as one final result, and the results at
-       different indices are different sentences — so joining them end to end is
-       right there. Android is not like that: it settles the SAME sentence again
-       and again as it grows, each copy final and each at its own index, so
-       joining them end to end produced "السلام / السلام عليكم / السلام عليكم ورحمه"
-       stacked inside one string. Rebuilding from index 0 (the earlier fix) could
-       not help, because the string being rebuilt was already the stacked one.
-       foldPiece decides per index instead of joining blindly: a piece that
-       merely extends what we have replaces it, a shorter re-send is dropped, and
-       only genuinely new speech is appended. Desktop is untouched — separate
-       sentences share no prefix, so they still join exactly as before. */
-    var all = "", live = "";
+    /* Desktop sends each sentence once, as one final result, and different
+       indices hold different sentences. Android does not: it settles the SAME
+       sentence again and again as it grows, each copy final at its own index,
+       which stacked "السلام / السلام عليكم / السلام عليكم ورحمه" into the box.
+       foldRun turns the event into a list of distinct sentences instead.
+
+       A settled sentence is still not finished: the engine keeps revising it,
+       capitalising and punctuating, until a later sentence begins. So a sentence
+       is written to the box only once another one has started behind it, and the
+       last one waits for the session to end. Nothing is written twice, and
+       nothing already written has to be taken back. What is still in flight is
+       never hidden — it shows in the live strip until it lands. */
+    var fin = [], live = [];
     for(var k = 0; k < ev.results.length; k++){
-      if(ev.results[k].isFinal) all = foldPiece(all, ev.results[k][0].transcript);
-      else live = foldPiece(live, ev.results[k][0].transcript);
+      (ev.results[k].isFinal ? fin : live).push(ev.results[k][0].transcript);
     }
-    if(live || all) D.lastHeard = Date.now();
-    showInterim(live);
-    if(!all) return;
-    var add = "";
-    if(all.indexOf(D.sess) === 0) add = all.slice(D.sess.length);
-    else {
-      /* the engine revised something it had already settled — keep the shared
-         head, write the rest, and never write the head twice */
-      var i = 0, n = Math.min(all.length, D.sess.length);
-      while(i < n && all.charAt(i) === D.sess.charAt(i)) i++;
-      add = all.slice(i);
-    }
-    D.sess = all;
-    add = add.trim();
-    if(!add) return;
-    /* a restarted session sometimes replays the last thing it heard */
-    if(add === D.lastChunk && Date.now() - D.sessStart < 3000) return;
-    D.lastChunk = add;
-    dictInsert(D.target, add);
+    var kept = foldRun(fin), inflight = foldRun(live);
+    if(kept.length || inflight.length) D.lastHeard = Date.now();
+    D.kept = kept;
+    /* every sentence except the last one, which is still open to revision */
+    dictFlush(kept.length - 2);
+    showInterim(kept.slice(D.written).concat(inflight).join(" ").trim());
   };
   r.onerror = function(ev){
     var e = ev.error;
@@ -2937,6 +2967,9 @@ function dictRun(){
     /* "no-speech" and "aborted" are normal: onend restarts us */
   };
   r.onend = function(){
+    /* the session is over, so the last sentence can no longer be revised —
+       write it now, before a restart clears the list */
+    dictFlush(D.kept.length);
     D.on = false;
     showInterim("");
     if(D.stop){ D.rec = null; idleClear(); dictButtons(); if(!D.idleQuit && !/محظور|يجد|تعذّر|رمز/.test($("#micNote").textContent)) micNote(""); return; }
@@ -3611,7 +3644,7 @@ var GUIDE = [["الشريط العلوي",[["الدليل","يفتح هذه ال
    showed the previous build and the field could no longer answer the one question
    it exists for. So the file's own upload time leads now, and this constant is only
    the fallback. */
-var BUILD = "2026-08-07T14:00:39Z";
+var BUILD = "2026-08-07T14:21:02Z";
 function buildStampDate(){
   /* GitHub Pages sends a Last-Modified header and the browser exposes it here, so
      it changes by itself with every upload. When the header is missing the browser
