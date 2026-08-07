@@ -2829,6 +2829,18 @@ function idleWatch(){
     if(quiet > 4000) micNote("صمت — يتوقف بعد " + left + " ث");
   }, 1000);
 }
+/* One recognition result folded into what we already hold.
+   Comparison ignores spacing only; the text kept is always the engine's own,
+   never a re-spaced copy of it, so nothing the user said is altered. */
+function foldPiece(acc, piece){
+  var a = String(acc || "").replace(/\s+/g, " ").trim();
+  var p = String(piece || "").replace(/\s+/g, " ").trim();
+  if(!a) return piece;
+  if(!p) return acc;
+  if(p.indexOf(a) === 0) return piece;   /* same sentence, grown — take the longer */
+  if(a.indexOf(p) === 0) return acc;     /* a shorter re-send of what we hold */
+  return acc + piece;                    /* genuinely new speech — join as before */
+}
 function dictStart(el){
   if(!SR){
     micNote("هذا المتصفح لا يدعم الإملاء. كروم أو Edge يدعمانه؛ فايرفوكس لا.", true);
@@ -2861,18 +2873,21 @@ function dictRun(){
     micNote("يستمع — " + dictEngine().name + " \u00B7 " + code + " \u00B7 " + voiceDest(false));
   };
   r.onresult = function(ev){
-    /* Desktop sends each sentence once, as one final result. Android does not:
-       it re-sends the growing sentence again and again, every copy flagged final,
-       so appending each one stacked "انا / انا وجعت / انا وجعت لك" into the box.
-       So stop trusting the flag and trust the whole session instead: rebuild the
-       full settled transcript from index 0 every time, and write only the part
-       that is genuinely new. A re-sent copy produces an empty difference and
-       nothing is written. Desktop is unaffected — there the difference is
-       exactly the sentence that just ended. */
+    /* Desktop sends each sentence once, as one final result, and the results at
+       different indices are different sentences — so joining them end to end is
+       right there. Android is not like that: it settles the SAME sentence again
+       and again as it grows, each copy final and each at its own index, so
+       joining them end to end produced "السلام / السلام عليكم / السلام عليكم ورحمه"
+       stacked inside one string. Rebuilding from index 0 (the earlier fix) could
+       not help, because the string being rebuilt was already the stacked one.
+       foldPiece decides per index instead of joining blindly: a piece that
+       merely extends what we have replaces it, a shorter re-send is dropped, and
+       only genuinely new speech is appended. Desktop is untouched — separate
+       sentences share no prefix, so they still join exactly as before. */
     var all = "", live = "";
     for(var k = 0; k < ev.results.length; k++){
-      if(ev.results[k].isFinal) all += ev.results[k][0].transcript;
-      else live += ev.results[k][0].transcript;
+      if(ev.results[k].isFinal) all = foldPiece(all, ev.results[k][0].transcript);
+      else live = foldPiece(live, ev.results[k][0].transcript);
     }
     if(live || all) D.lastHeard = Date.now();
     showInterim(live);
@@ -3596,7 +3611,7 @@ var GUIDE = [["الشريط العلوي",[["الدليل","يفتح هذه ال
    showed the previous build and the field could no longer answer the one question
    it exists for. So the file's own upload time leads now, and this constant is only
    the fallback. */
-var BUILD = "2026-08-06T23:45:01Z";
+var BUILD = "2026-08-07T14:00:39Z";
 function buildStampDate(){
   /* GitHub Pages sends a Last-Modified header and the browser exposes it here, so
      it changes by itself with every upload. When the header is missing the browser
