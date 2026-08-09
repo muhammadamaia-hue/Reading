@@ -380,6 +380,10 @@ body.ruler-on .ruler{display:block}
   /* the notebook used to lie across the page as a full-width bar and cover
      whatever was under it. Here it is a small floating key, and it opens wide. */
   .dock{inset-inline-start:10px;inset-block-end:10px;width:calc(100vw - 20px);align-items:flex-start}
+  /* In focus mode the prev/next pager bar owns the bottom edge, and the floating
+     notebook key was sitting inside its band, covering «التالي». Lift the key
+     above the bar in that mode only; ordinary reading keeps it at the corner. */
+  body.focus .dock{inset-block-end:84px}
   .dock-btn{align-self:flex-start;border-radius:999px;padding:11px 16px;
     box-shadow:0 3px 14px rgba(0,0,0,.24)}
   .dock-box{align-self:stretch;min-width:0;width:auto;max-height:74vh;resize:none}
@@ -3771,7 +3775,7 @@ var GUIDE = [["الشريط العلوي",[["الدليل","يفتح هذه ال
    showed the previous build and the field could no longer answer the one question
    it exists for. So the file's own upload time leads now, and this constant is only
    the fallback. */
-var BUILD = "2026-08-07T18:10:40Z";
+var BUILD = "2026-08-08T21:55:00Z";
 function buildStampDate(){
   /* GitHub Pages sends a Last-Modified header and the browser exposes it here, so
      it changes by itself with every upload. When the header is missing the browser
