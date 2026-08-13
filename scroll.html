@@ -159,6 +159,7 @@ details.help p{margin:8px 0 0}
     <div class="gsec">
       <h3>ما تفعله هذه الصفحة وأين تتوقّف</h3>
       <p>تحوّل تمريراً على شاشة إلى صورة واحدة كاملة. تتوقّف عند الصورة ولا تقرأ نصاً. القراءة تصير في JoyRead بزرّي OCR، أو بميزة استخراج النص في الهاتف (افتح الصورة في المعرض واضغط أيقونة T).</p>
+      <p>وفي أسفل الصفحة تاريخ النسخة وبصمة من ثمانية أحرف. التاريخ من ترويسة الخادم لا من تقدير المتصفح، والبصمة محسوبة من محتوى الملف نفسه. فإن وصلتك بصمة مع تسليم جديد، قارنها بما تراه هنا: تطابقها يعني أنك تشغّل الملف الذي أُرسل إليك لا نسخة قديمة من ذاكرة المتصفح.</p>
       <p>كل الشغل داخل جهازك. لا يُرفع الفيديو ولا الصور إلى أي مكان، ولا مفاتيح ولا تكلفة.</p>
     </div>
 
@@ -171,6 +172,8 @@ details.help p{margin:8px 0 0}
     <div class="gsec">
       <h3>سرعة التمرير</h3>
       <p>شاشة كل ثانيتين تقريباً. الأسرع من ذلك قد يجعل سطراً لا يظهر على الشاشة أصلاً، ولا شيء يُرجع ما لم يُصوَّر. في الالتقاط المباشر يخبرك المؤشّر بسرعتك لحظةً بلحظة.</p>
+      <p>الاتجاه حرّ: صاعداً أو نازلاً، وفي الالتقاط المباشر تستطيع أن تغيّره في منتصف العمل. الأداة تحسب موضع كل إطار لا اتجاهه، وتحفظ ما يكشفه من محتوى جديد فوق ما غُطّي أو تحته.</p>
+      <p>واهتزاز يدك لا يضرّ: التراجع فوق محتوى سبق التقاطه لا يضيف شيئاً ولا يكرّر شيئاً، وثمنه الوحيد ثوانٍ ضائعة. ويذكر التقرير كم إطاراً أُهمل لهذا السبب، فإن كان الرقم كبيراً فإعادة الالتقاط بهدوء أسرع من مراجعة النتيجة.</p>
       <p>لا تحرّك المؤشر داخل النص أثناء التمرير، ولا تفتح قائمة منسدلة، ولا تمرّر وفي الشاشة فيديو شغّال أو صورة متحرّكة — أي تغيّر بغير التمرير يربك المطابقة.</p>
     </div>
 
@@ -201,10 +204,26 @@ details.help p{margin:8px 0 0}
     </div>
 
     <div class="gsec">
+      <h3>كيف تحصل على أدقّ نصّ ممكن</h3>
+      <p>مرتّبة بحسب أثرها. وأولها غير بديهي: الالتقاط المباشر أدقّ من تسجيل الفيديو، لا أسرع فقط. ملف الفيديو مضغوط، والضغط يهرّس حواف الحروف الرفيعة وهي أصعب ما على محرّك القراءة؛ أما الالتقاط المباشر فيقرأ الإطارات من الشاشة بلا مرحلة ضغط. (استنتاج معلَّل، لم أقسه — وقياسه سهل: صوّر المقطع نفسه بالطريقتين وقارن.)</p>
+      <p>ثمّ أقوى ما بيدك فعلاً: كبّر النصّ قبل التصوير. اضغط Ctrl مع + في المتصفح حتى ١٥٠٪. كل حرف يُرسم ببكسلات أكثر فترتفع دقّة القراءة مباشرة. الثمن تمرير أطول وصور أكثر، وهي مقايضة رابحة إن كان هدفك المطابقة. (استنتاج معلَّل، لم أقسه.)</p>
+      <p>ثمّ الخلفية الفاتحة. الفارق المقيس بين تسجيل هاتف بخلفية سوداء وتسجيل كمبيوتر بخلفية فاتحة كان كبيراً جداً، وجزء وافر منه من هذا وحده. فإن أتاح البرنامج سمة فاتحة ففعّلها قبل التصوير.</p>
+      <p>ثمّ اقرأ بكلود لا بالمحرّك المجاني، وبالشرائح القصيرة لا بالصور الطويلة — فالصورة الطويلة تُصغَّر قبل أن تصل إليه فتضيع نفس الحواف التي تعبتَ على حفظها.</p>
+      <p>ثمّ التمرير البطيء. هذا لا يحسّن دقّة الحرف، لكنه يمنع أسوأ أنواع الخطأ: سطر لم يظهر على الشاشة أصلاً فلا تستطيع أي قراءة استرجاعه.</p>
+      <p>وما لا يقلقك: التركيب نفسه لا يخسر شيئاً. الأداة تنسخ البكسلات كما هي وتخرج PNG بلا ضغط مُفقِد، فلا مرحلة بين شاشتك والصورة تُضعف الحروف.</p>
+      <p>وبعد القراءة: أخطاء المحرّك المجاني منتظمة لا عشوائية — الفاصلة العربية تصير همزة ملتصقة بآخر الكلمة، والكلمات اللاتينية تتبعثر، والأرقام العربية الهندية تضيع. الأولى تُصلَح باستبدال واحد، والأخريان تُراجَعان بالنظر لأنهما قليلتان وظاهرتان، ومدقّق JoyRead يمسك بقيّتها.</p>
+      <p>وللمطابقة التامّة لا التقريبية، الترتيب: تصدير من التطبيق إن وُجد، ثمّ التقاط مباشر مكبَّر على خلفية فاتحة مع قراءة كلود على شرائح، ثمّ ما دون ذلك.</p>
+    </div>
+
+    <div class="gsec">
       <h3>أي محرّك قراءة لأي لغة</h3>
-      <p>للعربية استعمل قراءة كلود. في قياس على قصاصة من تسجيل هاتف: قراءة كلود طابقت النص الأصلي كلمةً كلمةً، والمحرّك المحلي المجاني أسقط نحو أربعين بالمئة من الكلمات وأخطأ في سُدس ما قرأ.</p>
-      <p>وتقطيع الصورة إلى شرائح لا يُنقذ المحرّك المحلي — زاد ما قرأه ستة عشر بالمئة فقط — لأن ضعفه في الخط العربي الرفيع على خلفية سوداء لا في طول الصورة.</p>
-      <p>للسويدي والإنكليزي المحرّك المحلي معقول، وهو مجاني وسريع ولا يغادر جهازك. ونصّ شاشة الكمبيوتر أكبر وأوضح من نصّ الهاتف، فالنتيجة عليه أفضل في الحالتين.</p>
+      <p>قبل الأرقام، تفرقة تمنع سوء الفهم: الأداة مسؤولة عن الصورة، ودقّتها هناك تامّة عملياً — لا يضيع سطر ولا يتكرّر. والأرقام التالية تخصّ محرّك القراءة الذي يحوّل الصورة إلى نصّ، وهو طرف آخر.</p>
+      <p>للعربية استعمل قراءة كلود. وهذه قياسات مفردة في ظروف معيّنة، لا معدّلات — تحرّكها ثلاثة عوامل: اللغة، ووضوح الخط وحجمه، وخلفية فاتحة أم سوداء.</p>
+      <p>قياس على قصاصة من تسجيل هاتف بخلفية سوداء وخطّ عربي رفيع، مقابل نصّ مُصدَّر من التطبيق نفسه: قراءة كلود طابقت النصّ كلمةً كلمةً — ستّ وخمسون من ستّ وخمسين. والمحرّك المحلي المجاني على المادة نفسها قرأ نحو ستين بالمئة من الكلمات وصحّ منها نحو خمسة وثمانين — أي حصيلة قرابة ثلاثة وخمسين بالمئة.</p>
+      <p>وقياس على تسجيل كمبيوتر بخلفية فاتحة: المحرّك المحلي قرأ سبعة وتسعين بالمئة من الكلمات وصحّ منها سبعة وثمانون — أي حصيلة نحو خمسة وثمانين بالمئة. الفارق كله من الخلفية وحجم الخط.</p>
+      <p>وماذا يعني الرقم عملياً: عند خمسة وثمانين راجع النصّ بالنظر — كلمة من كل سبع تحتاج تصحيحاً. وعند قراءة كلود تكفي نظرة عابرة، والناقص غالباً ليس كلمات بل ما لا تحمله الصورة أصلاً: أوقات الرسائل، وروابط المصادر، ونصّ كان مطويّاً خلف زرّ ولم يُفتح أثناء التصوير.</p>
+      <p>وتقطيع الصورة إلى شرائح لا يُنقذ المحرّك المحلي — زاد ما قرأه ستة عشر بالمئة فقط — لأن ضعفه في الخط العربي الرفيع على خلفية سوداء لا في طول الصورة. فائدة الشرائح لقراءة كلود وحدها.</p>
+      <p>للسويدي والإنكليزي المحرّك المحلي معقول، وهو مجاني وسريع ولا يغادر جهازك.</p>
     </div>
   </details>
 </div>
@@ -391,8 +410,9 @@ var SC = (function(){
         var r=stripShift(A,Bg,h,y0,y1);
         // شريط يطابق نفسه عند إزاحة صفر بنفس الجودة = ثابت، ولو صادف أن نقشه المتكرّر
         // يطابق أيضاً عند الإزاحة السائدة
-        if(r.ok && r.err0 <= r.err*1.5){ dys.push(0); continue; }
-        dys.push(r.ok ? r.dy : null);
+        if(r.err0 < 12 && r.err0 <= r.err*1.5){ dys.push(0); continue; }
+        // مطابقة ضعيفة الجودة تُعامل كمجهولة لا كثابتة: قد تكون محتوى جديداً داخلاً من الحافة
+        dys.push((r.ok && r.err < 15) ? r.dy : null);
       }
       var nz=dys.filter(function(d){return d!==null && Math.abs(d)>3;}).sort(function(x,y){return x-y;});
       if(!nz.length) continue;
@@ -420,24 +440,21 @@ var SC = (function(){
     var topY=first*sh, botY=(last===strips-1? h-1 : (last+1)*sh-1);
     // ضبط الحدّين على مستوى الصفوف: حدود الشرائط قد تقع داخل الجزء الثابت
     var win=Math.max(8, Math.round(h*0.025));
-    function moving(y0,y1){
-      var m=0, n=0;
+    // «ثابت» = يطابق نفسه عند إزاحة صفر بنفس الجودة. وما لا يُطابَق إطلاقاً ليس ثابتاً:
+    // هو المحتوى الجديد الداخل من الحافة — ويختلف موضع تلك الحافة باختلاف اتجاه التمرير
+    function isStatic(y0,y1){
+      var st=0, n=0;
       for(var pp=0; pp<pairs.length; pp++){
         var rr=stripShift(pairs[pp][0], pairs[pp][1], h, y0, y1);
-        if(!rr.ok) continue;
         n++;
-        if(rr.err0 > rr.err*1.5) m++;
+        if(rr.err0 < 12 && rr.err0 <= rr.err*1.5) st++;
       }
-      return n>0 && m*2>=n;
+      return n>0 && st*2>=n;
     }
-    var yy;
-    for(yy=botY; yy>topY+win; yy-=Math.max(2,Math.round(win/3))){
-      if(moving(yy-win, yy)) break;
-    }
+    var yy, stp=Math.max(2,Math.round(win/3));
+    for(yy=botY; yy>topY+win; yy-=stp){ if(!isStatic(yy-win, yy)) break; }
     if(yy>topY+win) botY=Math.min(h-1, yy);
-    for(yy=topY; yy<botY-win; yy+=Math.max(2,Math.round(win/3))){
-      if(moving(yy, yy+win)) break;
-    }
+    for(yy=topY; yy<botY-win; yy+=stp){ if(!isStatic(yy, yy+win)) break; }
     if(yy<botY-win) topY=yy;
     // هامش أمان بعرض نافذة الفحص: نافذة تقع على الحدّ تُقرأ متحرّكة لأن الجزء المتحرّك
     // يغلب فيها. قصّ شريحة صغيرة من المحتوى غير ضارّ — المحتوى يمرّ عبر وسط المنطقة
@@ -508,13 +525,23 @@ if(typeof module!=="undefined") module.exports=SC;
   var vid=$("vid"), fileIn=$("file");
   var stamp=$("stamp");
 
-  // ختم النسخة: وقت رفع الملف كما يرسله الخادم
+  // ختم النسخة: الصفحة تجلب ملفها وتقرأ تاريخه من ترويسة الخادم، وتحسب بصمة محتواه.
+  // لا رقم مكتوب بيدٍ هنا: إن تعذّر جلب الترويسة تقول «غير متاح» ولا تخترع تاريخاً.
+  function fingerprint(t){
+    var h=0x811c9dc5;
+    for(var i=0;i<t.length;i++){ h^=t.charCodeAt(i); h=(h*0x01000193)>>>0; }
+    return ("00000000"+h.toString(16)).slice(-8);
+  }
   (function(){
-    var FALLBACK="2026-08-13 05:40";
-    var t=Date.parse(document.lastModified);
-    var ok=!isNaN(t) && Math.abs(Date.now()-t)>120000;
-    var d=ok?new Date(t):null;
-    stamp.textContent= d ? ("نسخة "+d.toLocaleString("sv-SE").slice(0,16)) : ("نسخة "+FALLBACK);
+    stamp.textContent="جاري التحقّق من النسخة…";
+    fetch(location.href, {cache:"no-store"}).then(function(r){
+      var lm=r.headers.get("last-modified");
+      return r.text().then(function(t){
+        var d=lm?new Date(lm):null;
+        var when=(d && !isNaN(d.getTime())) ? d.toLocaleString("sv-SE").slice(0,16) : "تاريخ غير متاح";
+        stamp.textContent="نسخة "+when+" · بصمة "+fingerprint(t);
+      });
+    }).catch(function(){ stamp.textContent="تعذّر التحقّق من النسخة"; });
   })();
 
   // لوحات العمل
@@ -773,7 +800,16 @@ if(typeof module!=="undefined") module.exports=SC;
     var vw=vid.videoWidth, vh=vid.videoHeight;
     var res={frames:0, gaps:[], speeds:[], notes:[], stitch:null, band:null, live:true};
     var g0=prepCanvases(vw,vh,null);
-    var warm=[], warmShots=[], geom=null, ah=0, prev=null, stitch=null, moved=0, t0=performance.now();
+    var warm=[], warmShots=[], geom=null, ah=0, prev=null, moved=0, t0=performance.now();
+    // نموذج الموضع المطلق: كل إطار له موضع، ونحفظ ما يكشفه من محتوى جديد فوق أو تحت
+    // ما غُطّي حتى الآن. الاتجاه لم يعد مهماً، والتراجع فوق مغطّى لا يضيف شيئاً
+    var pieces=[], posF=0, covMin=0, covMax=0;
+    function cutOut(sy,h){
+      var c=document.createElement("canvas");
+      c.width=fullC.width; c.height=h;
+      c.getContext("2d").drawImage(fullC, 0, sy, fullC.width, h, 0, 0, fullC.width, h);
+      return c;
+    }
 
     live={stop:false, stream:stream};
     stream.getVideoTracks()[0].addEventListener("ended", function(){ live.stop=true; });
@@ -799,9 +835,9 @@ if(typeof module!=="undefined") module.exports=SC;
           var lTop=Math.max(0, Math.min(vh-20, Math.round(band.top*scale)));
           geom=prepCanvases(vw,vh,{srcTop:lTop, srcH:Math.max(20, Math.min(vh-lTop, Math.round((band.bot-band.top+1)*scale)))});
           ah=geom.ah; res.band={top:band.top,bot:band.bot,ah:g0.ah,auto:band.auto!==false};
-          stitch=new Stitcher(vw); res.stitch=stitch;
           var f0=grabFrame(geom);
-          stitch.add(fullC,0,geom.srcH); prev=f0; res.frames++;
+          pieces.push({y0:0, y1:geom.srcH, c:cutOut(0,geom.srcH)});
+          posF=0; covMin=0; covMax=geom.srcH; prev=f0; res.frames++;
           $("live").textContent="جاهز — مرّر بهدوء.";
         }else{
           $("live").textContent= warm.length<6 ? "لحظة، أقرأ شكل الشاشة…" : "ابدأ التمرير ببطء حتى أعرف أي جزء من النافذة يتحرّك…";
@@ -813,19 +849,28 @@ if(typeof module!=="undefined") module.exports=SC;
       var r=SC.findShift(prev.sig, cur.sig, prev.sig4, cur.sig4, ah);
       var now=performance.now(), dt=(now-lastT)/1000; lastT=now;
 
-      if(r.ok && r.dy>0 && r.dy<=ah*0.90){
-        if(res.lastStrip && SC.sameStrip(res.lastStrip.sig, cur.sig, res.lastStrip.h, ah) && Math.abs(res.lastStrip.dy-r.dy)<=2){
-          res.dupSkipped=(res.dupSkipped||0)+1; prev=cur; meter(0); continue;
+      if(r.ok && Math.abs(r.dy)<=ah*0.90){
+        posF += Math.round(r.dy*geom.srcH/ah);
+        var added=false;
+        if(posF+geom.srcH > covMax){
+          var nh=Math.min(geom.srcH, posF+geom.srcH-covMax);
+          pieces.push({y0:covMax, y1:covMax+nh, c:cutOut(geom.srcH-nh, nh)});
+          covMax+=nh; added=true;
         }
-        var sh=Math.round(r.dy*geom.srcH/ah);
-        stitch.add(fullC, geom.srcH-sh, sh);
-        res.lastStrip={sig:cur.sig, h:ah, dy:r.dy};
-        prev=cur; res.frames++; moved+=r.dy;
-        meter(r.dy/ah/Math.max(dt,0.001));
-      }else if(r.ok && r.dy<=0 && r.dy>=-Math.max(4,ah*0.05)){
-        meter(0);
+        if(posF < covMin){
+          var th=Math.min(geom.srcH, covMin-posF);
+          pieces.push({y0:covMin-th, y1:covMin, c:cutOut(0,th)});
+          covMin-=th; added=true;
+        }
+        if(added){ res.frames++; moved+=Math.abs(r.dy); }
+        else res.backSkipped=(res.backSkipped||0)+1;
+        prev=cur;
+        meter(Math.abs(r.dy)/ah/Math.max(dt,0.001));
       }else{
-        stitch.add(fullC,0,geom.srcH);
+        // لا تطابق: ابدأ جزيرة جديدة أسفل ما غُطّي، وسجّل الموضع في التقرير
+        posF=covMax;
+        pieces.push({y0:covMax, y1:covMax+geom.srcH, c:cutOut(0,geom.srcH)});
+        covMax+=geom.srcH;
         prev=cur; res.frames++; moved+=ah;
         res.gaps.push((now-t0)/1000);
         meter(1.4);
@@ -838,8 +883,16 @@ if(typeof module!=="undefined") module.exports=SC;
     show($("btnStop"),false); show($("meter"),false);
     $("btnFile").disabled=false; $("btnCap").disabled=false;
 
-    if(!stitch){ setStatus("انتهى الالتقاط قبل أن يبدأ التجميع."); return; }
+    if(!pieces.length){ setStatus("انتهى الالتقاط قبل أن يبدأ التجميع."); return; }
+    setStatus("تركيب الصورة…");
+    pieces.sort(function(a,b){ return a.y0-b.y0; });
+    var stitch=new Stitcher(pieces[0].c.width); res.stitch=stitch;
+    for(var pi=0; pi<pieces.length; pi++){
+      stitch.add(pieces[pi].c, 0, pieces[pi].c.height);
+      if(pi%20===0) await new Promise(function(r){ setTimeout(r,0); });
+    }
     stitch.finish();
+    pieces.length=0;
     var secs=Math.max(0.5,(performance.now()-t0)/1000);
     res.speeds.push(moved/ah/secs);
     state=res;
@@ -911,6 +964,7 @@ if(typeof module!=="undefined") module.exports=SC;
       html+="</ul>";
     }
     if(res.dupSkipped) html+="<br>مُنِع تكرار "+res.dupSkipped+" مقطعاً كان سيُلحق مرتين.";
+    if(res.backSkipped) html+="<br>أُهمل "+res.backSkipped+" إطاراً لأنه تراجع فوق محتوى مُغطّى — إن كان الرقم كبيراً فقد كانت يدك مضطربة، وإعادة الالتقاط بهدوء أسرع من مراجعة النتيجة.";
     for(var ni=0;ni<res.notes.length;ni++) html+="<br>"+res.notes[ni];
     rep.innerHTML=html;
 
