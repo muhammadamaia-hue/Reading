@@ -189,7 +189,9 @@ details.help p{margin:8px 0 0}
     <div class="gsec">
       <h3>منطقة النص والمقبض اليدوي</h3>
       <p>الأجزاء التي لا تتحرّك مع النص — شريط الحالة، شريط الكتابة، الأزرار العائمة — تُستبعد تلقائياً، لأن بقاءها يكرّر نفسه ويُفسد حساب الإزاحة.</p>
-      <p>لكن ساعةً تتغيّر أو مؤشّر تسجيل يومض لا يبدوان ثابتين، فقد يبقى الشريط العلوي داخل التحديد. عندها اسحب المقبضين في لوحة «منطقة النص» واضغط «أعد المعالجة بهذا التحديد».</p>
+      <p>المعيار هو الحركة لا التغيّر: تقيس الأداة إزاحة كل شريط أفقي من النافذة على حدة، وتُبقي ما يتمرّر بإزاحة مشتركة وتستبعد ما إزاحته صفر. لهذا لا يخدعها مؤشّر فأرة يمرّ، ولا سهم يظهر ويختفي، ولا ساعة تتغيّر.</p>
+      <p>ومع ذلك، إن بقي جزء ثابت داخل التحديد — صندوق كتابة مثلاً — فسيتكرّر في النتيجة. عندها اسحب المقبضين في لوحة «منطقة النص» واضغط «أعد المعالجة بهذا التحديد». وفي تسجيلك بالقصاصة، الأفضل أن تختار منطقة التسجيل بلا صندوق الكتابة من البداية.</p>
+      <p>وإن تعذّر قياس الحركة — لأنك لم تمرّر أثناء المسح الأوّلي مثلاً — تذكر الأداة ذلك في التقرير وتلجأ إلى معيار احتياطي أضعف، فراجع التحديد حينها.</p>
     </div>
 
     <div class="gsec">
@@ -334,6 +336,117 @@ var SC = (function(){
     return {top:top, bot:bot, auto:true};
   }
 
+  // متوسط نشاط صفوف في مدى
+  function actRange(sig,y0,y1){
+    var s=0;
+    for(var y=y0;y<y1;y++){
+      var mn=Infinity,mx=-Infinity;
+      for(var b=0;b<B;b++){ var v=sig[y*B+b]; if(v<mn)mn=v; if(v>mx)mx=v; }
+      s+=mx-mn;
+    }
+    return s/Math.max(1,y1-y0);
+  }
+
+  // إزاحة شريط أفقي واحد: يُبحث عن صفوف الشريط في الإطار السابق كله
+  function stripShift(a,b,h,y0,y1){
+    var n=y1-y0, best=null, errs=[];
+    function e_at(d){
+      if(y0+d<0 || y1+d>h) return null;
+      var e=0;
+      for(var i=y0;i<y1;i++){
+        var pa=(i+d)*B, pb=i*B;
+        for(var k=0;k<B;k++) e+=Math.abs(a[pa+k]-b[pb+k]);
+      }
+      return e/(n*B);
+    }
+    for(var d=-(h-1); d<=h-1; d+=2){
+      var e=e_at(d); if(e===null) continue;
+      errs.push(e); if(!best || e<best.e) best={e:e,d:d};
+    }
+    if(!best) return {ok:false,dy:0,err:0};
+    for(var d2=best.d-1; d2<=best.d+1; d2++){
+      var e2=e_at(d2); if(e2===null) continue;
+      if(e2<best.e) best={e:e2,d:d2};
+    }
+    errs.sort(function(x,y){return x-y;});
+    var med=errs[Math.floor(errs.length/2)] || 1e-6;
+    var e0=e_at(0);
+    return {ok: best.e < med*0.5 && best.e < 20, dy:best.d, err:best.e, err0:(e0===null?Infinity:e0)};
+  }
+
+  // منطقة النص = الشرائط التي تتمرّر فعلاً. الجزء الثابت يُستبعد لأنه لا يتمرّر،
+  // لا لأنه لا يتغيّر — فمؤشّر فأرة أو سهم يظهر ويختفي لا يخدع هذا المعيار.
+  function findBandsByMotion(pairs,h,strips){
+    strips=strips||14;
+    var sh=Math.floor(h/strips);
+    if(sh<6) return null;
+    var votes=[], s;
+    for(s=0;s<strips;s++) votes.push({move:0,stat:0});
+    var doms=[];
+    for(var p=0;p<pairs.length;p++){
+      var A=pairs[p][0], Bg=pairs[p][1], dys=[];
+      for(s=0;s<strips;s++){
+        var y0=s*sh, y1=(s===strips-1)?h:(s+1)*sh;
+        if(actRange(Bg,y0,y1)<1.5){ dys.push(null); continue; }
+        var r=stripShift(A,Bg,h,y0,y1);
+        // شريط يطابق نفسه عند إزاحة صفر بنفس الجودة = ثابت، ولو صادف أن نقشه المتكرّر
+        // يطابق أيضاً عند الإزاحة السائدة
+        if(r.ok && r.err0 <= r.err*1.5){ dys.push(0); continue; }
+        dys.push(r.ok ? r.dy : null);
+      }
+      var nz=dys.filter(function(d){return d!==null && Math.abs(d)>3;}).sort(function(x,y){return x-y;});
+      if(!nz.length) continue;
+      var dom=nz[Math.floor(nz.length/2)];
+      doms.push(dom);
+      for(s=0;s<strips;s++){
+        var d=dys[s]; if(d===null) continue;
+        if(Math.abs(d-dom)<=Math.max(3, Math.abs(dom)*0.15)) votes[s].move++;
+        else if(Math.abs(d)<=3) votes[s].stat++;
+      }
+    }
+    // تصنيف كل شريط: متحرّك، ثابت، أو مجهول (لم يُطابَق — وهذا حال الشرائط السفلى
+    // التي يدخلها محتوى جديد لا وجود له في الإطار السابق)
+    var cls=[], first=-1, last=-1, any=0;
+    for(s=0;s<strips;s++){
+      if(votes[s].move>0 && votes[s].move>=votes[s].stat){ cls.push("move"); any++; if(first<0)first=s; last=s; }
+      else if(votes[s].stat>0) cls.push("stat");
+      else cls.push("unk");
+    }
+    if(any<2) return null;
+    // وسّع الحدود عبر الشرائط المجهولة، وتوقّف عند أول شريط ثابت
+    while(first>0 && cls[first-1]!=="stat") first--;
+    while(last<strips-1 && cls[last+1]!=="stat") last++;
+    var dir=0; for(var q=0;q<doms.length;q++) dir += doms[q]>0?1:-1;
+    var topY=first*sh, botY=(last===strips-1? h-1 : (last+1)*sh-1);
+    // ضبط الحدّين على مستوى الصفوف: حدود الشرائط قد تقع داخل الجزء الثابت
+    var win=Math.max(8, Math.round(h*0.025));
+    function moving(y0,y1){
+      var m=0, n=0;
+      for(var pp=0; pp<pairs.length; pp++){
+        var rr=stripShift(pairs[pp][0], pairs[pp][1], h, y0, y1);
+        if(!rr.ok) continue;
+        n++;
+        if(rr.err0 > rr.err*1.5) m++;
+      }
+      return n>0 && m*2>=n;
+    }
+    var yy;
+    for(yy=botY; yy>topY+win; yy-=Math.max(2,Math.round(win/3))){
+      if(moving(yy-win, yy)) break;
+    }
+    if(yy>topY+win) botY=Math.min(h-1, yy);
+    for(yy=topY; yy<botY-win; yy+=Math.max(2,Math.round(win/3))){
+      if(moving(yy, yy+win)) break;
+    }
+    if(yy<botY-win) topY=yy;
+    // هامش أمان بعرض نافذة الفحص: نافذة تقع على الحدّ تُقرأ متحرّكة لأن الجزء المتحرّك
+    // يغلب فيها. قصّ شريحة صغيرة من المحتوى غير ضارّ — المحتوى يمرّ عبر وسط المنطقة
+    // على أي حال — أما إبقاء شريحة ثابتة فيكرّر نفسه في كل خطوة
+    topY=Math.min(topY+win, botY-Math.round(h*0.25));
+    botY=Math.max(botY-win, topY+Math.round(h*0.25));
+    return {top:Math.max(0,topY), bot:Math.min(h-1,botY), auto:true, moving:any, strips:strips, dir:dir};
+  }
+
   // أهدأ سطر ضمن نافذة — لقصّ الصور بين السطور لا داخلها
   function quietRow(img){
     var data=img.data, w=img.width, h=img.height;
@@ -361,8 +474,23 @@ var SC = (function(){
     return {key:"ok", text:"سرعة التمرير كانت مناسبة."};
   }
 
+  // هل المقطعان متطابقان عملياً؟ حارس ضد إلحاق نصّ سبق إلحاقه
+  function sameStrip(s1,s2,h1,h2){
+    var n=Math.min(h1,h2);
+    if(n<4) return false;
+    var e=0;
+    for(var i=0;i<n;i++){
+      var p1=(h1-n+i)*B, p2=(h2-n+i)*B;
+      for(var k=0;k<B;k++) e+=Math.abs(s1[p1+k]-s2[p2+k]);
+    }
+    e/=(n*B);
+    return e<1.5 && actRange(s2,h2-n,h2)>1.5;
+  }
+
   return {AW:AW, B:B, sigFromImageData:sigFromImageData, down4:down4, errAt:errAt,
-          findShift:findShift, findBands:findBands, quietRow:quietRow, speedVerdict:speedVerdict};
+          findShift:findShift, findBands:findBands, findBandsByMotion:findBandsByMotion,
+          stripShift:stripShift, actRange:actRange, sameStrip:sameStrip,
+          quietRow:quietRow, speedVerdict:speedVerdict};
 })();
 if(typeof module!=="undefined") module.exports=SC;
 </script>
@@ -382,7 +510,7 @@ if(typeof module!=="undefined") module.exports=SC;
 
   // ختم النسخة: وقت رفع الملف كما يرسله الخادم
   (function(){
-    var FALLBACK="2026-08-13 04:55";
+    var FALLBACK="2026-08-13 05:40";
     var t=Date.parse(document.lastModified);
     var ok=!isNaN(t) && Math.abs(Date.now()-t)>120000;
     var d=ok?new Date(t):null;
@@ -481,15 +609,16 @@ if(typeof module!=="undefined") module.exports=SC;
     var srcY = band ? band.srcTop : 0;
     var srcH = band ? band.srcH : vh;
     fullC.width=vw; fullC.height=srcH;
-    var ah=Math.max(40, Math.round(SC.AW*srcH/vw));
-    anaC.width=SC.AW; anaC.height=ah;
-    return {srcY:srcY, srcH:srcH, ah:ah};
+    var aw=Math.max(120, Math.min(560, Math.round(400*vw/srcH)));
+    var ah=Math.max(60, Math.round(aw*srcH/vw));
+    anaC.width=aw; anaC.height=ah;
+    return {srcY:srcY, srcH:srcH, ah:ah, aw:aw};
   }
 
   function grabFrame(geom){
     fullX.drawImage(vid, 0, geom.srcY, fullC.width, geom.srcH, 0,0, fullC.width, geom.srcH);
-    anaX.drawImage(fullC, 0,0, fullC.width, geom.srcH, 0,0, SC.AW, geom.ah);
-    var sig=SC.sigFromImageData(anaX.getImageData(0,0,SC.AW,geom.ah));
+    anaX.drawImage(fullC, 0,0, fullC.width, geom.srcH, 0,0, geom.aw, geom.ah);
+    var sig=SC.sigFromImageData(anaX.getImageData(0,0,geom.aw,geom.ah));
     return {sig:sig, sig4:SC.down4(sig,geom.ah)};
   }
 
@@ -505,15 +634,19 @@ if(typeof module!=="undefined") module.exports=SC;
       var vw=vid.videoWidth, vh=vid.videoHeight, dur=vid.duration||0;
       if(!vw||!vh||!isFinite(dur)||dur<=0){ res.notes.push("الملف «"+f.name+"» غير مقروء وتم تخطّيه."); continue; }
 
-      // مسح أوّلي: اتجاه التمرير + الأشرطة الثابتة
+      // مسح أوّلي: أزواج متقاربة زمنياً موزّعة على التسجيل، حتى تُقاس الحركة لا التغيّر
       var g0=prepCanvases(vw,vh,null);
-      var probeSigs=[], probeShots=[], N=Math.min(12, Math.max(4, Math.floor(dur*2)));
-      for(var i=0;i<N;i++){
-        await seek(dur*(i+0.5)/N);
-        var fr=grabFrame(g0);
-        probeSigs.push(fr.sig); probeShots.push(fr.sig4);
+      var probeSigs=[], probeShots=[], pairs=[], P=Math.min(6, Math.max(2, Math.floor(dur*2)));
+      for(var i=0;i<P;i++){
+        var tA=Math.min(dur-0.35, dur*(i+0.5)/P);
+        await seek(tA); var fA=grabFrame(g0);
+        await seek(tA+0.25); var fB=grabFrame(g0);
+        probeSigs.push(fA.sig, fB.sig); probeShots.push(fA.sig4, fB.sig4);
+        pairs.push([fA.sig, fB.sig]);
       }
-      var band = forcedBand || SC.findBands(probeSigs, g0.ah);
+      var motion = forcedBand ? null : SC.findBandsByMotion(pairs, g0.ah, 14);
+      var band = forcedBand || motion || SC.findBands(probeSigs, g0.ah);
+      if(!forcedBand && !motion) res.notes.push("لم تُقس الحركة في «"+f.name+"» فاعتُمد الكشف الاحتياطي لمنطقة النص — راجع التحديد إن ظهر تكرار.");
       var scale = vh/g0.ah;
       var bTop=Math.max(0, Math.min(vh-20, Math.round(band.top*scale)));
       var bandSrc = { srcTop: bTop, srcH: Math.max(20, Math.min(vh-bTop, Math.round((band.bot-band.top+1)*scale))) };
@@ -521,9 +654,10 @@ if(typeof module!=="undefined") module.exports=SC;
       contentAH=geom.ah;
       res.band={top:band.top, bot:band.bot, ah:g0.ah, auto:band.auto!==false};
 
-      // اتجاه التمرير من عيّنة المسح
+      // اتجاه التمرير: من قياس الحركة إن توفّر، وإلا من العيّنات
       var dirSum=0;
-      for(var k=1;k<probeSigs.length;k++){
+      if(motion && motion.dir!==0) dirSum=motion.dir;
+      else for(var k=1;k<probeSigs.length;k+=2){
         var r=SC.findShift(probeSigs[k-1],probeSigs[k],probeShots[k-1],probeShots[k],g0.ah);
         if(r.ok) dirSum+= (r.dy>0?1:(r.dy<0?-1:0));
       }
@@ -586,8 +720,14 @@ if(typeof module!=="undefined") module.exports=SC;
     // تراجع بسيط = اهتزاز: تجاهله. تراجع كبير = مطابقة مشبوهة: كثّف بدل أن تصدّقها
     if(r.ok && r.dy<=0 && r.dy>=jitter) return {frame:prevFrame, moved:0};
     if(r.ok && r.dy>0 && r.dy<=ah*0.90){
+      // حارس: لا تُلحق مقطعاً مطابقاً للمقطع الذي أُلحق قبله مباشرة
+      if(res.lastStrip && SC.sameStrip(res.lastStrip.sig, cur.sig, res.lastStrip.h, ah) && Math.abs(res.lastStrip.dy-r.dy)<=2){
+        res.dupSkipped=(res.dupSkipped||0)+1;
+        return {frame:cur, moved:0};
+      }
       var sh=Math.round(r.dy*geom.srcH/ah);
       stitch.add(fullC, geom.srcH-sh, sh);
+      res.lastStrip={sig:cur.sig, h:ah, dy:r.dy};
       res.frames++;
       return {frame:cur, moved:r.dy};
     }
@@ -646,9 +786,16 @@ if(typeof module!=="undefined") module.exports=SC;
       if(!geom){
         var fr=grabFrame(g0);
         warm.push(fr.sig); warmShots.push(fr.sig4);
-        if(warm.length>=10){
-          var band=SC.findBands(warm, g0.ah);
+        var band=null;
+        if(warm.length>=6){
+          var pr=[], w0=Math.max(1, warm.length-6);
+          for(var wi=w0; wi<warm.length; wi++) pr.push([warm[wi-1], warm[wi]]);
+          band=SC.findBandsByMotion(pr, g0.ah, 14);
+        }
+        if(!band && warm.length>=24) band=SC.findBands(warm, g0.ah);
+        if(band){
           var scale=vh/g0.ah;
+          if(!band.auto) res.notes.push("لم تُقس الحركة أثناء الالتقاط فاعتُمد الكشف الاحتياطي لمنطقة النص.");
           var lTop=Math.max(0, Math.min(vh-20, Math.round(band.top*scale)));
           geom=prepCanvases(vw,vh,{srcTop:lTop, srcH:Math.max(20, Math.min(vh-lTop, Math.round((band.bot-band.top+1)*scale)))});
           ah=geom.ah; res.band={top:band.top,bot:band.bot,ah:g0.ah,auto:band.auto!==false};
@@ -657,7 +804,7 @@ if(typeof module!=="undefined") module.exports=SC;
           stitch.add(fullC,0,geom.srcH); prev=f0; res.frames++;
           $("live").textContent="جاهز — مرّر بهدوء.";
         }else{
-          $("live").textContent="لحظة، أقرأ شكل الشاشة…";
+          $("live").textContent= warm.length<6 ? "لحظة، أقرأ شكل الشاشة…" : "ابدأ التمرير ببطء حتى أعرف أي جزء من النافذة يتحرّك…";
         }
         continue;
       }
@@ -667,8 +814,12 @@ if(typeof module!=="undefined") module.exports=SC;
       var now=performance.now(), dt=(now-lastT)/1000; lastT=now;
 
       if(r.ok && r.dy>0 && r.dy<=ah*0.90){
+        if(res.lastStrip && SC.sameStrip(res.lastStrip.sig, cur.sig, res.lastStrip.h, ah) && Math.abs(res.lastStrip.dy-r.dy)<=2){
+          res.dupSkipped=(res.dupSkipped||0)+1; prev=cur; meter(0); continue;
+        }
         var sh=Math.round(r.dy*geom.srcH/ah);
         stitch.add(fullC, geom.srcH-sh, sh);
+        res.lastStrip={sig:cur.sig, h:ah, dy:r.dy};
         prev=cur; res.frames++; moved+=r.dy;
         meter(r.dy/ah/Math.max(dt,0.001));
       }else if(r.ok && r.dy<=0 && r.dy>=-Math.max(4,ah*0.05)){
@@ -759,6 +910,7 @@ if(typeof module!=="undefined") module.exports=SC;
       if(res.gaps.length>20) html+="<li>… و"+(res.gaps.length-20)+" موضعاً آخر</li>";
       html+="</ul>";
     }
+    if(res.dupSkipped) html+="<br>مُنِع تكرار "+res.dupSkipped+" مقطعاً كان سيُلحق مرتين.";
     for(var ni=0;ni<res.notes.length;ni++) html+="<br>"+res.notes[ni];
     rep.innerHTML=html;
 
