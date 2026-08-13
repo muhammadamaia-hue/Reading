@@ -82,6 +82,12 @@ button:focus-visible,input:focus-visible{outline:3px solid #0b6e5f55;outline-off
 footer{color:var(--muted);font-size:13px;text-align:center;margin-top:26px}
 details.help summary{cursor:pointer;font-weight:700}
 details.help p{margin:8px 0 0}
+.gsec{border-inline-start:4px solid var(--accent);padding-inline-start:12px;margin-top:16px}
+.gsec h3{font-size:16px;margin:0 0 4px}
+.gsec p{margin:6px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chips button{padding:6px 10px;font-size:14px;border-radius:8px;background:#fff;color:var(--accent)}
+.note{font-size:14px;color:var(--muted);margin-top:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-width:600px){body{font-size:16px;padding:16px 10px 50px}.seg img{width:70px}}
 </style>
@@ -135,15 +141,69 @@ details.help p{margin:8px 0 0}
   <h2>النتيجة</h2>
   <div id="report"></div>
   <div id="segs"></div>
-  <div class="row"><button id="btnAll" class="small">تنزيل كل الصور</button></div>
+  <div class="row">
+    <button id="btnAll" class="small">تنزيل كل الصور</button>
+    <button id="btnSlice" class="small ghost">شرائح قصيرة لقراءة كلود</button>
+  </div>
+  <div id="sliceBox" class="hidden">
+    <div class="note" id="sliceNote"></div>
+    <div class="chips" id="sliceChips"></div>
+    <div class="row" style="margin-top:10px"><button id="btnSliceAll" class="small">تنزيل كل الشرائح</button></div>
+  </div>
 </div>
 
 <div class="panel">
   <details class="help">
-    <summary>كيف تستعملها</summary>
-    <p>مرّر بهدوء: شاشة كل ثانيتين تقريباً. الأسرع من هيك ممكن يخلّي سطراً لا يظهر أبداً، وما في أداة بترجّع شيئاً لم يُصوَّر.</p>
-    <p>لا تحرّك المؤشر داخل النص أثناء التمرير، ولا تفتح قوائم منسدلة — أي شيء يتغيّر بغير التمرير يربك المطابقة.</p>
-    <p>الأداة توقف عند الصورة. القراءة تصير في JoyRead بزرّي OCR، أو بميزة استخراج النص في هاتفك.</p>
+    <summary>الدليل — اقرأه مرة واحدة</summary>
+
+    <div class="gsec">
+      <h3>ما تفعله هذه الصفحة وأين تتوقّف</h3>
+      <p>تحوّل تمريراً على شاشة إلى صورة واحدة كاملة. تتوقّف عند الصورة ولا تقرأ نصاً. القراءة تصير في JoyRead بزرّي OCR، أو بميزة استخراج النص في الهاتف (افتح الصورة في المعرض واضغط أيقونة T).</p>
+      <p>كل الشغل داخل جهازك. لا يُرفع الفيديو ولا الصور إلى أي مكان، ولا مفاتيح ولا تكلفة.</p>
+    </div>
+
+    <div class="gsec">
+      <h3>أي المسارين تختار</h3>
+      <p>على الكمبيوتر ابدأ بـ«التقاط من الشاشة»: تختار نافذة البرنامج، تمرّر بهدوء، تضغط إيقاف — بلا ملف فيديو وبلا انتظار معالجة. هذا أقصر مسار.</p>
+      <p>استعمل «اختر ملف فيديو» إذا أردت الاحتفاظ بالتسجيل، أو أن تمرّر مرة وتعيد المعالجة مراراً بتحديد مختلف، أو إذا كان المصدر هاتفاً. برنامج القصاصة في ويندوز يسجّل منطقة تختارها أنت، فيمكنك استبعاد الأشرطة الثابتة من البداية.</p>
+    </div>
+
+    <div class="gsec">
+      <h3>سرعة التمرير</h3>
+      <p>شاشة كل ثانيتين تقريباً. الأسرع من ذلك قد يجعل سطراً لا يظهر على الشاشة أصلاً، ولا شيء يُرجع ما لم يُصوَّر. في الالتقاط المباشر يخبرك المؤشّر بسرعتك لحظةً بلحظة.</p>
+      <p>لا تحرّك المؤشر داخل النص أثناء التمرير، ولا تفتح قائمة منسدلة، ولا تمرّر وفي الشاشة فيديو شغّال أو صورة متحرّكة — أي تغيّر بغير التمرير يربك المطابقة.</p>
+    </div>
+
+    <div class="gsec">
+      <h3>التقرير بعد المعالجة</h3>
+      <p>يذكر عدد الإطارات المستعملة، والطول الكلي بالبكسل، وعدد الصور، ومنطقة النص التي عملت عليها.</p>
+      <p>وفي أوّله حكم على سرعتك: مناسبة، أو بطيئة جداً (سليمة لكن المعالجة أطول من اللازم)، أو سريعة. وإذا كانت سريعة تظهر قائمة بتوقيت كل موضع خطر داخل الفيديو — راجع النص عندها، فإن نقص شيء لا تُعد التسجيل كلّه.</p>
+    </div>
+
+    <div class="gsec">
+      <h3>ترقيع جزء ناقص</h3>
+      <p>سجّل مقطعاً قصيراً للجزء الناقص وحده، وابدأ التمرير من قبله بقليل حتى يوجد تداخل. ثم اختر الملفين معاً بالترتيب: الأداة تجد التداخل وتلحق الجزء في مكانه.</p>
+      <p>إعادة المعالجة نفسها بلا تكلفة: ما دام الملف عندك تُعاد بثوانٍ. وحين يفقد التطابق بين إطارين، الأداة ترجع إلى اللحظة نفسها وتسحب إطارات من بينها قبل أن تستسلم.</p>
+    </div>
+
+    <div class="gsec">
+      <h3>منطقة النص والمقبض اليدوي</h3>
+      <p>الأجزاء التي لا تتحرّك مع النص — شريط الحالة، شريط الكتابة، الأزرار العائمة — تُستبعد تلقائياً، لأن بقاءها يكرّر نفسه ويُفسد حساب الإزاحة.</p>
+      <p>لكن ساعةً تتغيّر أو مؤشّر تسجيل يومض لا يبدوان ثابتين، فقد يبقى الشريط العلوي داخل التحديد. عندها اسحب المقبضين في لوحة «منطقة النص» واضغط «أعد المعالجة بهذا التحديد».</p>
+    </div>
+
+    <div class="gsec">
+      <h3>المخرجان: أيّهما لماذا</h3>
+      <p>الصور الطويلة (ثمانية آلاف بكسل) للقراءة بالهاتف أو بالمحرّك المحلي.</p>
+      <p>«شرائح قصيرة لقراءة كلود» (نحو ألف وخمسمئة بكسل) لأن الصورة الكبيرة تُصغَّر قبل أن تصل إلى كلود فتفقد وضوح حروفها. إن كنت ستقرأ بكلود، استعمل الشرائح لا الصور الطويلة.</p>
+    </div>
+
+    <div class="gsec">
+      <h3>أي محرّك قراءة لأي لغة</h3>
+      <p>للعربية استعمل قراءة كلود. في قياس على قصاصة من تسجيل هاتف: قراءة كلود طابقت النص الأصلي كلمةً كلمةً، والمحرّك المحلي المجاني أسقط نحو أربعين بالمئة من الكلمات وأخطأ في سُدس ما قرأ.</p>
+      <p>وتقطيع الصورة إلى شرائح لا يُنقذ المحرّك المحلي — زاد ما قرأه ستة عشر بالمئة فقط — لأن ضعفه في الخط العربي الرفيع على خلفية سوداء لا في طول الصورة.</p>
+      <p>للسويدي والإنكليزي المحرّك المحلي معقول، وهو مجاني وسريع ولا يغادر جهازك. ونصّ شاشة الكمبيوتر أكبر وأوضح من نصّ الهاتف، فالنتيجة عليه أفضل في الحالتين.</p>
+    </div>
   </details>
 </div>
 
@@ -311,6 +371,7 @@ if(typeof module!=="undefined") module.exports=SC;
 /* ===== الواجهة والتشغيل ===== */
 (function(){
   var SEG_H = 8000;        // ارتفاع كل صورة ناتجة
+  var SLICE_H = 1500;      // ارتفاع الشريحة القصيرة المهيّأة لقراءة كلود
   var RATE  = 4;           // إطارات في الثانية عند البداية
   var LIVE_RATE = 8;       // معدّل أخذ العيّنات في الالتقاط المباشر
   var MAX_DEPTH = 4;       // أقصى تكثيف عند فقدان التطابق
@@ -321,7 +382,7 @@ if(typeof module!=="undefined") module.exports=SC;
 
   // ختم النسخة: وقت رفع الملف كما يرسله الخادم
   (function(){
-    var FALLBACK="2026-08-13";
+    var FALLBACK="2026-08-13 04:55";
     var t=Date.parse(document.lastModified);
     var ok=!isNaN(t) && Math.abs(Date.now()-t)>120000;
     var d=ok?new Date(t):null;
@@ -701,6 +762,8 @@ if(typeof module!=="undefined") module.exports=SC;
     for(var ni=0;ni<res.notes.length;ni++) html+="<br>"+res.notes[ni];
     rep.innerHTML=html;
 
+    show($("sliceBox"), false);
+    $("sliceChips").innerHTML=""; $("sliceNote").textContent="";
     show($("out"), true);
     show($("bandPanel"), !!res.firstShot);
     if(res.firstShot) paintBand(res);
@@ -715,6 +778,73 @@ if(typeof module!=="undefined") module.exports=SC;
   $("btnAll").onclick=function(){
     if(!state||!state.urls) return;
     state.urls.forEach(function(u,i){ setTimeout(function(){ dl(u); }, i*350); });
+  };
+
+  /* ---------- شرائح قصيرة لقراءة كلود ---------- */
+  // يقصّ الصور الطويلة إلى شرائح متتابعة، والقطع على أهدأ سطر قرب الحد
+  function sliceCut(ctx,w,y){
+    var win=Math.min(140, y);
+    if(win<12) return y;
+    var q=SC.quietRow(ctx.getImageData(0, y-win, w, win));
+    return y-win+q.y;
+  }
+  async function buildSlices(){
+    if(!state || !state.stitch || !state.stitch.segs.length) return;
+    var segs=state.stitch.segs, W=segs[0].width;
+    var box=$("sliceBox"), chips=$("sliceChips"), note=$("sliceNote");
+    show(box,true); chips.innerHTML=""; state.slices=[];
+    $("btnSlice").disabled=true;
+
+    var work=document.createElement("canvas");
+    work.width=W; work.height=SLICE_H+400;
+    var wx=work.getContext("2d",{willReadFrequently:true});
+    var y=0, made=0;
+    function reset(){ wx.fillStyle="#ffffff"; wx.fillRect(0,0,W,work.height); y=0; }
+    reset();
+
+    async function flush(cutY){
+      var out=document.createElement("canvas");
+      out.width=W; out.height=cutY;
+      out.getContext("2d").drawImage(work,0,0,W,cutY,0,0,W,cutY);
+      var blob=await new Promise(function(r){ out.toBlob(r,"image/png"); });
+      made++;
+      var u={url:URL.createObjectURL(blob), name:"شريحة-"+made+".png"};
+      state.slices.push(u);
+      var b=document.createElement("button"); b.className="small"; b.textContent=made;
+      b.title="تنزيل الشريحة "+made;
+      (function(uu){ b.onclick=function(){ dl(uu); }; })(u);
+      chips.appendChild(b);
+      note.textContent="الشرائح الجاهزة: "+made+" — ارتفاع كل واحدة نحو "+SLICE_H+" بكسل، مهيّأة لقراءة كلود.";
+      // احمل الذيل إلى الشريحة التالية
+      var tailH=y-cutY, tail=null;
+      if(tailH>0){
+        tail=document.createElement("canvas"); tail.width=W; tail.height=tailH;
+        tail.getContext("2d").drawImage(work,0,cutY,W,tailH,0,0,W,tailH);
+      }
+      reset();
+      if(tail){ wx.drawImage(tail,0,0); y=tailH; }
+    }
+
+    note.textContent="جاري التقطيع…";
+    for(var si=0; si<segs.length; si++){
+      var src=segs[si], sy=0;
+      while(sy<src.height){
+        var take=Math.min(SLICE_H-y, src.height-sy);
+        if(take<=0){ await flush(sliceCut(wx,W,y)); continue; }
+        wx.drawImage(src, 0, sy, W, take, 0, y, W, take);
+        y+=take; sy+=take;
+        if(y>=SLICE_H) await flush(sliceCut(wx,W,y));
+      }
+      await new Promise(function(r){ setTimeout(r,0); });
+    }
+    if(y>0) await flush(y);
+    note.textContent="الشرائح جاهزة: "+made+" — ارتفاع كل واحدة نحو "+SLICE_H+" بكسل، مهيّأة لقراءة كلود. الصور الطويلة فوق لم تتغيّر.";
+    $("btnSlice").disabled=false;
+  }
+  $("btnSlice").onclick=buildSlices;
+  $("btnSliceAll").onclick=function(){
+    if(!state||!state.slices) return;
+    state.slices.forEach(function(u,i){ setTimeout(function(){ dl(u); }, i*300); });
   };
 
   /* ---------- تعديل منطقة النص ---------- */
