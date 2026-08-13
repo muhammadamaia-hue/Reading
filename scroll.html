@@ -246,14 +246,20 @@ var SC = (function(){
     var sig=new Float32Array(h*B), bw=w/B;
     for(var y=0;y<h;y++){
       var base=y*w;
+      var rowSum=0, rowN=0;
       for(var b=0;b<B;b++){
         var x0=Math.floor(b*bw), x1=Math.floor((b+1)*bw), s=0, n=0;
         for(var x=x0;x<x1;x++){
           var i=(base+x)*4;
           s+=data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114; n++;
         }
-        sig[y*B+b]= n? s/n : 0;
+        var v=n? s/n : 0;
+        sig[y*B+b]=v; rowSum+=v; rowN+=1;
       }
+      // طبّع كل سطر: اطرح متوسّطه فلا تُخدع المطابقة بفارق السطوع الناجم
+      // عن تدرّج الشفافية في حافة منطقة الرسائل (النص الداخل يبدو باهتاً)
+      var rowMean = rowN ? rowSum/rowN : 0;
+      for(var b2=0;b2<B;b2++) sig[y*B+b2] -= rowMean;
     }
     return sig;
   }
@@ -335,7 +341,16 @@ var SC = (function(){
     }
     var dy = fine ? fine.d : best.d*4;
     var err = fine ? fine.e : best.e;
-    return {ok: ratio<0.62 && err<20, dy:dy, err:err, ratio:ratio};
+    // كشف الالتباس: إن وُجدت إزاحة ثانية بعيدة تضاهي الأولى في الجودة، فالمطابقة مشبوهة
+    // (نصّ متشابه الشكل يوفّر أكثر من حلّ). يُعلَن الالتباس ليُسجَّله المسار كفجوة
+    var ambig=false;
+    var fineTol = err*1.10+0.05;
+    for(var d3=best.d*4-6; d3<=best.d*4+6; d3++){
+      if(Math.abs(d3-dy)<=8) continue; // إزاحات متجاورة ليست التباساً
+      var e3=errAt(a,b,h,d3,minRows);
+      if(e3!==null && e3<=fineTol){ ambig=true; break; }
+    }
+    return {ok: !ambig && ratio<0.62 && err<20, dy:dy, err:err, ratio:ratio, ambig:ambig};
   }
 
   // يجد الأشرطة الثابتة أعلى الإطار وأسفله من عيّنة بصمات
@@ -699,7 +714,22 @@ if(typeof module!=="undefined") module.exports=SC;
   }
 
   function grabFrame(geom, src){
-    fullX.drawImage(src||vid, 0, geom.srcY, fullC.width, geom.srcH, 0,0, fullC.width, geom.srcH);
+    // اقرأ أبعاد المصدر الفعلية في هذا الإطار — كروم يرفع دقّة التبويب تدريجياً بعد
+    // بدء المشاركة، فإن استخدمنا العرض المثبّت مباشرةً نقصّ من اليمين. بدلاً من ذلك
+    // نرسم المصدر كاملاً مُصغَّراً إلى لوح التحليل حتى لا يضيع شيء.
+    var sw, sh;
+    if(src && src.codedWidth){ sw=src.codedWidth; sh=src.codedHeight; }
+    else { sw=vid.videoWidth||fullC.width; sh=vid.videoHeight||fullC.height; }
+    var srcY=geom.srcY, srcH=geom.srcH;
+    // إن اختلف عرض المصدر عن المثبّت، اضبط srcH بالتناسب
+    var scaleH = sh ? fullC.height*sh/sh : 1; // نسبة الارتفاع دائماً 1 هنا
+    if(sw && sw!==fullC.width){
+      var r=fullC.height/sh;
+      srcY=Math.round(geom.srcY*sh/fullC.height);
+      srcH=Math.round(geom.srcH*sh/fullC.height);
+    }
+    fullX.drawImage(src||vid, 0, srcY||geom.srcY, sw||fullC.width, srcH||geom.srcH,
+                    0, 0, fullC.width, fullC.height);
     anaX.drawImage(fullC, 0,0, fullC.width, geom.srcH, 0,0, geom.aw, geom.ah);
     var sig=SC.sigFromImageData(anaX.getImageData(0,0,geom.aw,geom.ah));
     return {sig:sig, sig4:SC.down4(sig,geom.ah)};
@@ -820,11 +850,12 @@ if(typeof module!=="undefined") module.exports=SC;
       var end=await advance(mid.frame, tm, t1, depth+1, stitch, geom, ah, res);
       return {frame:end.frame, moved:mid.moved+end.moved};
     }
-    // لم يُعثر على تداخل حتى بعد التكثيف: احتمال ضياع نص لم يظهر على الشاشة
+    // لم يُعثر على تداخل حتى بعد التكثيف، أو كان التطابق ملتبساً: احتمال ضياع نص
     await seek(t1);
     cur=grabFrame(geom);
     stitch.add(fullC, 0, geom.srcH);
     res.gaps.push(t1);
+    if(r && r.ambig) res.ambigGaps=(res.ambigGaps||0)+1;
     res.frames++;
     return {frame:cur, moved:ah};
   }
@@ -935,12 +966,13 @@ if(typeof module!=="undefined") module.exports=SC;
         prev=cur;
         meter(Math.abs(r.dy)/ah/Math.max(dt,0.001));
       }else{
-        // لا تطابق: ابدأ جزيرة جديدة أسفل ما غُطّي، وسجّل الموضع في التقرير
+        // لا تطابق أو التباس: ابدأ جزيرة جديدة أسفل ما غُطّي، وسجّل الموضع في التقرير
         posF=covMax;
         pieces.push({y0:covMax, y1:covMax+geom.srcH, c:cutOut(0,geom.srcH)});
         covMax+=geom.srcH;
         prev=cur; res.frames++; moved+=ah;
         res.gaps.push((now-t0)/1000);
+        if(r && r.ambig) res.ambigGaps=(res.ambigGaps||0)+1;
         meter(1.4);
       }
     }
@@ -968,6 +1000,42 @@ if(typeof module!=="undefined") module.exports=SC;
     res.speeds.push(moved/ah/secs);
     state=res;
     await publish(res);
+  }
+
+  // فحص ذاتي: يمسح الصورة النهائية بحثاً عن أشرطة مكرّرة
+  // يقارن شريطاً بعرض SC.B×ارتفاع PROBE_H صفاً كل STEP_H صف
+  // وإن وجد شريطاً يطابق شريطاً سابقاً بخطأ أقل من ERR_TH يسجّله
+  function dupScan(segs){
+    if(!segs||!segs.length) return [];
+    var PROBE_H=20, STEP_H=40, ERR_TH=2.0;
+    var probes=[]; // {y, sig}
+    var dups=[];
+    var yGlobal=0;
+    for(var si=0;si<segs.length;si++){
+      var seg=segs[si];
+      var ctx=seg.getContext("2d",{willReadFrequently:true});
+      var W=seg.width, H=seg.height;
+      for(var y=0;y+PROBE_H<=H;y+=STEP_H){
+        var img=ctx.getImageData(0,y,W,PROBE_H);
+        var sig=SC.sigFromImageData(img);
+        // قارن مع الـ200 بصمة الأخيرة فقط لا كلها (تقليل عبء الحساب)
+        var start=Math.max(0,probes.length-200);
+        for(var pi=start;pi<probes.length;pi++){
+          var prev=probes[pi];
+          if(yGlobal+y - prev.y < PROBE_H*3) continue; // تداخل طبيعي بين شرائح
+          var e=0;
+          for(var k=0;k<sig.length;k++) e+=Math.abs(sig[k]-prev.sig[k]);
+          e/=sig.length;
+          if(e<ERR_TH){
+            dups.push({y1:prev.y, y2:yGlobal+y});
+            break;
+          }
+        }
+        probes.push({y:yGlobal+y, sig:sig});
+      }
+      yGlobal+=H;
+    }
+    return dups;
   }
 
   function meter(fracPerSec){
@@ -1030,7 +1098,9 @@ if(typeof module!=="undefined") module.exports=SC;
     }
     if(res.gaps.length){
       html+="<br><br>مواضع لم يُعثر فيها على تداخل بين إطارين متتاليين — يُحتمل أن نصاً مرّ بينهما ولم يُصوَّر. راجع النص عندها، وإن نقص شيء سجّل هذا الجزء وحده وأضفه كملف ثانٍ:<ul>";
-      for(var gi=0; gi<res.gaps.length && gi<20; gi++) html+="<li>"+fmtTime(res.gaps[gi])+(res.live?" من بداية الالتقاط":" في الفيديو")+"</li>";
+      for(var gi=0; gi<res.gaps.length && gi<20; gi++) html+="<li>"+fmtTime(res.gaps[gi])+(res.live?" من بداية الالتقاط":" في الفيديو")+
+        (res.ambigGaps && gi<res.ambigGaps?" (التباس في المطابقة)":"")+
+        "</li>";
       if(res.gaps.length>20) html+="<li>… و"+(res.gaps.length-20)+" موضعاً آخر</li>";
       html+="</ul>";
     }
@@ -1043,6 +1113,23 @@ if(typeof module!=="undefined") module.exports=SC;
     }
     for(var ni=0;ni<res.notes.length;ni++) html+="<br>"+res.notes[ni];
     rep.innerHTML=html;
+
+    // فحص ذاتي بعد التركيب
+    setStatus("فحص التكرار في الصورة النهائية…");
+    await new Promise(function(r){ setTimeout(r,0); });
+    var dups=dupScan(segs);
+    if(dups.length){
+      var dupNote=document.createElement("div");
+      dupNote.className="report warnbox";
+      var dm="<b>⚠ تكرار مكتشف في الصورة النهائية — \"+dups.length+\" موضع:</b><br>";
+      dm+="هذا يعني أنّ المطابقة التبست في هذه المواضع بسبب تشابه فقرات الصفحة. راجع الصورة عند الارتفاعات التالية (بكسل):<ul>";
+      for(var di=0;di<dups.length&&di<15;di++) dm+="<li>حول "+dups[di].y2+" بكسل (يشبه ما عند "+dups[di].y1+" بكسل)</li>";
+      if(dups.length>15) dm+="<li>… و"+(dups.length-15)+" موضعاً آخر</li>";
+      dm+="</ul>الحلّ: صوّر النص على صفحة مختلفة عن هذه المحادثة، أو استعمل مسار ملف الفيديو (أداة القصاصة في ويندوز) بدل الالتقاط المباشر.";
+      dupNote.innerHTML=dm;
+      var segsEl=document.getElementById("segs");
+      if(segsEl) segsEl.insertBefore(dupNote, segsEl.firstChild);
+    }
 
     show($("sliceBox"), false);
     $("sliceChips").innerHTML=""; $("sliceNote").textContent="";
