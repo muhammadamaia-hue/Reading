@@ -173,6 +173,8 @@ details.help p{margin:8px 0 0}
       <h3>سرعة التمرير</h3>
       <p>شاشة كل ثانيتين تقريباً. الأسرع من ذلك قد يجعل سطراً لا يظهر على الشاشة أصلاً، ولا شيء يُرجع ما لم يُصوَّر. في الالتقاط المباشر يخبرك المؤشّر بسرعتك لحظةً بلحظة.</p>
       <p>الاتجاه حرّ: صاعداً أو نازلاً، وفي الالتقاط المباشر تستطيع أن تغيّره في منتصف العمل. الأداة تحسب موضع كل إطار لا اتجاهه، وتحفظ ما يكشفه من محتوى جديد فوق ما غُطّي أو تحته.</p>
+      <p>ويذكر التقرير معدّل الالتقاط الفعلي بالإطارات في الثانية. المعدّل الطبيعي عشرة تقريباً، وإن نزل تحت أربعة فالسبب أنّ المتصفح خنق هذه الصفحة وهي مخفيّة خلف النافذة التي تمرّرها، لا أنّ يدك أسرعت — وعلاجه إبقاء الصفحة ظاهرة على شاشة ثانية إن توفّرت.</p>
+      <p>وإذا ذكر التقرير مواضع لم يُعثر فيها على تداخل فذلك يعني احتمال ضياع نص هناك. أمّا سطر «أُهمل كذا إطاراً» فلا يعني ضياعاً: هي إطارات لم تكشف جديداً، وتكثر كلّما توقّفت أو رجعت فوق ما صوّرته.</p>
       <p>واهتزاز يدك لا يضرّ: التراجع فوق محتوى سبق التقاطه لا يضيف شيئاً ولا يكرّر شيئاً، وثمنه الوحيد ثوانٍ ضائعة. ويذكر التقرير كم إطاراً أُهمل لهذا السبب، فإن كان الرقم كبيراً فإعادة الالتقاط بهدوء أسرع من مراجعة النتيجة.</p>
       <p>لا تحرّك المؤشر داخل النص أثناء التمرير، ولا تفتح قائمة منسدلة، ولا تمرّر وفي الشاشة فيديو شغّال أو صورة متحرّكة — أي تغيّر بغير التمرير يربك المطابقة.</p>
     </div>
@@ -485,7 +487,7 @@ var SC = (function(){
   }
 
   function speedVerdict(fracPerSec, gaps){
-    if(gaps>0) return {key:"fast", text:"التمرير كان سريعاً في مواضع محدّدة — انظر القائمة تحت."};
+    if(gaps>0) return {key:"fast", text:"هناك مواضع لم يُعثر فيها على تداخل — انظر القائمة تحت."};
     if(fracPerSec<0.10) return {key:"slow", text:"التمرير كان بطيئاً جداً. النتيجة سليمة، لكن المعالجة أخذت وقتاً أطول من اللازم."};
     if(fracPerSec>0.75) return {key:"fast", text:"التمرير كان سريعاً وقريباً من الحد. النتيجة سليمة هذه المرة، لكن الهامش ضيّق."};
     return {key:"ok", text:"سرعة التمرير كانت مناسبة."};
@@ -518,7 +520,7 @@ if(typeof module!=="undefined") module.exports=SC;
   var SEG_H = 8000;        // ارتفاع كل صورة ناتجة
   var SLICE_H = 1500;      // ارتفاع الشريحة القصيرة المهيّأة لقراءة كلود
   var RATE  = 4;           // إطارات في الثانية عند البداية
-  var LIVE_RATE = 8;       // معدّل أخذ العيّنات في الالتقاط المباشر
+  var LIVE_RATE = 10;      // معدّل أخذ العيّنات في الالتقاط المباشر
   var MAX_DEPTH = 4;       // أقصى تكثيف عند فقدان التطابق
 
   var $=function(id){return document.getElementById(id);};
@@ -630,6 +632,45 @@ if(typeof module!=="undefined") module.exports=SC;
       try{ vid.currentTime=Math.max(0,Math.min(t, (vid.duration||0)-0.03)); }catch(e){ fin(); }
       setTimeout(fin,900);
     });
+  }
+
+  // نبضة الالتقاط المباشر. أثناء الالتقاط تكون نافذة هذه الصفحة مخفيّة خلف النافذة
+  // التي تمرّرها، والمتصفح يخنق setTimeout في الصفحات المخفيّة إلى نبضة واحدة في
+  // الثانية — فتضيع صفحات كاملة بين إطارين. requestVideoFrameCallback مربوط بمسار
+  // الفيديو نفسه لا بمؤقّتات الصفحة فلا يُخنق، ومؤقّت العامل المنفصل بديل حين يغيب.
+  var wTick=null;
+  function workerTicker(){
+    if(wTick!==null) return wTick;
+    try{
+      var src="var id=null;onmessage=function(e){clearInterval(id);id=null;"+
+              "if(e.data&&e.data.ms>0){id=setInterval(function(){postMessage(1);},e.data.ms);}};";
+      var w=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
+      wTick={w:w, waiters:[]};
+      w.onmessage=function(){ var q=wTick.waiters; wTick.waiters=[]; for(var i=0;i<q.length;i++) q[i](); };
+      w.postMessage({ms:Math.round(1000/LIVE_RATE)});
+    }catch(e){ wTick=false; }
+    return wTick;
+  }
+  function stopTicker(){ try{ if(wTick && wTick.w) wTick.w.postMessage({ms:0}); }catch(e){} }
+
+  function liveTick(){
+    var ms=1000/LIVE_RATE;
+    if(vid.requestVideoFrameCallback){
+      return new Promise(function(res){
+        var t0=performance.now(), done=false;
+        function fin(){ if(done)return; done=true; res(); }
+        function step(){
+          if(done) return;
+          if(performance.now()-t0>=ms) return fin();
+          try{ vid.requestVideoFrameCallback(step); }catch(e){ fin(); }
+        }
+        try{ vid.requestVideoFrameCallback(step); }catch(e){ setTimeout(fin,ms); return; }
+        setTimeout(fin, Math.max(1200, ms*6)); // شبكة أمان لو انقطع تدفّق الإطارات
+      });
+    }
+    var t=workerTicker();
+    if(t) return new Promise(function(res){ t.waiters.push(res); });
+    return new Promise(function(res){ setTimeout(res, ms); });
   }
 
   function prepCanvases(vw,vh,band){
@@ -814,13 +855,15 @@ if(typeof module!=="undefined") module.exports=SC;
     live={stop:false, stream:stream};
     stream.getVideoTracks()[0].addEventListener("ended", function(){ live.stop=true; });
 
-    var lastT=performance.now();
+    var lastT=performance.now(), tGeom=0, procN=0;
     while(!live.stop){
-      await new Promise(function(r){ setTimeout(r, 1000/LIVE_RATE); });
+      await liveTick();
+      if(live.stop) break;
       if(vid.videoWidth===0) break;
 
       if(!geom){
         var fr=grabFrame(g0);
+        if(SC.actRange(fr.sig,0,g0.ah) < 1.2) continue;
         warm.push(fr.sig); warmShots.push(fr.sig4);
         var band=null;
         if(warm.length>=6){
@@ -838,6 +881,7 @@ if(typeof module!=="undefined") module.exports=SC;
           var f0=grabFrame(geom);
           pieces.push({y0:0, y1:geom.srcH, c:cutOut(0,geom.srcH)});
           posF=0; covMin=0; covMax=geom.srcH; prev=f0; res.frames++;
+          tGeom=performance.now(); procN=0;
           $("live").textContent="جاهز — مرّر بهدوء.";
         }else{
           $("live").textContent= warm.length<6 ? "لحظة، أقرأ شكل الشاشة…" : "ابدأ التمرير ببطء حتى أعرف أي جزء من النافذة يتحرّك…";
@@ -846,6 +890,10 @@ if(typeof module!=="undefined") module.exports=SC;
       }
 
       var cur=grabFrame(geom);
+      // إطار فارغ تماماً: يظهر في اللحظة التي ينقطع فيها التدفّق بعد الإيقاف. لا يُطابَق
+      // فكان يُلحق جزيرةً سوداء في آخر الصورة ويُسجَّل فجوةً كاذبة. يُتخطّى الآن.
+      if(SC.actRange(cur.sig,0,ah) < 1.2){ res.blankSkipped=(res.blankSkipped||0)+1; continue; }
+      procN++;
       var r=SC.findShift(prev.sig, cur.sig, prev.sig4, cur.sig4, ah);
       var now=performance.now(), dt=(now-lastT)/1000; lastT=now;
 
@@ -877,6 +925,8 @@ if(typeof module!=="undefined") module.exports=SC;
       }
     }
 
+    stopTicker();
+    if(tGeom) res.rate = procN/Math.max(0.5,(performance.now()-tGeom)/1000);
     try{ stream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
     try{ vid.pause(); }catch(e){}
     vid.srcObject=null; vid.load();
@@ -958,13 +1008,18 @@ if(typeof module!=="undefined") module.exports=SC;
       html+="<br>منطقة النص: من "+Math.round(res.band.top/res.band.ah*100)+"٪ إلى "+Math.round((res.band.bot+1)/res.band.ah*100)+"٪ من ارتفاع الشاشة"+(res.band.auto?" (تحديد تلقائي)":" (يدوي)")+".";
     }
     if(res.gaps.length){
-      html+="<br><br>مواضع كان التمرير فيها أسرع من اللازم — راجع النص عندها، وإن نقص شيء سجّل هذا الجزء وحده وأضفه كملف ثانٍ:<ul>";
+      html+="<br><br>مواضع لم يُعثر فيها على تداخل بين إطارين متتاليين — يُحتمل أن نصاً مرّ بينهما ولم يُصوَّر. راجع النص عندها، وإن نقص شيء سجّل هذا الجزء وحده وأضفه كملف ثانٍ:<ul>";
       for(var gi=0; gi<res.gaps.length && gi<20; gi++) html+="<li>"+fmtTime(res.gaps[gi])+(res.live?" من بداية الالتقاط":" في الفيديو")+"</li>";
       if(res.gaps.length>20) html+="<li>… و"+(res.gaps.length-20)+" موضعاً آخر</li>";
       html+="</ul>";
     }
     if(res.dupSkipped) html+="<br>مُنِع تكرار "+res.dupSkipped+" مقطعاً كان سيُلحق مرتين.";
-    if(res.backSkipped) html+="<br>أُهمل "+res.backSkipped+" إطاراً لأنه تراجع فوق محتوى مُغطّى — إن كان الرقم كبيراً فقد كانت يدك مضطربة، وإعادة الالتقاط بهدوء أسرع من مراجعة النتيجة.";
+    if(res.backSkipped) html+="<br>أُهمل "+res.backSkipped+" إطاراً لأنه لم يكشف محتوى جديداً — هذا طبيعي عند التوقّف أو عند العودة فوق ما صُوِّر، ولا يعني ضياع نص.";
+    if(res.blankSkipped) html+="<br>تُخطّي "+res.blankSkipped+" إطاراً فارغاً عند طرف الالتقاط.";
+    if(res.rate){
+      html+="<br>معدّل الالتقاط الفعلي: "+res.rate.toFixed(1)+" إطاراً في الثانية";
+      html+= res.rate<4 ? " — منخفض. هذا سبب الفجوات لا سرعة يدك؛ إن تكرّر فأبقِ نافذة هذه الصفحة ظاهرة على شاشة ثانية أثناء الالتقاط." : ".";
+    }
     for(var ni=0;ni<res.notes.length;ni++) html+="<br>"+res.notes[ni];
     rep.innerHTML=html;
 
