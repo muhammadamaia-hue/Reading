@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لقطة طويلة</title>
+<meta name="theme-color" content="#0b6e5f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b6e5f'/%3E%3Crect x='22' y='12' width='20' height='30' rx='3' fill='white'/%3E%3Cpath d='M32 46 l0 8 M26 48 l6 6 6-6' stroke='white' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --paper:#f3efe6;
+  --panel:#fbf8f2;
+  --ink:#22302c;
+  --muted:#6b7772;
+  --line:#ddd6c8;
+  --accent:#0b6e5f;
+  --accent-soft:#e3efe9;
+  --warn:#a8641b;
+  --warn-soft:#f6ecdd;
+  --bad:#9c3b2f;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Segoe UI","Noto Naskh Arabic",Tahoma,system-ui,sans-serif;
+  font-size:17px;
+  line-height:1.7;
+  padding:24px 16px 60px;
+}
+.wrap{max-width:920px;margin:0 auto}
+header.top{
+  display:flex;align-items:center;gap:12px;
+  border-bottom:2px solid var(--accent);
+  padding-bottom:14px;margin-bottom:22px;
+}
+.logo{
+  width:38px;height:38px;border-radius:10px;background:var(--accent);
+  display:grid;place-items:center;color:#fff;font-weight:700;flex:none
+}
+h1{font-size:22px;margin:0;font-weight:700}
+.sub{color:var(--muted);font-size:14px;margin:2px 0 0}
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;margin-bottom:18px;
+}
+.panel h2{font-size:17px;margin:0 0 10px;font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+button{
+  font:inherit;font-weight:600;cursor:pointer;
+  background:var(--accent);color:#fff;border:1px solid var(--accent);
+  padding:11px 18px;border-radius:10px;
+}
+button.ghost{background:transparent;color:var(--accent)}
+button.small{padding:7px 12px;font-size:15px;border-radius:9px}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid #0b6e5f55;outline-offset:2px}
+.hint{color:var(--muted);font-size:14px;margin:8px 0 0}
+.bar{height:10px;background:#e7e1d4;border-radius:6px;overflow:hidden;margin-top:12px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s linear}
+.status{margin-top:10px;font-size:15px;color:var(--muted);min-height:22px}
+.meter{margin-top:14px}
+.meter .track{position:relative;height:26px;border-radius:8px;border:1px solid var(--line);background:
+  linear-gradient(to left,#f1e4dc 0 12%,#e7f0ea 12% 62%,#f7eeda 62% 82%,#f1e4dc 82% 100%)}
+.meter .needle{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--ink);border-radius:2px;right:0;transition:right .12s linear}
+.meter .verdict{font-weight:700;margin-top:8px}
+.seg{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff}
+.seg img{width:96px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.seg .meta{flex:1;min-width:0}
+.seg .meta b{display:block}
+.report{background:var(--accent-soft);border:1px solid #bcd8cd;border-radius:12px;padding:14px;margin-bottom:14px}
+.report.warnbox{background:var(--warn-soft);border-color:#e3cba3}
+.report ul{margin:8px 0 0;padding-inline-start:20px}
+.hidden{display:none}
+.bandwrap{position:relative;display:inline-block;max-width:100%;margin-top:12px}
+.bandwrap img{display:block;max-width:100%;border:1px solid var(--line);border-radius:10px}
+.mask{position:absolute;inset-inline:0;background:#22302c99;pointer-events:none}
+.handle{position:absolute;inset-inline:0;height:22px;cursor:ns-resize;display:grid;place-items:center}
+.handle::after{content:"";display:block;height:4px;width:70%;background:var(--accent);border-radius:3px;box-shadow:0 0 0 2px #fff}
+footer{color:var(--muted);font-size:13px;text-align:center;margin-top:26px}
+details.help summary{cursor:pointer;font-weight:700}
+details.help p{margin:8px 0 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:600px){body{font-size:16px;padding:16px 10px 50px}.seg img{width:70px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="logo">↕</div>
+  <div>
+    <h1>لقطة طويلة</h1>
+    <p class="sub">تحوّل تمريراً على الشاشة إلى صورة واحدة كاملة — كل الشغل داخل جهازك، بدون رفع وبدون تكلفة.</p>
+  </div>
+</header>
+
+<div class="panel">
+  <h2>من أين نبدأ</h2>
+  <div class="row">
+    <button id="btnFile">اختر ملف فيديو</button>
+    <button id="btnCap">التقاط من الشاشة</button>
+    <button id="btnStop" class="ghost hidden">إيقاف الالتقاط</button>
+    <input id="file" type="file" accept="video/*" multiple hidden>
+  </div>
+  <p class="hint">تقدر تختار أكثر من ملف مرة واحدة إذا كان التسجيل على مقاطع — تُعالَج بالترتيب وتُلحَق ببعضها.</p>
+  <div class="bar"><i id="prog"></i></div>
+  <div class="status" id="status">جاهز.</div>
+
+  <div class="meter hidden" id="meter">
+    <div class="track"><span class="needle" id="needle"></span></div>
+    <div class="verdict" id="live">مرّر بهدوء…</div>
+  </div>
+</div>
+
+<div class="panel hidden" id="bandPanel">
+  <h2>منطقة النص</h2>
+  <p class="hint">استُبعدت الأجزاء الثابتة تلقائياً (شريط الحالة، شريط الكتابة، الأزرار العائمة). عدّلها فقط إذا طلع التحديد غلط، ثم أعد المعالجة.</p>
+  <div class="bandwrap" id="bandWrap">
+    <img id="bandImg" alt="أول إطار من التسجيل">
+    <div class="mask" id="maskTop"></div>
+    <div class="mask" id="maskBot"></div>
+    <div class="handle" id="hTop"></div>
+    <div class="handle" id="hBot"></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button id="btnRedo" class="small">أعد المعالجة بهذا التحديد</button>
+    <button id="btnAuto" class="small ghost">أعد التحديد التلقائي</button>
+  </div>
+</div>
+
+<div class="panel hidden" id="out">
+  <h2>النتيجة</h2>
+  <div id="report"></div>
+  <div id="segs"></div>
+  <div class="row"><button id="btnAll" class="small">تنزيل كل الصور</button></div>
+</div>
+
+<div class="panel">
+  <details class="help">
+    <summary>كيف تستعملها</summary>
+    <p>مرّر بهدوء: شاشة كل ثانيتين تقريباً. الأسرع من هيك ممكن يخلّي سطراً لا يظهر أبداً، وما في أداة بترجّع شيئاً لم يُصوَّر.</p>
+    <p>لا تحرّك المؤشر داخل النص أثناء التمرير، ولا تفتح قوائم منسدلة — أي شيء يتغيّر بغير التمرير يربك المطابقة.</p>
+    <p>الأداة توقف عند الصورة. القراءة تصير في JoyRead بزرّي OCR، أو بميزة استخراج النص في هاتفك.</p>
+  </details>
+</div>
+
+<footer>لقطة طويلة — <span id="stamp"></span></footer>
+</div>
+
+<video id="vid" playsinline muted class="hidden"></video>
+
+<script id="core">
+/* ===== النواة الحسابية — لا تلمس DOM ===== */
+var SC = (function(){
+  var AW = 200;      // عرض لوحة التحليل
+  var B  = 10;       // عدد الأعمدة في بصمة السطر
+
+  function sigFromImageData(img){
+    var data=img.data, w=img.width, h=img.height;
+    var sig=new Float32Array(h*B), bw=w/B;
+    for(var y=0;y<h;y++){
+      var base=y*w;
+      for(var b=0;b<B;b++){
+        var x0=Math.floor(b*bw), x1=Math.floor((b+1)*bw), s=0, n=0;
+        for(var x=x0;x<x1;x++){
+          var i=(base+x)*4;
+          s+=data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114; n++;
+        }
+        sig[y*B+b]= n? s/n : 0;
+      }
+    }
+    return sig;
+  }
+
+  function down4(sig,h){
+    var h4=Math.floor(h/4), o=new Float32Array(h4*B);
+    for(var y=0;y<h4;y++) for(var b=0;b<B;b++){
+      var s=0; for(var k=0;k<4;k++) s+=sig[(y*4+k)*B+b];
+      o[y*B+b]=s/4;
+    }
+    return o;
+  }
+
+  // خطأ المطابقة عند إزاحة dy: السطر i من الإطار الجديد يقابل السطر i+dy من القديم
+  function errAt(a,b,h,dy,minRows){
+    var i0,i1;
+    if(dy>=0){ i0=0; i1=h-dy; } else { i0=-dy; i1=h; }
+    var n=i1-i0;
+    if(n<minRows) return null;
+    var s=0;
+    for(var i=i0;i<i1;i++){
+      var pa=(i+dy)*B, pb=i*B;
+      for(var k=0;k<B;k++) s+=Math.abs(a[pa+k]-b[pb+k]);
+    }
+    return s/(n*B);
+  }
+
+  // نشاط السطر: الفرق بين أغمق وأفتح عمود فيه — يميّز السطر ذا المحتوى عن الفراغ
+  function rowAct(sig,h){
+    var act=new Float32Array(h);
+    for(var y=0;y<h;y++){
+      var mn=Infinity, mx=-Infinity;
+      for(var b=0;b<B;b++){ var v=sig[y*B+b]; if(v<mn)mn=v; if(v>mx)mx=v; }
+      act[y]=mx-mn;
+    }
+    return act;
+  }
+  function prefix(arr){
+    var p=new Float64Array(arr.length+1);
+    for(var i=0;i<arr.length;i++) p[i+1]=p[i]+arr[i];
+    return p;
+  }
+
+  // يبحث عن إزاحة الإطار الجديد عن القديم؛ بحث خشن ثم تدقيق
+  function findShift(a,b,a4,b4,h){
+    var h4=Math.floor(h/4);
+    var minRows4=Math.max(3,Math.floor(h4*0.18));
+    var lim=h4-minRows4;
+    var actA=rowAct(a4,h4), actB=rowAct(b4,h4);
+    var pA=prefix(actA), pB=prefix(actB);
+    var gAct=(pB[h4]/h4 + pA[h4]/h4)/2;
+    var minAct=gAct*0.20;
+    var best=null, errs=[], cands=[];
+    for(var d=-lim; d<=lim; d++){
+      var e=errAt(a4,b4,h4,d,minRows4);
+      if(e===null) continue;
+      // ارفض التطابق على منطقة فارغة: تداخل بلا محتوى يعطي خطأ صفراً بلا معنى
+      var i0=(d>=0)?0:-d, i1=(d>=0)?(h4-d):h4, n=i1-i0;
+      var mb=(pB[i1]-pB[i0])/n, ma=(pA[i1+d]-pA[i0+d])/n;
+      if(gAct>0 && (mb<minAct || ma<minAct)) continue;
+      errs.push(e); cands.push({e:e,d:d});
+      if(!best || e<best.e) best={e:e,d:d};
+    }
+    if(!best) return {ok:false,dy:0,ratio:1,err:0};
+    // عند تعادل الخطأ (نصّ متكرّر الشكل) اختر أصغر إزاحة: العيّنات متقاربة زمنياً
+    var tol=best.e*1.08+0.15;
+    for(var c=0;c<cands.length;c++){
+      if(cands[c].e<=tol && Math.abs(cands[c].d)<Math.abs(best.d)) best=cands[c];
+    }
+    errs.sort(function(x,y){return x-y;});
+    var med=errs[Math.floor(errs.length/2)] || 1e-6;
+    var ratio=best.e/med;
+    var minRows=Math.max(12,Math.floor(h*0.12));
+    var fine=null;
+    for(var d2=best.d*4-6; d2<=best.d*4+6; d2++){
+      var e2=errAt(a,b,h,d2,minRows);
+      if(e2===null) continue;
+      if(!fine || e2<fine.e) fine={e:e2,d:d2};
+    }
+    var dy = fine ? fine.d : best.d*4;
+    var err = fine ? fine.e : best.e;
+    return {ok: ratio<0.62 && err<20, dy:dy, err:err, ratio:ratio};
+  }
+
+  // يجد الأشرطة الثابتة أعلى الإطار وأسفله من عيّنة بصمات
+  function findBands(sigs,h){
+    if(sigs.length<2) return {top:0,bot:h-1,auto:false};
+    var v=new Float32Array(h), y, k, j, s;
+    for(k=1;k<sigs.length;k++){
+      var a=sigs[k-1], b=sigs[k];
+      for(y=0;y<h;y++){
+        s=0; for(j=0;j<B;j++) s+=Math.abs(a[y*B+j]-b[y*B+j]);
+        s/=B; if(s>v[y]) v[y]=s;
+      }
+    }
+    var mx=0; for(y=0;y<h;y++) if(v[y]>mx) mx=v[y];
+    var th=Math.max(1.0, mx*0.06);
+    var top=0; while(top<h && v[top]<th) top++;
+    var bot=h-1; while(bot>top && v[bot]<th) bot--;
+    if(bot-top < h*0.30) return {top:0,bot:h-1,auto:false};
+    return {top:top, bot:bot, auto:true};
+  }
+
+  // أهدأ سطر ضمن نافذة — لقصّ الصور بين السطور لا داخلها
+  function quietRow(img){
+    var data=img.data, w=img.width, h=img.height;
+    var bestY=h-1, bestV=Infinity;
+    var NS=Math.min(w,257), xs=new Int32Array(NS);
+    for(var s2=0;s2<NS;s2++) xs[s2]=Math.round(s2*(w-1)/Math.max(1,NS-1));
+    for(var y=0;y<h;y++){
+      var base=y*w*4, mn=255, mx=0;
+      for(var si=0;si<NS;si++){
+        var i=base+xs[si]*4;
+        var g=data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114;
+        if(g<mn)mn=g; if(g>mx)mx=g;
+      }
+      var v=mx-mn;
+      if(v<bestV){ bestV=v; bestY=y; }
+      if(v===0) break;
+    }
+    return {y:bestY, spread:bestV};
+  }
+
+  function speedVerdict(fracPerSec, gaps){
+    if(gaps>0) return {key:"fast", text:"التمرير كان سريعاً في مواضع محدّدة — انظر القائمة تحت."};
+    if(fracPerSec<0.10) return {key:"slow", text:"التمرير كان بطيئاً جداً. النتيجة سليمة، لكن المعالجة أخذت وقتاً أطول من اللازم."};
+    if(fracPerSec>0.75) return {key:"fast", text:"التمرير كان سريعاً وقريباً من الحد. النتيجة سليمة هذه المرة، لكن الهامش ضيّق."};
+    return {key:"ok", text:"سرعة التمرير كانت مناسبة."};
+  }
+
+  return {AW:AW, B:B, sigFromImageData:sigFromImageData, down4:down4, errAt:errAt,
+          findShift:findShift, findBands:findBands, quietRow:quietRow, speedVerdict:speedVerdict};
+})();
+if(typeof module!=="undefined") module.exports=SC;
+</script>
+
+<script>
+/* ===== الواجهة والتشغيل ===== */
+(function(){
+  var SEG_H = 8000;        // ارتفاع كل صورة ناتجة
+  var RATE  = 4;           // إطارات في الثانية عند البداية
+  var LIVE_RATE = 8;       // معدّل أخذ العيّنات في الالتقاط المباشر
+  var MAX_DEPTH = 4;       // أقصى تكثيف عند فقدان التطابق
+
+  var $=function(id){return document.getElementById(id);};
+  var vid=$("vid"), fileIn=$("file");
+  var stamp=$("stamp");
+
+  // ختم النسخة: وقت رفع الملف كما يرسله الخادم
+  (function(){
+    var FALLBACK="2026-08-13";
+    var t=Date.parse(document.lastModified);
+    var ok=!isNaN(t) && Math.abs(Date.now()-t)>120000;
+    var d=ok?new Date(t):null;
+    stamp.textContent= d ? ("نسخة "+d.toLocaleString("sv-SE").slice(0,16)) : ("نسخة "+FALLBACK);
+  })();
+
+  // لوحات العمل
+  var anaC=document.createElement("canvas"), anaX=anaC.getContext("2d",{willReadFrequently:true});
+  var fullC=document.createElement("canvas"), fullX=fullC.getContext("2d",{willReadFrequently:true});
+
+  var state=null;   // حالة المعالجة الحالية
+
+  function setStatus(t){ $("status").textContent=t; }
+  function setProg(p){ $("prog").style.width=Math.max(0,Math.min(100,p*100))+"%"; }
+  function show(el,on){ el.classList.toggle("hidden", !on); }
+
+  /* ---------- تجميع الصور الطويلة ---------- */
+  function Stitcher(w){
+    this.w=w; this.segs=[]; this.cur=null; this.ctx=null; this.y=0; this.total=0;
+  }
+  Stitcher.prototype._open=function(h){
+    this.cur=document.createElement("canvas");
+    this.cur.width=this.w; this.cur.height=h;
+    this.ctx=this.cur.getContext("2d",{willReadFrequently:true});
+    this.ctx.fillStyle="#ffffff"; this.ctx.fillRect(0,0,this.w,h);
+    this.y=0;
+  };
+  Stitcher.prototype.add=function(src, sy, sh){
+    if(sh<=0) return;
+    if(!this.cur) this._open(SEG_H+2000);
+    if(this.y+sh > this.cur.height){
+      var grown=document.createElement("canvas");
+      grown.width=this.w; grown.height=this.y+sh+2000;
+      var gx=grown.getContext("2d",{willReadFrequently:true});
+      gx.fillStyle="#ffffff"; gx.fillRect(0,0,grown.width,grown.height);
+      gx.drawImage(this.cur,0,0);
+      this.cur=grown; this.ctx=gx;
+    }
+    this.ctx.drawImage(src, 0, sy, this.w, sh, 0, this.y, this.w, sh);
+    this.y+=sh; this.total+=sh;
+    if(this.y>=SEG_H) this._cut();
+  };
+  Stitcher.prototype._cut=function(){
+    // اقطع عند أهدأ سطر قرب الحد حتى لا ينقسم سطر نص بين صورتين
+    var winTop=Math.max(0, SEG_H-220), winH=Math.min(220, this.y-winTop);
+    var cutY=SEG_H;
+    if(winH>10){
+      var q=SC.quietRow(this.ctx.getImageData(0,winTop,this.w,winH));
+      cutY=winTop+q.y;
+    }
+    var head=document.createElement("canvas");
+    head.width=this.w; head.height=cutY;
+    head.getContext("2d").drawImage(this.cur,0,0,this.w,cutY,0,0,this.w,cutY);
+    this.segs.push(head);
+    var tailH=this.y-cutY;
+    var keep=null;
+    if(tailH>0){
+      keep=document.createElement("canvas");
+      keep.width=this.w; keep.height=tailH;
+      keep.getContext("2d").drawImage(this.cur,0,cutY,this.w,tailH,0,0,this.w,tailH);
+    }
+    this._open(SEG_H+2000);
+    if(keep){ this.ctx.drawImage(keep,0,0); this.y=tailH; }
+  };
+  Stitcher.prototype.finish=function(){
+    if(this.cur && this.y>0){
+      var last=document.createElement("canvas");
+      last.width=this.w; last.height=this.y;
+      last.getContext("2d").drawImage(this.cur,0,0,this.w,this.y,0,0,this.w,this.y);
+      this.segs.push(last);
+    }
+    this.cur=null; this.ctx=null;
+    return this.segs;
+  };
+
+  /* ---------- أدوات الفيديو ---------- */
+  function loadVideo(file){
+    return new Promise(function(res,rej){
+      vid.onloadedmetadata=function(){ res(); };
+      vid.onerror=function(){ rej(new Error("تعذّر فتح الملف")); };
+      vid.srcObject=null;
+      vid.src=URL.createObjectURL(file);
+    });
+  }
+  function seek(t){
+    return new Promise(function(res){
+      var done=false;
+      var fin=function(){ if(done)return; done=true; vid.onseeked=null; res(); };
+      vid.onseeked=fin;
+      try{ vid.currentTime=Math.max(0,Math.min(t, (vid.duration||0)-0.03)); }catch(e){ fin(); }
+      setTimeout(fin,900);
+    });
+  }
+
+  function prepCanvases(vw,vh,band){
+    var srcY = band ? band.srcTop : 0;
+    var srcH = band ? band.srcH : vh;
+    fullC.width=vw; fullC.height=srcH;
+    var ah=Math.max(40, Math.round(SC.AW*srcH/vw));
+    anaC.width=SC.AW; anaC.height=ah;
+    return {srcY:srcY, srcH:srcH, ah:ah};
+  }
+
+  function grabFrame(geom){
+    fullX.drawImage(vid, 0, geom.srcY, fullC.width, geom.srcH, 0,0, fullC.width, geom.srcH);
+    anaX.drawImage(fullC, 0,0, fullC.width, geom.srcH, 0,0, SC.AW, geom.ah);
+    var sig=SC.sigFromImageData(anaX.getImageData(0,0,SC.AW,geom.ah));
+    return {sig:sig, sig4:SC.down4(sig,geom.ah)};
+  }
+
+  /* ---------- معالجة ملفات الفيديو ---------- */
+  async function runFiles(files, forcedBand){
+    var res={frames:0, gaps:[], speeds:[], notes:[], stitch:null, ah:0, firstShot:null, band:null, files:files};
+    var stitch=null, geom=null, prev=null, contentAH=0;
+
+    for(var fi=0; fi<files.length; fi++){
+      var f=files[fi];
+      setStatus("قراءة الملف "+(fi+1)+" من "+files.length+"…");
+      await loadVideo(f);
+      var vw=vid.videoWidth, vh=vid.videoHeight, dur=vid.duration||0;
+      if(!vw||!vh||!isFinite(dur)||dur<=0){ res.notes.push("الملف «"+f.name+"» غير مقروء وتم تخطّيه."); continue; }
+
+      // مسح أوّلي: اتجاه التمرير + الأشرطة الثابتة
+      var g0=prepCanvases(vw,vh,null);
+      var probeSigs=[], probeShots=[], N=Math.min(12, Math.max(4, Math.floor(dur*2)));
+      for(var i=0;i<N;i++){
+        await seek(dur*(i+0.5)/N);
+        var fr=grabFrame(g0);
+        probeSigs.push(fr.sig); probeShots.push(fr.sig4);
+      }
+      var band = forcedBand || SC.findBands(probeSigs, g0.ah);
+      var scale = vh/g0.ah;
+      var bTop=Math.max(0, Math.min(vh-20, Math.round(band.top*scale)));
+      var bandSrc = { srcTop: bTop, srcH: Math.max(20, Math.min(vh-bTop, Math.round((band.bot-band.top+1)*scale))) };
+      geom=prepCanvases(vw,vh,bandSrc);
+      contentAH=geom.ah;
+      res.band={top:band.top, bot:band.bot, ah:g0.ah, auto:band.auto!==false};
+
+      // اتجاه التمرير من عيّنة المسح
+      var dirSum=0;
+      for(var k=1;k<probeSigs.length;k++){
+        var r=SC.findShift(probeSigs[k-1],probeSigs[k],probeShots[k-1],probeShots[k],g0.ah);
+        if(r.ok) dirSum+= (r.dy>0?1:(r.dy<0?-1:0));
+      }
+      var reversed = dirSum<0;
+      if(reversed) res.notes.push("التسجيل «"+f.name+"» كان تمريراً للأعلى، فعولج بالاتجاه المعاكس.");
+
+      if(!stitch){ stitch=new Stitcher(vw); res.stitch=stitch; }
+      else if(stitch.w!==vw){ res.notes.push("الملف «"+f.name+"» بعرض مختلف، فبدأ في صورة جديدة."); }
+
+      // أول إطار من أول ملف: يُعرض في لوحة منطقة النص
+      var t0 = reversed ? dur-0.05 : 0;
+      await seek(t0);
+      var first=grabFrame(geom);
+      if(fi===0){
+        var shot=document.createElement("canvas");
+        shot.width=vw; shot.height=vh;
+        shot.getContext("2d").drawImage(vid,0,0,vw,vh);
+        res.firstShot=shot; res.fullH=vh;
+      }
+
+      var joined=false;
+      if(prev){ // محاولة وصل الملف الجديد بما قبله
+        var j=SC.findShift(prev.sig, first.sig, prev.sig4, first.sig4, contentAH);
+        if(j.ok && j.dy>0 && j.dy<contentAH*0.95){
+          stitch.add(fullC, geom.srcH-Math.round(j.dy*geom.srcH/contentAH), Math.round(j.dy*geom.srcH/contentAH));
+          joined=true;
+        }
+      }
+      if(!joined){
+        stitch.add(fullC, 0, geom.srcH);
+        if(prev) res.notes.push("لم يُعثر على تداخل بين «"+f.name+"» وما قبله، فأُلحق كما هو.");
+      }
+      prev=first; res.frames++;
+
+      // المرور الأساسي
+      var step=1/RATE, times=[];
+      for(var t=step; t<dur; t+=step) times.push(reversed ? dur-t : t);
+      var moved=0, spanSec=Math.max(0.001,dur);
+
+      for(var ti=0; ti<times.length; ti++){
+        setProg((fi+ (ti+1)/times.length)/files.length);
+        if(ti%8===0){ setStatus("معالجة "+f.name+" — "+Math.round((ti+1)/times.length*100)+"٪"); await new Promise(function(r){setTimeout(r,0);}); }
+        var out=await advance(prev, times[ti-1]===undefined ? t0 : times[ti-1], times[ti], 0, stitch, geom, contentAH, res);
+        prev=out.frame; moved+=out.moved;
+      }
+      res.speeds.push(moved/contentAH/spanSec);
+    }
+
+    if(stitch) stitch.finish();
+    return res;
+  }
+
+  // ينتقل من الإطار السابق إلى اللحظة t1، ويكثّف العيّنة إذا ضاع التطابق
+  async function advance(prevFrame, t0, t1, depth, stitch, geom, ah, res){
+    await seek(t1);
+    var cur=grabFrame(geom);
+    var r=SC.findShift(prevFrame.sig, cur.sig, prevFrame.sig4, cur.sig4, ah);
+
+    var jitter=-Math.max(4, ah*0.05);
+    // تراجع بسيط = اهتزاز: تجاهله. تراجع كبير = مطابقة مشبوهة: كثّف بدل أن تصدّقها
+    if(r.ok && r.dy<=0 && r.dy>=jitter) return {frame:prevFrame, moved:0};
+    if(r.ok && r.dy>0 && r.dy<=ah*0.90){
+      var sh=Math.round(r.dy*geom.srcH/ah);
+      stitch.add(fullC, geom.srcH-sh, sh);
+      res.frames++;
+      return {frame:cur, moved:r.dy};
+    }
+    if(depth<MAX_DEPTH && (t1-t0)>0.02){
+      var tm=(t0+t1)/2;
+      var mid=await advance(prevFrame, t0, tm, depth+1, stitch, geom, ah, res);
+      var end=await advance(mid.frame, tm, t1, depth+1, stitch, geom, ah, res);
+      return {frame:end.frame, moved:mid.moved+end.moved};
+    }
+    // لم يُعثر على تداخل حتى بعد التكثيف: احتمال ضياع نص لم يظهر على الشاشة
+    await seek(t1);
+    cur=grabFrame(geom);
+    stitch.add(fullC, 0, geom.srcH);
+    res.gaps.push(t1);
+    res.frames++;
+    return {frame:cur, moved:ah};
+  }
+
+  /* ---------- الالتقاط المباشر ---------- */
+  var live=null;
+  async function startCapture(){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+      setStatus("هذا المتصفح لا يتيح الالتقاط المباشر. استعمل «اختر ملف فيديو».");
+      return;
+    }
+    var stream;
+    try{
+      stream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30}, audio:false});
+    }catch(e){ setStatus("أُلغي اختيار النافذة."); return; }
+
+    show($("btnStop"),true); show($("meter"),true);
+    $("btnFile").disabled=true; $("btnCap").disabled=true;
+    show($("out"),false); show($("bandPanel"),false);
+    setStatus("الالتقاط شغّال — مرّر بهدوء، واضغط «إيقاف الالتقاط» عند الانتهاء.");
+
+    vid.onloadedmetadata=null; vid.onerror=null; vid.onseeked=null;
+    try{ vid.pause(); }catch(e){}
+    vid.removeAttribute("src"); vid.load();
+    vid.srcObject=stream;
+    try{ await vid.play(); }catch(e){}
+    await new Promise(function(r){ setTimeout(r,300); });
+
+    var vw=vid.videoWidth, vh=vid.videoHeight;
+    var res={frames:0, gaps:[], speeds:[], notes:[], stitch:null, band:null, live:true};
+    var g0=prepCanvases(vw,vh,null);
+    var warm=[], warmShots=[], geom=null, ah=0, prev=null, stitch=null, moved=0, t0=performance.now();
+
+    live={stop:false, stream:stream};
+    stream.getVideoTracks()[0].addEventListener("ended", function(){ live.stop=true; });
+
+    var lastT=performance.now();
+    while(!live.stop){
+      await new Promise(function(r){ setTimeout(r, 1000/LIVE_RATE); });
+      if(vid.videoWidth===0) break;
+
+      if(!geom){
+        var fr=grabFrame(g0);
+        warm.push(fr.sig); warmShots.push(fr.sig4);
+        if(warm.length>=10){
+          var band=SC.findBands(warm, g0.ah);
+          var scale=vh/g0.ah;
+          var lTop=Math.max(0, Math.min(vh-20, Math.round(band.top*scale)));
+          geom=prepCanvases(vw,vh,{srcTop:lTop, srcH:Math.max(20, Math.min(vh-lTop, Math.round((band.bot-band.top+1)*scale)))});
+          ah=geom.ah; res.band={top:band.top,bot:band.bot,ah:g0.ah,auto:band.auto!==false};
+          stitch=new Stitcher(vw); res.stitch=stitch;
+          var f0=grabFrame(geom);
+          stitch.add(fullC,0,geom.srcH); prev=f0; res.frames++;
+          $("live").textContent="جاهز — مرّر بهدوء.";
+        }else{
+          $("live").textContent="لحظة، أقرأ شكل الشاشة…";
+        }
+        continue;
+      }
+
+      var cur=grabFrame(geom);
+      var r=SC.findShift(prev.sig, cur.sig, prev.sig4, cur.sig4, ah);
+      var now=performance.now(), dt=(now-lastT)/1000; lastT=now;
+
+      if(r.ok && r.dy>0 && r.dy<=ah*0.90){
+        var sh=Math.round(r.dy*geom.srcH/ah);
+        stitch.add(fullC, geom.srcH-sh, sh);
+        prev=cur; res.frames++; moved+=r.dy;
+        meter(r.dy/ah/Math.max(dt,0.001));
+      }else if(r.ok && r.dy<=0 && r.dy>=-Math.max(4,ah*0.05)){
+        meter(0);
+      }else{
+        stitch.add(fullC,0,geom.srcH);
+        prev=cur; res.frames++; moved+=ah;
+        res.gaps.push((now-t0)/1000);
+        meter(1.4);
+      }
+    }
+
+    try{ stream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+    try{ vid.pause(); }catch(e){}
+    vid.srcObject=null; vid.load();
+    show($("btnStop"),false); show($("meter"),false);
+    $("btnFile").disabled=false; $("btnCap").disabled=false;
+
+    if(!stitch){ setStatus("انتهى الالتقاط قبل أن يبدأ التجميع."); return; }
+    stitch.finish();
+    var secs=Math.max(0.5,(performance.now()-t0)/1000);
+    res.speeds.push(moved/ah/secs);
+    state=res;
+    await publish(res);
+  }
+
+  function meter(fracPerSec){
+    var pct=Math.max(0,Math.min(1, fracPerSec/1.2));
+    $("needle").style.right=(pct*100)+"%";
+    var txt, el=$("live");
+    if(fracPerSec<0.10) txt="بطيء — تقدر تمرّر أسرع.";
+    else if(fracPerSec<=0.75) txt="السرعة مناسبة.";
+    else if(fracPerSec<=1.0) txt="اقتربت من الحد — خفّف قليلاً.";
+    else txt="سريع جداً — احتمال ضياع سطور. خفّف الآن.";
+    el.textContent=txt;
+    el.style.color = fracPerSec>1.0 ? "var(--bad)" : (fracPerSec>0.75||fracPerSec<0.10 ? "var(--warn)" : "var(--accent)");
+  }
+
+  /* ---------- عرض النتيجة ---------- */
+  function fmtTime(s){
+    s=Math.max(0,Math.round(s));
+    var m=Math.floor(s/60); return (m<10?"0":"")+m+":"+((s%60)<10?"0":"")+(s%60);
+  }
+
+  async function publish(res){
+    var segs=res.stitch?res.stitch.segs:[];
+    var box=$("segs"); box.innerHTML="";
+    setStatus("تجهيز الصور…");
+
+    var urls=[];
+    for(var i=0;i<segs.length;i++){
+      var blob=await new Promise(function(r){ segs[i].toBlob(r,"image/png"); });
+      var url=URL.createObjectURL(blob);
+      urls.push({url:url, name:"لقطة-طويلة-"+(i+1)+".png", h:segs[i].height, size:blob.size});
+
+      var thumb=document.createElement("canvas");
+      thumb.width=96; thumb.height=Math.max(40,Math.round(96*segs[i].height/segs[i].width));
+      if(thumb.height>260) thumb.height=260;
+      thumb.getContext("2d").drawImage(segs[i],0,0,thumb.width,thumb.height);
+
+      var el=document.createElement("div"); el.className="seg";
+      var im=document.createElement("img"); im.src=thumb.toDataURL(); im.alt="معاينة الصورة "+(i+1);
+      var meta=document.createElement("div"); meta.className="meta";
+      meta.innerHTML="<b>الصورة "+(i+1)+" من "+segs.length+"</b>"+
+        "<span class='hint'>الارتفاع "+segs[i].height+" بكسل — الحجم "+Math.round(blob.size/1024)+" ك.ب</span>";
+      var btn=document.createElement("button"); btn.className="small"; btn.textContent="تنزيل";
+      (function(u){ btn.onclick=function(){ dl(u); }; })(urls[i]);
+      meta.appendChild(document.createElement("br")); meta.appendChild(btn);
+      el.appendChild(im); el.appendChild(meta); box.appendChild(el);
+    }
+    res.urls=urls;
+
+    // التقرير
+    var avg=0; for(var s=0;s<res.speeds.length;s++) avg+=res.speeds[s];
+    avg = res.speeds.length ? avg/res.speeds.length : 0;
+    var v=SC.speedVerdict(avg, res.gaps.length);
+    var total=res.stitch?res.stitch.total:0;
+    var rep=$("report");
+    rep.className = "report" + (v.key==="ok" ? "" : " warnbox");
+    var html="<b>"+v.text+"</b><br>";
+    html+="الإطارات المستعملة: "+res.frames+" — الطول الكلي: "+total+" بكسل — عدد الصور: "+segs.length+".";
+    if(res.band){
+      html+="<br>منطقة النص: من "+Math.round(res.band.top/res.band.ah*100)+"٪ إلى "+Math.round((res.band.bot+1)/res.band.ah*100)+"٪ من ارتفاع الشاشة"+(res.band.auto?" (تحديد تلقائي)":" (يدوي)")+".";
+    }
+    if(res.gaps.length){
+      html+="<br><br>مواضع كان التمرير فيها أسرع من اللازم — راجع النص عندها، وإن نقص شيء سجّل هذا الجزء وحده وأضفه كملف ثانٍ:<ul>";
+      for(var gi=0; gi<res.gaps.length && gi<20; gi++) html+="<li>"+fmtTime(res.gaps[gi])+(res.live?" من بداية الالتقاط":" في الفيديو")+"</li>";
+      if(res.gaps.length>20) html+="<li>… و"+(res.gaps.length-20)+" موضعاً آخر</li>";
+      html+="</ul>";
+    }
+    for(var ni=0;ni<res.notes.length;ni++) html+="<br>"+res.notes[ni];
+    rep.innerHTML=html;
+
+    show($("out"), true);
+    show($("bandPanel"), !!res.firstShot);
+    if(res.firstShot) paintBand(res);
+    setProg(1);
+    setStatus("انتهت المعالجة.");
+  }
+
+  function dl(u){
+    var a=document.createElement("a"); a.href=u.url; a.download=u.name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  $("btnAll").onclick=function(){
+    if(!state||!state.urls) return;
+    state.urls.forEach(function(u,i){ setTimeout(function(){ dl(u); }, i*350); });
+  };
+
+  /* ---------- تعديل منطقة النص ---------- */
+  var bandUI={top:0,bot:1};
+  function paintBand(res){
+    var img=$("bandImg");
+    img.src=res.firstShot.toDataURL("image/png");
+    img.onload=function(){
+      bandUI.top=res.band.top/res.band.ah;
+      bandUI.bot=(res.band.bot+1)/res.band.ah;
+      layoutBand();
+    };
+  }
+  function layoutBand(){
+    var img=$("bandImg"); if(!img.clientHeight) return;
+    var H=img.clientHeight;
+    $("maskTop").style.top="0px"; $("maskTop").style.height=(bandUI.top*H)+"px";
+    $("maskBot").style.top=(bandUI.bot*H)+"px"; $("maskBot").style.height=Math.max(0,H-bandUI.bot*H)+"px";
+    $("hTop").style.top=(bandUI.top*H-11)+"px";
+    $("hBot").style.top=(bandUI.bot*H-11)+"px";
+  }
+  window.addEventListener("resize", layoutBand);
+
+  function dragHandle(el, key){
+    var move=function(ev){
+      var img=$("bandImg"), rect=img.getBoundingClientRect();
+      var y=((ev.touches?ev.touches[0].clientY:ev.clientY)-rect.top)/rect.height;
+      y=Math.max(0,Math.min(1,y));
+      if(key==="top") bandUI.top=Math.min(y, bandUI.bot-0.1);
+      else bandUI.bot=Math.max(y, bandUI.top+0.1);
+      layoutBand();
+      ev.preventDefault();
+    };
+    var up=function(){
+      document.removeEventListener("mousemove",move); document.removeEventListener("mouseup",up);
+      document.removeEventListener("touchmove",move); document.removeEventListener("touchend",up);
+    };
+    el.addEventListener("mousedown",function(){ document.addEventListener("mousemove",move); document.addEventListener("mouseup",up); });
+    el.addEventListener("touchstart",function(){ document.addEventListener("touchmove",move,{passive:false}); document.addEventListener("touchend",up); });
+  }
+  dragHandle($("hTop"),"top"); dragHandle($("hBot"),"bot");
+
+  $("btnRedo").onclick=function(){
+    if(!state||!state.files) return;
+    var ah=state.band.ah;
+    go(state.files, {top:Math.round(bandUI.top*ah), bot:Math.round(bandUI.bot*ah)-1, auto:false});
+  };
+  $("btnAuto").onclick=function(){
+    if(!state||!state.files) return;
+    go(state.files, null);
+  };
+
+  /* ---------- التشغيل ---------- */
+  async function go(files, band){
+    show($("out"),false);
+    setProg(0); setStatus("جاري التحضير…");
+    $("btnFile").disabled=true; $("btnCap").disabled=true;
+    try{
+      var res=await runFiles(files, band);
+      state=res;
+      if(!res.stitch || !res.stitch.segs.length){ setStatus("لم يُنتج التسجيل أي صورة — تأكّد أن فيه تمريراً."); return; }
+      await publish(res);
+    }catch(e){
+      setStatus("توقّفت المعالجة: "+(e&&e.message?e.message:e));
+    }finally{
+      $("btnFile").disabled=false; $("btnCap").disabled=false;
+    }
+  }
+
+  $("btnFile").onclick=function(){ fileIn.value=""; fileIn.click(); };
+  fileIn.onchange=function(){ if(fileIn.files.length) go(Array.prototype.slice.call(fileIn.files), null); };
+  $("btnCap").onclick=startCapture;
+  $("btnStop").onclick=function(){ if(live) live.stop=true; };
+})();
+</script>
+</body>
+</html>
