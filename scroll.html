@@ -634,10 +634,13 @@ if(typeof module!=="undefined") module.exports=SC;
     });
   }
 
-  // نبضة الالتقاط المباشر. أثناء الالتقاط تكون نافذة هذه الصفحة مخفيّة خلف النافذة
-  // التي تمرّرها، والمتصفح يخنق setTimeout في الصفحات المخفيّة إلى نبضة واحدة في
-  // الثانية — فتضيع صفحات كاملة بين إطارين. requestVideoFrameCallback مربوط بمسار
-  // الفيديو نفسه لا بمؤقّتات الصفحة فلا يُخنق، ومؤقّت العامل المنفصل بديل حين يغيب.
+  // نبضة الالتقاط المباشر. أثناء الالتقاط تكون هذه الصفحة مخفيّة خلف النافذة التي
+  // تمرّرها، والمتصفح يخنق مؤقّتات الصفحة المخفيّة إلى نبضة في الثانية أو أبطأ.
+  // البناء السابق اعتمد requestVideoFrameCallback وتبيّن أنه مربوط بدورة الرسم،
+  // والرسم يتوقّف مع الإخفاء أيضاً — فقيس المعدّل عند 0.4 في الثانية. النبضة الآن من
+  // مؤقّت في عامل منفصل، والعمّال خارج خنق الصفحات. والإطارات نفسها تُسحب من مسار
+  // الالتقاط مباشرةً عبر MediaStreamTrackProcessor حيث توفّر، فتصل مدفوعةً من خدمة
+  // الالتقاط بلا صلة بحالة الصفحة، ويُكتفى بعنصر الفيديو حيث تغيب.
   var wTick=null;
   function workerTicker(){
     if(wTick!==null) return wTick;
@@ -654,23 +657,35 @@ if(typeof module!=="undefined") module.exports=SC;
   function stopTicker(){ try{ if(wTick && wTick.w) wTick.w.postMessage({ms:0}); }catch(e){} }
 
   function liveTick(){
-    var ms=1000/LIVE_RATE;
-    if(vid.requestVideoFrameCallback){
-      return new Promise(function(res){
-        var t0=performance.now(), done=false;
-        function fin(){ if(done)return; done=true; res(); }
-        function step(){
-          if(done) return;
-          if(performance.now()-t0>=ms) return fin();
-          try{ vid.requestVideoFrameCallback(step); }catch(e){ fin(); }
-        }
-        try{ vid.requestVideoFrameCallback(step); }catch(e){ setTimeout(fin,ms); return; }
-        setTimeout(fin, Math.max(1200, ms*6)); // شبكة أمان لو انقطع تدفّق الإطارات
-      });
-    }
     var t=workerTicker();
     if(t) return new Promise(function(res){ t.waiters.push(res); });
-    return new Promise(function(res){ setTimeout(res, ms); });
+    return new Promise(function(res){ setTimeout(res, 1000/LIVE_RATE); });
+  }
+
+  // مضخّة الإطارات: تقرأ من مسار الالتقاط في الخلفية وتُبقي أحدث إطار فقط
+  function makePump(stream){
+    var p={frame:null, reader:null};
+    try{
+      if(window.MediaStreamTrackProcessor){
+        var tr=stream.getVideoTracks()[0];
+        p.reader=new MediaStreamTrackProcessor({track:tr}).readable.getReader();
+        (function loop(){
+          p.reader.read().then(function(r){
+            if(r.done) return;
+            if(p.frame){ try{p.frame.close();}catch(e){} }
+            p.frame=r.value;
+            loop();
+          }).catch(function(){});
+        })();
+      }
+    }catch(e){ p.reader=null; }
+    p.take=function(){ var f=p.frame; p.frame=null; return f; };
+    p.stop=function(){
+      try{ if(p.reader) p.reader.cancel(); }catch(e){}
+      if(p.frame){ try{p.frame.close();}catch(e){} }
+      p.frame=null;
+    };
+    return p;
   }
 
   function prepCanvases(vw,vh,band){
@@ -683,8 +698,8 @@ if(typeof module!=="undefined") module.exports=SC;
     return {srcY:srcY, srcH:srcH, ah:ah, aw:aw};
   }
 
-  function grabFrame(geom){
-    fullX.drawImage(vid, 0, geom.srcY, fullC.width, geom.srcH, 0,0, fullC.width, geom.srcH);
+  function grabFrame(geom, src){
+    fullX.drawImage(src||vid, 0, geom.srcY, fullC.width, geom.srcH, 0,0, fullC.width, geom.srcH);
     anaX.drawImage(fullC, 0,0, fullC.width, geom.srcH, 0,0, geom.aw, geom.ah);
     var sig=SC.sigFromImageData(anaX.getImageData(0,0,geom.aw,geom.ah));
     return {sig:sig, sig4:SC.down4(sig,geom.ah)};
@@ -853,6 +868,7 @@ if(typeof module!=="undefined") module.exports=SC;
     }
 
     live={stop:false, stream:stream};
+    live.pump=makePump(stream);
     stream.getVideoTracks()[0].addEventListener("ended", function(){ live.stop=true; });
 
     var lastT=performance.now(), tGeom=0, procN=0;
@@ -862,7 +878,9 @@ if(typeof module!=="undefined") module.exports=SC;
       if(vid.videoWidth===0) break;
 
       if(!geom){
-        var fr=grabFrame(g0);
+        var vf0=live.pump.take();
+        var fr=grabFrame(g0, vf0);
+        if(vf0){ try{vf0.close();}catch(e){} }
         if(SC.actRange(fr.sig,0,g0.ah) < 1.2) continue;
         warm.push(fr.sig); warmShots.push(fr.sig4);
         var band=null;
@@ -889,7 +907,9 @@ if(typeof module!=="undefined") module.exports=SC;
         continue;
       }
 
-      var cur=grabFrame(geom);
+      var vf=live.pump.take();
+      var cur=grabFrame(geom, vf);
+      if(vf){ try{vf.close();}catch(e){} }
       // إطار فارغ تماماً: يظهر في اللحظة التي ينقطع فيها التدفّق بعد الإيقاف. لا يُطابَق
       // فكان يُلحق جزيرةً سوداء في آخر الصورة ويُسجَّل فجوةً كاذبة. يُتخطّى الآن.
       if(SC.actRange(cur.sig,0,ah) < 1.2){ res.blankSkipped=(res.blankSkipped||0)+1; continue; }
@@ -926,6 +946,7 @@ if(typeof module!=="undefined") module.exports=SC;
     }
 
     stopTicker();
+    try{ live.pump.stop(); }catch(e){}
     if(tGeom) res.rate = procN/Math.max(0.5,(performance.now()-tGeom)/1000);
     try{ stream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
     try{ vid.pause(); }catch(e){}
