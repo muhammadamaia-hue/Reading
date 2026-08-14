@@ -285,11 +285,11 @@ body.ruler-on .ruler{display:block}
 /* pinned as a right-hand column: full height, never over the cards — the page itself
    gives up the width, so nothing is covered. Desktop only; a small screen has no
    column to spare, so the rule simply does not apply there. */
-.dock-box.pinned{position:fixed !important;inset:0 0 0 auto !important;inset-inline-start:auto !important;width:var(--pinw,360px) !important;height:100vh !important;max-height:100vh !important;max-width:46vw;margin:0 !important;border-radius:0;border-block:0;border-inline-end:0;resize:horizontal;z-index:80}
+.dock-box.pinned{position:fixed !important;inset:0 0 0 auto !important;inset-inline-start:auto !important;width:var(--pinw,360px) !important;height:100vh !important;max-height:100vh !important;max-width:46vw;margin:0 !important;border-radius:0;border-block:0;border-right:0;resize:horizontal;z-index:80}
 .dock-box.pinned .grip{display:none}
-body.pinned-on{padding-inline-end:var(--pinw,360px)}
-body.pinned-on .pager{inset-inline-end:var(--pinw,360px)}
-@media (max-width:760px){.dock-box.pinned{position:fixed !important;inset:auto !important;width:min(330px,88vw) !important;height:auto !important;max-height:min(78vh,720px) !important;border-radius:var(--radius);resize:both}body.pinned-on{padding-inline-end:0}body.pinned-on .pager{inset-inline-end:0}}
+body.pinned-on{padding-right:var(--pinw,360px)}
+body.pinned-on .pager{right:var(--pinw,360px);inset-inline-end:auto}
+@media (max-width:760px){.dock-box.pinned{position:fixed !important;inset:auto !important;width:min(330px,88vw) !important;height:auto !important;max-height:min(78vh,720px) !important;border-radius:var(--radius);resize:both}body.pinned-on{padding-right:0}body.pinned-on .pager{right:0;inset-inline-end:0}}
 #pvWrap{position:sticky;top:88px;z-index:6;background:var(--panel);padding-top:6px;padding-bottom:4px;margin-bottom:2px}
 #preview{--accent:var(--seal);background:color-mix(in srgb, var(--accent) 7%, var(--panel));border:1px solid color-mix(in srgb, var(--accent) 26%, var(--line));border-inline-start:5px solid var(--accent);border-radius:var(--radius);padding:12px 15px;margin-top:2px;overflow-wrap:anywhere}
 #pvNote{margin-top:6px}
@@ -4337,7 +4337,7 @@ var GUIDE = [{"t":"قبل أن تبدأ — كيف وُلد البرنامج و�
    showed the previous build and the field could no longer answer the one question
    it exists for. So the file's own upload time leads now, and this constant is only
    the fallback. */
-var BUILD = "2026-08-14T19:15:00Z";
+var BUILD = "2026-08-14T19:45:00Z";
 function buildStampDate(){
   /* GitHub Pages sends a Last-Modified header and the browser exposes it here, so
      it changes by itself with every upload. When the header is missing the browser
