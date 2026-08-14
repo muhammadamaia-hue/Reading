@@ -250,7 +250,9 @@ body.ruler-on .ruler{display:block}
 .dock{position:fixed;inset-block-end:14px;inset-inline-start:14px;z-index:75;width:min(330px,88vw);display:flex;flex-direction:column-reverse;align-items:stretch}
 .dock-btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:var(--ui);font-size:13px;padding:9px 13px;border-radius:11px;cursor:pointer;box-shadow:var(--shadow)}
 .dock-box{margin-bottom:8px;max-height:min(78vh,720px);display:flex;flex-direction:column;overflow:auto;resize:both;min-width:280px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px}
-.dock-box textarea{width:100%;min-height:150px;max-width:100%;resize:both;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:14px;padding:8px}
+/* flex:none — the box has a fixed pixel height in window mode, and without this the
+   flex layout shrinks the textarea straight back to the height he just dragged it out of */
+.dock-box textarea{flex:0 0 auto;width:100%;min-height:150px;max-width:100%;resize:both;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:14px;padding:8px}
 .ideas{list-style:none;margin:10px 0 0;padding:0;overflow:auto;font-size:14px;flex:1 1 auto;min-height:0}
 .ideaCard{--accent:var(--seal);display:flex;align-items:flex-start;gap:9px;margin:0 0 7px;padding:8px 11px;border-radius:10px;border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line));border-inline-start:4px solid var(--accent);background:color-mix(in srgb, var(--accent) 6%, var(--panel));line-height:1.7}
 .ideaCard.alt{--accent:var(--warn)}
@@ -4335,7 +4337,7 @@ var GUIDE = [{"t":"قبل أن تبدأ — كيف وُلد البرنامج و�
    showed the previous build and the field could no longer answer the one question
    it exists for. So the file's own upload time leads now, and this constant is only
    the fallback. */
-var BUILD = "2026-08-14T21:10:00Z";
+var BUILD = "2026-08-14T21:09:00Z";
 function buildStampDate(){
   /* GitHub Pages sends a Last-Modified header and the browser exposes it here, so
      it changes by itself with every upload. When the header is missing the browser
@@ -4345,7 +4347,12 @@ function buildStampDate(){
     var d = new Date(document.lastModified);
     if(!isNaN(d.getTime()) && Math.abs(Date.now() - d.getTime()) > 120000) return d;
   }catch(e){}
-  return new Date(BUILD);
+  /* Last guard, and the one that matters: a stamp in the FUTURE is never true and
+     destroys the only thing the field is for. Whatever the constant says, it can
+     never be shown later than this moment — it is capped at now. */
+  var b = new Date(BUILD);
+  if(isNaN(b.getTime()) || b.getTime() > Date.now()) return new Date();
+  return b;
 }
 function buildLocal(){
   try{
