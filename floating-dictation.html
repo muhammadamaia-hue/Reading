@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الإملاء العائم</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%233d5a80'/%3E%3Cpath d='M32 12a8 8 0 0 1 8 8v10a8 8 0 0 1-16 0V20a8 8 0 0 1 8-8Z' fill='%23fff'/%3E%3Cpath d='M22 30v2a10 10 0 0 0 20 0v-2M32 44v6' stroke='%23fff' stroke-width='3.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ---------- design tokens ---------------------------------------------------
+   Same visual family as JoyRead (Readex Pro, light panel-on-canvas, ghost
+   buttons, soft shadow, rounded radius) but its own accent colour, so the two
+   tools read as siblings, not as the same app. Green stays JoyRead's; this one
+   is slate-blue for the mic/local state and amber for the pay-out state,
+   matching JoyRead's own "💰 = leaves your device" colour grammar.            */
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --ink:#151a20; --muted:#5c6673; --line:#d9dee4;
+  --accent:#3d5a80; --accent-soft:#3d5a800f; --accent-line:#3d5a8040;
+  --free:#1f8a5f; --free-soft:#1f8a5f14;
+  --paid:#a05a00; --paid-soft:#a05a0014;
+  --bad:#b42318; --bad-soft:#b4231814;
+  --dim:rgba(10,14,20,.44);
+  --shadow:0 1px 2px rgba(20,26,32,.05), 0 8px 24px rgba(20,26,32,.08);
+  --radius:14px;
+  --ui:"Readex Pro","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--ui);
+  display:flex; flex-direction:column; min-height:100vh;
+}
+button{font-family:inherit; cursor:pointer}
+select,input{font-family:inherit}
+.wrap{padding:10px 12px}
+header{background:var(--panel); border-bottom:1px solid var(--line); box-shadow:var(--shadow)}
+.row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.logo{
+  width:30px; height:30px; border-radius:9px; background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:16px; flex:none;
+}
+.title{font-weight:700; font-size:15px; line-height:1.15}
+.sub{font-size:11px; color:var(--muted); line-height:1.2}
+.spacer{flex:1}
+.iconbtn{
+  border:1px solid var(--line); background:#fff; border-radius:10px; padding:6px 9px;
+  font-size:13px; color:var(--ink); display:flex; align-items:center; gap:5px;
+}
+.iconbtn:hover{background:#f4f6f8}
+.iconbtn[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft); color:var(--accent)}
+.iconbtn.free[aria-pressed="true"]{border-color:var(--free); background:var(--free-soft); color:var(--free)}
+.iconbtn.paid[aria-pressed="true"]{border-color:var(--paid); background:var(--paid-soft); color:var(--paid)}
+.iconbtn.stop{border-color:var(--bad); background:var(--bad-soft); color:var(--bad); display:none}
+.iconbtn.stop.show{display:flex}
+.iconbtn:disabled{opacity:.45; cursor:not-allowed}
+select.mini{border:1px solid var(--line); border-radius:10px; padding:6px 8px; font-size:12.5px; background:#fff}
+.badge{
+  font-size:11.5px; padding:5px 10px; border-radius:999px; border:1px solid var(--line);
+  color:var(--muted); background:#fff; white-space:nowrap;
+}
+.badge.on-free{border-color:var(--free); color:var(--free); background:var(--free-soft)}
+.badge.on-paid{border-color:var(--paid); color:var(--paid); background:var(--paid-soft)}
+
+main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; min-height:0}
+#box{
+  flex:1; min-height:120px; width:100%; resize:none; border:1px solid var(--line);
+  border-radius:var(--radius); padding:12px; font-size:15.5px; line-height:1.7;
+  background:var(--panel); box-shadow:var(--shadow); color:var(--ink);
+}
+#box:focus{outline:2px solid var(--accent-line); outline-offset:1px}
+#liveStrip{
+  font-size:13px; color:var(--muted); background:#fff; border:1px dashed var(--line);
+  border-radius:10px; padding:7px 10px; display:none; min-height:14px;
+}
+#liveStrip.show{display:block}
+#note{font-size:12.5px; color:var(--muted); min-height:16px; padding:0 2px}
+#note.err{color:var(--bad)}
+
+.panel{
+  background:var(--panel); border-top:1px solid var(--line); box-shadow:0 -6px 18px rgba(20,26,32,.06);
+  padding:12px; display:none; max-height:60vh; overflow:auto;
+}
+.panel.show{display:block}
+.field{display:flex; flex-direction:column; gap:4px; margin-bottom:10px}
+.field label{font-size:12.5px; font-weight:600}
+.field input[type=text],.field input[type=password],.field input[type=number],.field select{
+  border:1px solid var(--line); border-radius:9px; padding:7px 9px; font-size:13.5px;
+}
+.hlp{font-size:11.5px; color:var(--muted); margin:2px 0 0}
+.sep{font-size:12px; font-weight:700; color:var(--accent); margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--line)}
+.sep:first-child{margin-top:0}
+.keyrow{display:flex; gap:6px}
+.keyrow input{flex:1}
+.smallbtn{border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 9px; font-size:12px}
+.costline{font-size:12.5px; padding:8px 10px; background:var(--paid-soft); border:1px solid var(--paid); border-radius:9px; color:#6b3f00}
+
+/* ---------- guide overlay ---------- */
+#guide{
+  position:fixed; inset:0; background:var(--dim); display:none; align-items:flex-start;
+  justify-content:center; z-index:50; padding:26px 14px;
+}
+#guide.show{display:flex}
+.gsheet{background:#fff; border-radius:16px; width:min(560px,100%); max-height:92vh; display:flex; flex-direction:column; box-shadow:var(--shadow)}
+.ghead{display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line)}
+.ghead b{font-size:15px}
+.gbody{padding:6px 14px 18px; overflow:auto}
+.gsec{border-inline-start:3px solid var(--accent); padding:8px 0 8px 10px; margin:12px 0}
+.gsec h4{margin:0 0 6px; font-size:13.5px}
+.gsec .git{font-size:12.8px; margin:6px 0; line-height:1.6}
+.gsec .git b{font-weight:700}
+#gSearch{width:100%; border:1px solid var(--line); border-radius:9px; padding:8px 10px; font-size:13px; margin:10px 0}
+
+.hidden{display:none !important}
+@media (max-width:420px){
+  .title{font-size:13.5px} .sub{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap row">
+    <div class="logo">🎙</div>
+    <div>
+      <div class="title">الإملاء العائم</div>
+      <div class="sub">نافذة مستقلة — لا علاقة لها بـ JoyRead</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="badge" id="destBadge">⚪ غير نشط</span>
+    <button class="iconbtn" id="btnGuide" title="شرح كل زر">؟ الدليل</button>
+    <button class="iconbtn" id="btnSettings" title="المفتاح والنموذج والسقف">⚙</button>
+  </div>
+  <div class="wrap row" style="padding-top:0">
+    <select class="mini" id="lang" title="لغة الإملاء"></select>
+    <select class="mini" id="font" title="خط النص"></select>
+    <button class="iconbtn free" id="btnFree" aria-pressed="false" title="إملاء بمحرك متصفحك — مجاني">🎙️ إملاء مجاني</button>
+    <button class="iconbtn paid" id="btnPaid" aria-pressed="false" title="إملاء عبر مفتاح Gemini الخاص بك">☁️ إملاء Gemini</button>
+    <button class="iconbtn stop" id="btnStop" title="إيقاف الإملاء فوراً">⏹ إيقاف</button>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="btnCopy" title="ينسخ كل النص">⧉ نسخ</button>
+    <button class="iconbtn" id="btnSavePos" title="يحفظ مكان وحجم هذه النافذة">⤓</button>
+    <button class="iconbtn" id="btnRestorePos" title="يعيد النافذة إلى المكان المحفوظ">↺</button>
+  </div>
+</header>
+
+<main>
+  <textarea id="box" placeholder="اضغط «إملاء مجاني» أو «إملاء Gemini» لتبدأ — أو اكتب هنا مباشرة…" spellcheck="true"></textarea>
+  <div id="liveStrip"></div>
+  <div id="note"></div>
+</main>
+
+<div class="panel" id="settings">
+  <div class="sep">مفتاح Google AI (Gemini)</div>
+  <div class="field">
+    <label for="gkey">المفتاح</label>
+    <div class="keyrow">
+      <input type="password" id="gkey" placeholder="الصق مفتاحك هنا" autocomplete="off">
+      <button class="smallbtn" id="btnShowKey" type="button">إظهار</button>
+      <button class="smallbtn" id="btnClearKey" type="button">مسح</button>
+    </div>
+    <p class="hlp">يُحفظ في متصفّحك فقط، ولا يُرسل إلا مباشرة إلى Google لحظة كل مقطع إملاء. لا سيرفر وسيط. امسحه إن كنت على جهاز تشاركه مع غيرك.</p>
+  </div>
+  <div class="field">
+    <label for="gmodel">نموذج الإملاء المدفوع</label>
+    <select id="gmodel">
+      <option value="gemini-2.5-flash">Gemini 2.5 Flash — أسرع وأرخص</option>
+      <option value="gemini-2.0-flash">Gemini 2.0 Flash — بديل عند الازدحام</option>
+      <option value="gemini-2.5-pro">Gemini 2.5 Pro — أدقّ وأغلى</option>
+    </select>
+  </div>
+
+  <div class="sep">سقف الاستهلاك التقريبي</div>
+  <div class="field">
+    <label for="costCap">أوقف الإملاء المدفوع تلقائياً بعد ($ شهرياً)</label>
+    <input type="number" id="costCap" min="0" step="0.5" placeholder="مثلاً 5">
+    <p class="hlp" id="costNote"></p>
+    <p class="hlp">هذا عدّاد تقريبي محلي لضبط استهلاكك أنت، وليس حماية حقيقية من سرقة المفتاح. للحماية الفعلية اضبط سقف إنفاق فعلياً من لوحة Google AI Studio نفسها.</p>
+  </div>
+
+  <div class="sep">الإملاء المجاني</div>
+  <div class="field">
+    <label for="idleTimeout">يتوقف تلقائياً بعد صمت حقيقي</label>
+    <select id="idleTimeout">
+      <option value="30">30 ثانية</option>
+      <option value="60">دقيقة</option>
+      <option value="120">دقيقتان</option>
+      <option value="300">5 دقائق</option>
+      <option value="1200">20 دقيقة</option>
+    </select>
+    <p class="hlp">تُقاس من آخر كلمة سمعها المحرّك — لا من بدء التشغيل — فلا تتوقف وأنت لا تزال تتكلم مهما طال إملاؤك أو توقفت للتفكير.</p>
+  </div>
+
+  <button class="smallbtn" id="btnCloseSettings" type="button">إغلاق</button>
+</div>
+
+<div id="guide">
+  <div class="gsheet">
+    <div class="ghead">
+      <b>دليل الإملاء العائم</b>
+      <div class="spacer"></div>
+      <button class="smallbtn" id="btnGuideClose">✕ إغلاق</button>
+    </div>
+    <div class="gbody">
+      <input type="search" id="gSearch" placeholder="ابحث عن اسم زرّ…">
+      <div id="gList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+function $(s){ return document.querySelector(s); }
+
+/* ---------- storage ---------- */
+var LS = {
+  ok:function(){ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } },
+  get:function(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set:function(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } },
+  del:function(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+/* ---------- languages — Syrian Arabic first, same priority idea as JoyRead ---------- */
+var DICT_LANGS = {
+  ar: ["ar-SY","ar-SA","ar-EG","ar-AE","ar-JO","ar-LB","ar-IQ","ar"],
+  sv: ["sv-SE","sv"],
+  en: ["en-US","en-GB","en"]
+};
+var LANG_LABEL = { ar:"عربي (سوري أولاً)", sv:"سويدي", en:"إنجليزي" };
+var LANG_NAME_FOR_PROMPT = { ar:"العربية", sv:"السويدية", en:"الإنجليزية" };
+var LANG_DIR = { ar:"rtl", sv:"ltr", en:"ltr" };
+
+/* ---------- fonts — starts as JoyRead's list, easy to extend: add one line here ---------- */
+var FONT_LIST = [
+  { id:"readex",    name:"Readex Pro",           css:"'Readex Pro','Segoe UI',system-ui,sans-serif" },
+  { id:"atkinson",  name:"Atkinson Hyperlegible", css:"'Atkinson Hyperlegible','Segoe UI',system-ui,sans-serif" }
+  /* to add a font: import it in <head>, then add one object here */
+];
+
+function fillSelect(sel, list, current){
+  sel.innerHTML = "";
+  list.forEach(function(item){
+    var o = document.createElement("option");
+    o.value = item.value; o.textContent = item.label;
+    if(item.value === current) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+fillSelect($("#lang"), Object.keys(LANG_LABEL).map(function(k){ return {value:k, label:LANG_LABEL[k]}; }), LS.get("fd.lang") || "ar");
+fillSelect($("#font"), FONT_LIST.map(function(f){ return {value:f.id, label:f.name}; }), LS.get("fd.font") || "readex");
+
+function applyFont(){
+  var f = FONT_LIST.find(function(x){ return x.id === $("#font").value; }) || FONT_LIST[0];
+  $("#box").style.fontFamily = f.css;
+}
+function applyLangDir(){
+  var l = $("#lang").value;
+  $("#box").setAttribute("dir", LANG_DIR[l] || "rtl");
+  $("#box").setAttribute("lang", l);
+}
+$("#lang").addEventListener("change", function(){ LS.set("fd.lang", this.value); applyLangDir(); });
+$("#font").addEventListener("change", function(){ LS.set("fd.font", this.value); applyFont(); });
+applyFont(); applyLangDir();
+
+/* ---------- shared session state ---------- */
+var D = { engine:null, on:false, stop:false, pos:0, li:0, kept:[], written:0, idleT:null, lastHeard:0,
+          mr:null, stream:null, chain:Promise.resolve(), recTimer:null };
+
+function setDest(state){
+  var b = $("#destBadge");
+  b.className = "badge";
+  if(state === "free"){ b.classList.add("on-free"); b.textContent = "🎙️ محلي عبر متصفحك"; }
+  else if(state === "paid"){ b.classList.add("on-paid"); b.textContent = "☁️ يُرسل إلى Gemini بمفتاحك"; }
+  else { b.textContent = "⚪ غير نشط"; }
+}
+function note(msg, isErr){
+  var n = $("#note");
+  n.textContent = msg || "";
+  n.className = isErr ? "err" : "";
+}
+function setButtons(){
+  var busy = D.engine !== null;
+  $("#btnFree").setAttribute("aria-pressed", D.engine === "free" ? "true" : "false");
+  $("#btnPaid").setAttribute("aria-pressed", D.engine === "paid" ? "true" : "false");
+  $("#btnFree").disabled = busy && D.engine !== "free";
+  $("#btnPaid").disabled = busy && D.engine !== "paid";
+  $("#btnStop").classList.toggle("show", busy);
+}
+function sessionStart(){
+  var el = $("#box");
+  D.pos = (el.selectionStart != null) ? el.selectionEnd : el.value.length;
+}
+function sessionInsert(text){
+  if(!text) return;
+  var el = $("#box");
+  var before = el.value.slice(0, D.pos);
+  var after = el.value.slice(D.pos);
+  var sep = (before && !/\s$/.test(before)) ? " " : "";
+  var chunk = sep + text.trim() + " ";
+  el.value = before + chunk + after;
+  D.pos = (before + chunk).length;
+  el.selectionStart = el.selectionEnd = D.pos;
+}
+
+/* ================= FREE dictation — Web Speech API ================= */
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function cmpKey(s){
+  var t = String(s || "").toLowerCase();
+  try{ t = t.normalize("NFD").replace(/[\u0300-\u036F\u064B-\u0652\u0670]/g, ""); }catch(e){}
+  return t.replace(/[.,!?;:'"()\[\]{}«»…\u060C\u061B\u061F]/g, " ").replace(/\s+/g, " ").trim();
+}
+function foldRun(parts){
+  var kept = [];
+  for(var i=0;i<parts.length;i++){
+    var p = parts[i], pk = cmpKey(p);
+    if(!pk){ if(kept.length) kept[kept.length-1] += p; else if(p) kept.push(p); continue; }
+    if(!kept.length){ kept.push(p); continue; }
+    var lk = cmpKey(kept[kept.length-1]);
+    if(pk.indexOf(lk) === 0){ kept[kept.length-1] = p; continue; }
+    kept.push(p);
+  }
+  return kept;
+}
+function dictFlush(upto){
+  while(D.written <= upto && D.written < D.kept.length){
+    var t = String(D.kept[D.written] || "").trim();
+    D.written++;
+    if(t) sessionInsert(t);
+  }
+}
+function showLive(text){
+  var s = $("#liveStrip");
+  s.textContent = text || "";
+  s.classList.toggle("show", !!text);
+}
+function idleClear(){ if(D.idleT){ clearInterval(D.idleT); D.idleT = null; } }
+function idleWatch(){
+  idleClear();
+  D.lastHeard = Date.now();
+  var limit = parseInt($("#idleTimeout").value, 10) * 1000;
+  D.idleT = setInterval(function(){
+    var quiet = Date.now() - D.lastHeard;
+    var left = Math.max(0, Math.ceil((limit - quiet) / 1000));
+    if(quiet >= limit){
+      D.idleQuit = true;
+      note("توقف الإملاء المجاني — صمت طويل. اضغط «إملاء مجاني» لتستأنف.", true);
+      freeStop();
+      return;
+    }
+    if(quiet > 4000) note("صمت — يتوقف بعد " + left + " ث إن لم تكمل");
+  }, 1000);
+}
+function freeStart(){
+  if(!SR){ note("هذا المتصفح لا يدعم الإملاء المجاني. جرّب كروم أو Edge.", true); return; }
+  if(D.engine === "paid"){ note("أوقف إملاء Gemini أولاً.", true); return; }
+  sessionStart();
+  D.engine = "free"; D.stop = false; D.idleQuit = false; D.li = 0;
+  setDest("free"); setButtons(); idleWatch();
+  dictRun();
+}
+function dictRun(){
+  var codes = DICT_LANGS[$("#lang").value] || DICT_LANGS.en;
+  var code = codes[Math.min(D.li, codes.length - 1)];
+  var r = new SR();
+  D.rec = r; D.kept = []; D.written = 0;
+  r.lang = code; r.continuous = true; r.interimResults = true;
+  r.onstart = function(){ note("يستمع — " + code); };
+  r.onresult = function(ev){
+    var fin = [], live = [];
+    for(var k=0;k<ev.results.length;k++){ (ev.results[k].isFinal ? fin : live).push(ev.results[k][0].transcript); }
+    var kept = foldRun(fin), inflight = foldRun(live);
+    if(kept.length || inflight.length) D.lastHeard = Date.now();
+    D.kept = kept;
+    dictFlush(kept.length - 2);
+    showLive(kept.slice(D.written).concat(inflight).join(" ").trim());
+  };
+  r.onerror = function(ev){
+    var e = ev.error;
+    if(e === "language-not-supported" || e === "bad-grammar"){
+      var list = DICT_LANGS[$("#lang").value] || [];
+      if(D.li < list.length - 1){ D.li++; return; }
+      note("لا يوجد رمز عربي مقبول في هذا المتصفح.", true); D.stop = true; return;
+    }
+    if(e === "not-allowed" || e === "service-not-allowed"){ D.stop = true; note("الميكروفون محظور. انقر أيقونة القفل يسار شريط العنوان ← الميكروفون ← السماح.", true); return; }
+    if(e === "audio-capture"){ D.stop = true; note("لا يجد ميكروفوناً.", true); return; }
+    if(e === "network"){ D.stop = true; note("تعذّر الاتصال بخدمة التعرّف.", true); return; }
+  };
+  r.onend = function(){
+    dictFlush(D.kept.length); showLive("");
+    if(D.stop){ D.rec = null; idleClear(); D.engine = null; setDest("idle"); setButtons(); if(!D.idleQuit) note(""); return; }
+    try{ dictRun(); }catch(err){ D.rec = null; D.engine = null; setButtons(); note("توقّف الإملاء: " + err.message, true); }
+  };
+  try{ r.start(); }catch(err){ note("تعذّر بدء الإملاء: " + err.message, true); D.rec = null; D.engine = null; setButtons(); }
+}
+function freeStop(){
+  D.stop = true; idleClear(); showLive("");
+  if(D.rec){ try{ D.rec.stop(); }catch(e){} }
+  D.engine = null; setDest("idle"); setButtons();
+}
+
+/* ================= PAID dictation — short chunks via Gemini ================= */
+var CHUNK_MS = 5000;
+var RATE_PER_MIN = { "gemini-2.5-flash":0.01, "gemini-2.0-flash":0.008, "gemini-2.5-pro":0.03 }; /* rough estimate only */
+
+function getKey(){ return ($("#gkey").value || "").trim(); }
+
+function costState(){
+  var raw = LS.get("fd.cost"); var now = new Date();
+  var month = now.getFullYear() + "-" + (now.getMonth()+1);
+  var st; try{ st = JSON.parse(raw || "null"); }catch(e){ st = null; }
+  if(!st || st.month !== month) st = { month:month, total:0 };
+  return st;
+}
+function costAdd(usd){
+  var st = costState(); st.total += usd; LS.set("fd.cost", JSON.stringify(st)); costPaint(); return st.total;
+}
+function costPaint(){
+  var st = costState();
+  var cap = parseFloat($("#costCap").value || "0");
+  var txt = "استهلاك تقديري هذا الشهر: $" + st.total.toFixed(3);
+  if(cap > 0) txt += " من سقف $" + cap.toFixed(2);
+  $("#costNote").textContent = txt;
+}
+
+function paidMime(){
+  var want = ["audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
+  for(var i=0;i<want.length;i++){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(want[i])) return want[i]; }
+  return "";
+}
+/* Convert whatever the browser recorded into a plain WAV file. Chrome and Edge
+   only record webm/opus, and Gemini's documented audio formats are WAV, MP3,
+   AIFF, AAC, OGG, FLAC — not webm. Decoding to PCM and re-encoding as WAV here
+   is what keeps accuracy identical on both browsers instead of gambling on
+   whether either one's raw container is accepted. */
+function pcmToWavBase64(audioBuffer){
+  var chCount = audioBuffer.numberOfChannels, len = audioBuffer.length, rate = audioBuffer.sampleRate;
+  var mono = new Float32Array(len);
+  for(var ch=0; ch<chCount; ch++){
+    var data = audioBuffer.getChannelData(ch);
+    for(var i=0;i<len;i++) mono[i] += data[i] / chCount;
+  }
+  var buf = new ArrayBuffer(44 + len*2), view = new DataView(buf);
+  function ws(off,str){ for(var i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); }
+  ws(0,"RIFF"); view.setUint32(4, 36+len*2, true); ws(8,"WAVE"); ws(12,"fmt ");
+  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,rate,true); view.setUint32(28,rate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+  ws(36,"data"); view.setUint32(40,len*2,true);
+  var off = 44;
+  for(var j=0;j<len;j++){ var s = Math.max(-1,Math.min(1,mono[j])); view.setInt16(off, s<0?s*0x8000:s*0x7FFF, true); off += 2; }
+  var bytes = new Uint8Array(buf), bin = "", step = 0x8000;
+  for(var k=0;k<bytes.length;k+=step) bin += String.fromCharCode.apply(null, bytes.subarray(k,k+step));
+  return btoa(bin);
+}
+async function blobToWavBase64(blob){
+  var arr = await blob.arrayBuffer();
+  var Ctx = window.AudioContext || window.webkitAudioContext;
+  var ctx = new Ctx();
+  var audioBuffer = await ctx.decodeAudioData(arr.slice(0));
+  var durSec = audioBuffer.duration;
+  var b64 = pcmToWavBase64(audioBuffer);
+  try{ ctx.close(); }catch(e){}
+  return { b64:b64, durSec:durSec };
+}
+async function callGemini(base64Wav){
+  var key = getKey(), model = $("#gmodel").value || "gemini-2.5-flash";
+  var langName = LANG_NAME_FOR_PROMPT[$("#lang").value] || "العربية";
+  var prompt = "أنت نظام تفريغ صوتي فقط. حوّل هذا المقطع الصوتي إلى نص مكتوب حرفياً بلغة " + langName +
+    ". لا تترجم، لا تلخّص، لا تضف أي مقدمة أو تعليق أو علامات اقتباس، فقط النص المسموع كما هو. إن كان المقطع صامتاً أو بلا كلام واضح فأعد سطراً فارغاً بلا أي شرح.";
+  var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ contents:[{ parts:[ {text:prompt}, {inline_data:{mime_type:"audio/wav", data:base64Wav}} ] }], generationConfig:{ temperature:0 } })
+  });
+  if(!res.ok){ var t = await res.text(); throw new Error("HTTP " + res.status + " — " + t.slice(0,180)); }
+  var data = await res.json();
+  var text = "";
+  try{
+    var parts = data.candidates[0].content.parts;
+    for(var i=0;i<parts.length;i++) if(parts[i].text) text += parts[i].text;
+  }catch(e){}
+  return text.trim();
+}
+function paidLoop(){
+  if(D.stop || !D.stream) return;
+  var mime = paidMime();
+  var mr = new MediaRecorder(D.stream, mime ? {mimeType:mime} : undefined);
+  D.mr = mr;
+  var blobs = [];
+  mr.ondataavailable = function(e){ if(e.data && e.data.size) blobs.push(e.data); };
+  mr.onstop = function(){
+    if(blobs.length){
+      var blob = new Blob(blobs, {type: mr.mimeType || "audio/webm"});
+      enqueueChunk(blob);
+    }
+    if(!D.stop) paidLoop();
+  };
+  mr.start();
+  D.recTimer = setTimeout(function(){ try{ mr.stop(); }catch(e){} }, CHUNK_MS);
+}
+function enqueueChunk(blob){
+  D.chain = D.chain.then(function(){
+    var cap = parseFloat($("#costCap").value || "0");
+    var st = costState();
+    if(cap > 0 && st.total >= cap){
+      paidStop();
+      note("بلغت سقف الاستهلاك التقريبي ($" + cap.toFixed(2) + ") — أوقفت الإملاء المدفوع تلقائياً.", true);
+      return;
+    }
+    if(D.engine === "paid") note("☁️ يُعالج مقطعاً…");
+    return blobToWavBase64(blob).then(function(w){
+      return callGemini(w.b64).then(function(text){
+        var rate = RATE_PER_MIN[$("#gmodel").value] || 0.01;
+        costAdd((w.durSec/60) * rate);
+        if(text) sessionInsert(text);
+        if(D.engine === "paid") note("☁️ يُرسل إلى Gemini بمفتاحك");
+      });
+    }).catch(function(err){
+      if(D.engine === "paid" || D.stop) note("تعذّر تفريغ مقطع: " + err.message, true);
+    });
+  });
+}
+async function paidStart(){
+  if(D.engine === "free"){ note("أوقف الإملاء المجاني أولاً.", true); return; }
+  var key = getKey();
+  if(!key){ note("ضع مفتاح Google AI في الإعدادات ⚙ أولاً.", true); openSettings(); $("#gkey").focus(); return; }
+  if(!window.MediaRecorder || !navigator.mediaDevices){ note("هذا المتصفح لا يدعم تسجيل الصوت.", true); return; }
+  sessionStart();
+  try{ D.stream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(err){
+    note("تعذّر فتح الميكروفون: " + (err.name === "NotAllowedError" ? "الإذن محظور — انقر أيقونة القفل يسار شريط العنوان ← الميكروفون ← السماح." : err.message), true);
+    return;
+  }
+  D.engine = "paid"; D.stop = false; D.chain = Promise.resolve();
+  setDest("paid"); setButtons(); costPaint();
+  paidLoop();
+}
+function paidStop(){
+  D.stop = true;
+  if(D.recTimer) clearTimeout(D.recTimer);
+  if(D.mr){ try{ D.mr.stop(); }catch(e){} }
+  if(D.stream){ D.stream.getTracks().forEach(function(t){ t.stop(); }); D.stream = null; }
+  D.engine = null; setDest("idle"); setButtons();
+  note("");
+}
+
+/* ---------- buttons ---------- */
+$("#btnFree").addEventListener("click", function(){ if(D.engine === "free") freeStop(); else freeStart(); });
+$("#btnPaid").addEventListener("click", function(){ if(D.engine === "paid") paidStop(); else paidStart(); });
+$("#btnStop").addEventListener("click", function(){ if(D.engine === "free") freeStop(); else if(D.engine === "paid") paidStop(); });
+
+$("#btnCopy").addEventListener("click", function(){
+  var t = $("#box").value;
+  var b = this;
+  if(!t){ b.textContent = "لا نص"; setTimeout(function(){ b.textContent = "⧉ نسخ"; }, 1200); return; }
+  navigator.clipboard.writeText(t).then(function(){
+    b.textContent = "✓ نُسخ"; setTimeout(function(){ b.textContent = "⧉ نسخ"; }, 1200);
+  }, function(){
+    b.textContent = "✗ فشل"; setTimeout(function(){ b.textContent = "⧉ نسخ"; }, 1200);
+  });
+});
+
+/* ---------- real OS window position — only works reliably on a window opened
+   via window.open() from the bookmarklet, not a normal tab ---------- */
+$("#btnSavePos").addEventListener("click", function(){
+  var st = { x:window.screenX, y:window.screenY, w:window.outerWidth, h:window.outerHeight };
+  LS.set("fd.winpos", JSON.stringify(st));
+  var b = this; b.textContent = "✓"; setTimeout(function(){ b.textContent = "⤓"; }, 900);
+});
+$("#btnRestorePos").addEventListener("click", function(){
+  var raw = LS.get("fd.winpos"); if(!raw) return;
+  try{ var st = JSON.parse(raw); window.moveTo(st.x, st.y); window.resizeTo(st.w, st.h); }
+  catch(e){}
+});
+
+/* ---------- settings panel ---------- */
+function openSettings(){ $("#settings").classList.add("show"); }
+function closeSettings(){ $("#settings").classList.remove("show"); }
+$("#btnSettings").addEventListener("click", function(){ $("#settings").classList.toggle("show"); });
+$("#btnCloseSettings").addEventListener("click", closeSettings);
+$("#btnShowKey").addEventListener("click", function(){
+  var i = $("#gkey"); i.type = i.type === "password" ? "text" : "password";
+  this.textContent = i.type === "password" ? "إظهار" : "إخفاء";
+});
+$("#btnClearKey").addEventListener("click", function(){
+  $("#gkey").value = ""; LS.del("fd.gkey"); note("مُسح المفتاح من هذا المتصفح.");
+});
+$("#gkey").value = LS.get("fd.gkey") || "";
+$("#gkey").addEventListener("input", function(){ LS.set("fd.gkey", this.value.trim()); });
+$("#gmodel").value = LS.get("fd.gmodel") || "gemini-2.5-flash";
+$("#gmodel").addEventListener("change", function(){ LS.set("fd.gmodel", this.value); costPaint(); });
+$("#idleTimeout").value = LS.get("fd.idle") || "30";
+$("#idleTimeout").addEventListener("change", function(){ LS.set("fd.idle", this.value); });
+$("#costCap").value = LS.get("fd.cap") || "";
+$("#costCap").addEventListener("input", function(){ LS.set("fd.cap", this.value); costPaint(); });
+costPaint();
+
+/* ---------- guide ---------- */
+var GUIDE = [
+  ["🎙️ إملاء مجاني", "يستمع بمحرك متصفحك (كروم يرسل صوتك لجوجل، Edge لمايكروسوفت — بلا مفتاحك وبلا تكلفة). النص يظهر حياً وهو يتكوّن، ولا يتوقف عند وقفة تفكير قصيرة — فقط عند صمت حقيقي حسب المدة المضبوطة بالإعدادات ⚙، أو عند ضغط «إيقاف»."],
+  ["☁️ إملاء Gemini", "يسجّل صوتك بمقاطع قصيرة متتالية (كل خمس ثوانٍ تقريباً) ويرسل كل مقطع لحسابك في Gemini بمفتاحك الخاص، ثم يضيف النص أولاً بأول — بلا انتظار حتى تضغط «إيقاف». يحتاج مفتاح Google AI من الإعدادات ⚙ أولاً."],
+  ["⏹ إيقاف", "يقطع أي إملاء جارٍ فوراً، مجانياً كان أو مدفوعاً."],
+  ["الشارة أعلى يسار الشاشة", "تقول لك في كل لحظة أين يذهب صوتك: خامل، أو محلي عبر متصفحك، أو مُرسَل إلى Gemini."],
+  ["قائمة اللغة", "عربي (تبدأ باللهجة السورية ثم تجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح) أو سويدي أو إنجليزي. تُطبَّق على محرك الإملاء المجاني واتجاه الكتابة معاً، وتُخبر Gemini بها في المسار المدفوع."],
+  ["قائمة الخط", "خط لكل ذوق، وقابلة للتوسعة لاحقاً بإضافة خط واحد للقائمة."],
+  ["⧉ نسخ", "ينسخ كل ما في الصندوق إلى الحافظة بضغطة واحدة."],
+  ["⤓ / ↺", "⤓ يحفظ مكان هذه النافذة وحجمها بالضبط، و↺ يعيدها إلى ما حفظته. يعملان فقط إن فتحت النافذة عبر الإشارة المرجعية (Bookmarklet) لا كتبويب عادي."],
+  ["صندوق النص", "قابل للتعديل بالكتابة العادية في أي وقت — قبل الإملاء أو أثناءه أو بعده — لتصحيح أي كلمة."],
+  ["⚙ الإعدادات", "مفتاح Gemini (يُحفظ في متصفحك فقط)، نموذج الإملاء المدفوع، سقف استهلاك تقريبي شهري يوقف الإملاء المدفوع تلقائياً عند بلوغه، ومدة صمت الإيقاف التلقائي للإملاء المجاني."],
+  ["الدقة بين كروم وEdge", "الإملاء المجاني قد يختلف قليلاً لأنه محرك كل متصفح الخاص به. الإملاء المدفوع عبر Gemini يعطي نفس الدقة تماماً في المتصفحين، لأنه نفس النموذج بغضّ النظر عن المتصفح."]
+];
+function paintGuide(q){
+  var box = $("#gList"); box.innerHTML = "";
+  GUIDE.forEach(function(row){
+    if(q && (row[0]+row[1]).toLowerCase().indexOf(q) < 0) return;
+    var d = document.createElement("div"); d.className = "gsec";
+    var h = document.createElement("h4"); h.textContent = row[0];
+    var p = document.createElement("div"); p.className = "git"; p.textContent = row[1];
+    d.appendChild(h); d.appendChild(p); box.appendChild(d);
+  });
+}
+$("#btnGuide").addEventListener("click", function(){ $("#guide").classList.add("show"); paintGuide(""); $("#gSearch").value = ""; });
+$("#btnGuideClose").addEventListener("click", function(){ $("#guide").classList.remove("show"); });
+$("#guide").addEventListener("click", function(e){ if(e.target === this) this.classList.remove("show"); });
+$("#gSearch").addEventListener("input", function(){ paintGuide(this.value.trim().toLowerCase()); });
+document.addEventListener("keydown", function(e){ if(e.key === "Escape") $("#guide").classList.remove("show"); });
+
+setButtons(); setDest("idle");
+if(!LS.ok()) note("تنبيه: حفظ الإعدادات محجوب في هذا المتصفح — لن يُحفظ مفتاحك بين الجلسات.", true);
+</script>
+</body>
+</html>
