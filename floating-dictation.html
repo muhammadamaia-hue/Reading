@@ -129,6 +129,7 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
     </div>
     <div class="spacer"></div>
     <span class="badge" id="destBadge">⚪ غير نشط</span>
+    <button class="iconbtn" id="btnPip" title="اجعلها عائمة فوق كل التطبيقات — بلا أي تثبيت">📌 فوق الكل</button>
     <button class="iconbtn" id="btnGuide" title="شرح كل زر">؟ الدليل</button>
     <button class="iconbtn" id="btnSettings" title="المفتاح والنموذج والسقف">⚙</button>
   </div>
@@ -139,9 +140,11 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
     <button class="iconbtn paid" id="btnPaid" aria-pressed="false" title="إملاء عبر مفتاح Gemini الخاص بك">☁️ إملاء Gemini</button>
     <button class="iconbtn stop" id="btnStop" title="إيقاف الإملاء فوراً">⏹ إيقاف</button>
     <div class="spacer"></div>
+    <button class="iconbtn" id="btnSaveNote" title="يحفظ نص الصندوق كملاحظة منفصلة ويفرغ الصندوق لملاحظة جديدة">💾 احفظ</button>
+    <button class="iconbtn" id="btnNotes" title="الملاحظات المحفوظة">📝 الملاحظات</button>
     <button class="iconbtn" id="btnCopy" title="ينسخ كل النص">⧉ نسخ</button>
-    <button class="iconbtn" id="btnSavePos" title="يحفظ مكان وحجم هذه النافذة">⤓</button>
-    <button class="iconbtn" id="btnRestorePos" title="يعيد النافذة إلى المكان المحفوظ">↺</button>
+    <button class="iconbtn" id="btnSavePos" title="يحفظ مكان وحجم هذه النافذة (النافذة العادية فقط)">⤓</button>
+    <button class="iconbtn" id="btnRestorePos" title="يعيد النافذة إلى المكان المحفوظ (النافذة العادية فقط)">↺</button>
   </div>
 </header>
 
@@ -204,6 +207,19 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
   <button class="smallbtn" id="btnCloseSettings" type="button">إغلاق</button>
 </div>
 
+<div id="notesPanel" class="overlay">
+  <div class="gsheet">
+    <div class="ghead">
+      <b>الملاحظات المحفوظة</b>
+      <div class="spacer"></div>
+      <button class="smallbtn" id="btnNotesClose">✕ إغلاق</button>
+    </div>
+    <div class="gbody">
+      <div id="notesList"></div>
+    </div>
+  </div>
+</div>
+
 <div id="fontPicker" class="overlay">
   <div class="gsheet">
     <div class="ghead">
@@ -234,7 +250,8 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
 
 <script>
 "use strict";
-function $(s){ return document.querySelector(s); }
+var ACTIVE_DOC = document;
+function $(s){ return ACTIVE_DOC.querySelector(s); }
 
 /* ---------- storage ---------- */
 var LS = {
@@ -713,6 +730,8 @@ var GUIDE = [
   ["🎙️ إملاء مجاني", "يستمع بمحرك متصفحك (كروم يرسل صوتك لجوجل، Edge لمايكروسوفت — بلا مفتاحك وبلا تكلفة). النص يظهر حياً وهو يتكوّن، ولا يتوقف عند وقفة تفكير قصيرة — فقط عند صمت حقيقي حسب المدة المضبوطة بالإعدادات ⚙، أو عند ضغط «إيقاف»."],
   ["☁️ إملاء Gemini", "يسجّل صوتك بمقاطع قصيرة متتالية (كل خمس ثوانٍ تقريباً) ويرسل كل مقطع لحسابك في Gemini بمفتاحك الخاص، ثم يضيف النص أولاً بأول — بلا انتظار حتى تضغط «إيقاف». يحتاج مفتاح Google AI من الإعدادات ⚙ أولاً."],
   ["⏹ إيقاف", "يقطع أي إملاء جارٍ فوراً، مجانياً كان أو مدفوعاً."],
+  ["📌 فوق الكل", "يحوّل هذه النافذة إلى نافذة عائمة حقيقية فوق كل التطبيقات، بلا أي تثبيت — عبر ميزة متصفح اسمها Picture-in-Picture. شرطان: تبويب واحد لازم يبقى مفتوحاً بالخلفية (سكّره فيسكّرها معه)، وما فيها حفظ/استعادة موضع مخصص — المتصفح هو يلي يتحكم بمكانها. زرّها يتحول لـ«رجّعها عادية» وأنت بالوضع العائم."],
+  ["💾 احفظ / 📝 الملاحظات", "«احفظ» ينقل نص الصندوق كله إلى قائمة ملاحظات منفصلة ويُفرغ الصندوق لملاحظة جديدة — مفيد وأنت عم تعلّق على أشياء مختلفة وأنت متصفّح. «الملاحظات» تفتح القائمة كاملة: كل ملاحظة فيها وقتها، وأزرار نسخ، وتحميلها رجوعاً للصندوق للتعديل، وحذف."],
   ["الشارة أعلى يسار الشاشة", "تقول لك في كل لحظة أين يذهب صوتك: خامل، أو محلي عبر متصفحك، أو مُرسَل إلى Gemini."],
   ["قائمة اللغة", "عربي (تبدأ باللهجة السورية ثم تجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح) أو سويدي أو إنجليزي. تُطبَّق على محرك الإملاء المجاني واتجاه الكتابة معاً، وتُخبر Gemini بها في المسار المدفوع."],
   ["قائمة الخط", "تبدأ بخطين، وتقدر تضيف عليها أي خط مثبَّت على جهازك بنفسك من ⚙ الإعدادات ← «أضف خطاً من جهازك» — بلا أي تعديل بالكود، تماماً متل الوورد. يعمل على كروم وEdge على الكمبيوتر فقط."],
@@ -736,7 +755,108 @@ $("#btnGuide").addEventListener("click", function(){ $("#guide").classList.add("
 $("#btnGuideClose").addEventListener("click", function(){ $("#guide").classList.remove("show"); });
 $("#guide").addEventListener("click", function(e){ if(e.target === this) this.classList.remove("show"); });
 $("#gSearch").addEventListener("input", function(){ paintGuide(this.value.trim().toLowerCase()); });
-document.addEventListener("keydown", function(e){ if(e.key === "Escape") $("#guide").classList.remove("show"); });
+function escHandler(e){ if(e.key === "Escape"){ $("#guide").classList.remove("show"); $("#fontPicker").classList.remove("show"); $("#notesPanel").classList.remove("show"); } }
+document.addEventListener("keydown", escHandler);
+
+/* ---------- saved notes — same idea as JoyRead's floating idea notebook,
+   adapted here: save the box as a dated entry, box clears for the next one ---------- */
+function notesGet(){ try{ return JSON.parse(LS.get("fd.notes") || "[]"); }catch(e){ return []; } }
+function notesSave(list){ LS.set("fd.notes", JSON.stringify(list)); }
+function fmtTime(ts){
+  try{ return new Date(ts).toLocaleString("ar", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"}); }
+  catch(e){ return new Date(ts).toLocaleString(); }
+}
+function paintNotes(){
+  var box = $("#notesList"); box.innerHTML = "";
+  var list = notesGet();
+  if(!list.length){ var p = document.createElement("p"); p.className = "hlp"; p.textContent = "ما في ملاحظات محفوظة بعد."; box.appendChild(p); return; }
+  list.forEach(function(n){
+    var card = document.createElement("div"); card.className = "gsec";
+    var meta = document.createElement("div"); meta.className = "hlp"; meta.textContent = fmtTime(n.ts);
+    var txt = document.createElement("div"); txt.className = "git"; txt.style.whiteSpace = "pre-wrap"; txt.textContent = n.text;
+    var tools = document.createElement("div"); tools.style.cssText = "display:flex;gap:6px;margin-top:6px;flex-wrap:wrap";
+    var bCopy = document.createElement("button"); bCopy.type = "button"; bCopy.className = "smallbtn"; bCopy.textContent = "⧉ نسخ";
+    bCopy.addEventListener("click", function(){
+      navigator.clipboard.writeText(n.text).then(function(){ bCopy.textContent = "✓"; setTimeout(function(){ bCopy.textContent = "⧉ نسخ"; }, 900); });
+    });
+    var bLoad = document.createElement("button"); bLoad.type = "button"; bLoad.className = "smallbtn"; bLoad.textContent = "✎ حمّلها للصندوق";
+    bLoad.addEventListener("click", function(){ $("#box").value = n.text; D.pos = n.text.length; $("#notesPanel").classList.remove("show"); $("#box").focus(); });
+    var bDel = document.createElement("button"); bDel.type = "button"; bDel.className = "smallbtn"; bDel.textContent = "🗑 حذف";
+    bDel.addEventListener("click", function(){ notesSave(notesGet().filter(function(x){ return x.id !== n.id; })); paintNotes(); });
+    tools.appendChild(bCopy); tools.appendChild(bLoad); tools.appendChild(bDel);
+    card.appendChild(meta); card.appendChild(txt); card.appendChild(tools);
+    box.appendChild(card);
+  });
+}
+$("#btnSaveNote").addEventListener("click", function(){
+  var t = $("#box").value.trim();
+  if(!t){ note("الصندوق فاضي — ما في شي تحفظه.", true); return; }
+  var list = notesGet();
+  list.unshift({ id:"n" + Date.now(), text:t, ts:Date.now() });
+  notesSave(list);
+  $("#box").value = ""; D.pos = 0;
+  note("✓ اتحفظت كملاحظة، والصندوق فاضي لملاحظة جديدة.");
+});
+$("#btnNotes").addEventListener("click", function(){ paintNotes(); $("#notesPanel").classList.add("show"); });
+$("#btnNotesClose").addEventListener("click", function(){ $("#notesPanel").classList.remove("show"); });
+$("#notesPanel").addEventListener("click", function(e){ if(e.target === this) this.classList.remove("show"); });
+
+/* ---------- "فوق الكل" — Document Picture-in-Picture. True OS-level
+   always-on-top, no install, Chrome/Edge desktop only. Trade-offs are real
+   and are explained to the person in the guide entry above:
+   - needs one background tab/window to stay open (it owns the PiP window)
+   - the site cannot set the PiP window's position, so Save/Restore Position
+     only applies to the normal (non-pinned) window
+   Implementation moves the actual live body children into the PiP window's
+   own document (not a copy), so all existing state and listeners keep
+   working — $() is redirected via ACTIVE_DOC so lookups keep finding them. */
+var pipSupported = "documentPictureInPicture" in window;
+function setPipButton(active){
+  var b = $("#btnPip");
+  if(!b) return;
+  b.textContent = active ? "↩ رجّعها عادية" : "📌 فوق الكل";
+  b.setAttribute("aria-pressed", active ? "true" : "false");
+}
+function movePipStyles(target){
+  Array.from(document.styleSheets).forEach(function(sheet){
+    try{
+      if(sheet.href){
+        var link = document.createElement("link");
+        link.rel = "stylesheet"; link.href = sheet.href;
+        target.head.appendChild(link);
+      } else {
+        var style = document.createElement("style");
+        style.textContent = Array.from(sheet.cssRules).map(function(r){ return r.cssText; }).join("\n");
+        target.head.appendChild(style);
+      }
+    }catch(e){}
+  });
+}
+async function togglePip(){
+  if(!pipSupported){ note("وضع «فوق الكل» يعمل على كروم وEdge على الكمبيوتر فقط — غير مدعوم بهذا المتصفح.", true); return; }
+  if(window.documentPictureInPicture.window){ window.documentPictureInPicture.window.close(); return; }
+  try{
+    var pipWin = await window.documentPictureInPicture.requestWindow({ width:420, height:640 });
+    movePipStyles(pipWin.document);
+    pipWin.document.title = document.title;
+    pipWin.document.body.style.margin = "0";
+    Array.from(document.body.children).forEach(function(el){
+      if(el.tagName !== "SCRIPT") pipWin.document.body.appendChild(el);
+    });
+    ACTIVE_DOC = pipWin.document;
+    pipWin.document.addEventListener("keydown", escHandler);
+    setPipButton(true);
+    pipWin.addEventListener("pagehide", function(){
+      Array.from(pipWin.document.body.children).forEach(function(el){ document.body.appendChild(el); });
+      ACTIVE_DOC = document;
+      setPipButton(false);
+    }, { once:true });
+  }catch(err){
+    note("تعذّر تفعيل «فوق الكل»: " + (err && err.message ? err.message : err), true);
+  }
+}
+if(pipSupported) $("#btnPip").addEventListener("click", togglePip);
+else $("#btnPip").style.display = "none";
 
 setButtons(); setDest("idle");
 if(!LS.ok()) note("تنبيه: حفظ الإعدادات محجوب في هذا المتصفح — لن يُحفظ مفتاحك بين الجلسات.", true);
