@@ -142,6 +142,7 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
     <div class="spacer"></div>
     <button class="iconbtn" id="btnSaveNote" title="يحفظ نص الصندوق كملاحظة منفصلة ويفرغ الصندوق لملاحظة جديدة">💾 احفظ</button>
     <button class="iconbtn" id="btnNotes" title="الملاحظات المحفوظة">📝 الملاحظات</button>
+    <button class="iconbtn" id="btnToPage" title="يرسل النص إلى مربع الكتابة في الصفحة التي فتحت منها" style="display:none">⏎ أرسل للصفحة</button>
     <button class="iconbtn" id="btnCopy" title="ينسخ كل النص">⧉ نسخ</button>
     <button class="iconbtn" id="btnSavePos" title="يحفظ مكان وحجم هذه النافذة (النافذة العادية فقط)">⤓</button>
     <button class="iconbtn" id="btnRestorePos" title="يعيد النافذة إلى المكان المحفوظ (النافذة العادية فقط)">↺</button>
@@ -857,6 +858,29 @@ async function togglePip(){
 }
 if(pipSupported) $("#btnPip").addEventListener("click", togglePip);
 else $("#btnPip").style.display = "none";
+
+/* ---------- الجسر مع النسخة المزروعة في الصفحة ----------
+   حين تُفتح هذه الأداة من الأداة الصغيرة داخل الصفحة (?bridge=1)، يظهر زر
+   يرسل النص إلى مربع الكتابة هناك. النافذة الأصلية هي التي تكتبه فعلياً،
+   لأنها وحدها من يعيش داخل تلك الصفحة. */
+(function(){
+  var bridged = /[?&]bridge=1/.test(location.search) && window.opener;
+  var btn = $("#btnToPage");
+  if(!bridged || !btn) return;
+  btn.style.display = "flex";
+  try{ window.opener.postMessage({source:"floatingDictation", type:"hello"}, "*"); }catch(e){}
+  btn.addEventListener("click", function(){
+    var t = $("#box").value;
+    if(!t){ note("الصندوق فاضي — ما في شي ترسله.", true); return; }
+    try{
+      window.opener.postMessage({source:"floatingDictation", type:"insert", text:t}, "*");
+      btn.textContent = "✓ انبعت";
+      setTimeout(function(){ btn.textContent = "⏎ أرسل للصفحة"; }, 1200);
+    }catch(e){
+      note("تعذّر الإرسال — الصفحة الأصلية غالباً أُغلقت أو تحدّثت.", true);
+    }
+  });
+})();
 
 setButtons(); setDest("idle");
 if(!LS.ok()) note("تنبيه: حفظ الإعدادات محجوب في هذا المتصفح — لن يُحفظ مفتاحك بين الجلسات.", true);
