@@ -96,12 +96,12 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
 .smallbtn{border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 9px; font-size:12px}
 .costline{font-size:12.5px; padding:8px 10px; background:var(--paid-soft); border:1px solid var(--paid); border-radius:9px; color:#6b3f00}
 
-/* ---------- guide overlay ---------- */
-#guide{
+/* ---------- full-screen overlays (guide, font picker) ---------- */
+.overlay{
   position:fixed; inset:0; background:var(--dim); display:none; align-items:flex-start;
   justify-content:center; z-index:50; padding:26px 14px;
 }
-#guide.show{display:flex}
+.overlay.show{display:flex}
 .gsheet{background:#fff; border-radius:16px; width:min(560px,100%); max-height:92vh; display:flex; flex-direction:column; box-shadow:var(--shadow)}
 .ghead{display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line)}
 .ghead b{font-size:15px}
@@ -165,10 +165,11 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
   <div class="field">
     <label for="gmodel">نموذج الإملاء المدفوع</label>
     <select id="gmodel">
-      <option value="gemini-2.5-flash">Gemini 2.5 Flash — أسرع وأرخص</option>
-      <option value="gemini-2.0-flash">Gemini 2.0 Flash — بديل عند الازدحام</option>
-      <option value="gemini-2.5-pro">Gemini 2.5 Pro — أدقّ وأغلى</option>
+      <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — أسرع وأرخص</option>
+      <option value="gemini-3.7-flash">Gemini 3.7 Flash — الأحدث والأشمل</option>
+      <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro — أدقّ وأغلى</option>
     </select>
+    <p class="hlp">قائمة محدَّثة أغسطس ٢٠٢٦. جوجل تستبدل نماذجها بسرعة — إن رفض المتصفح نموذجاً يوماً، بدّله من هنا لأحدث ما هو متاح في حسابك على gemini.google.com.</p>
   </div>
 
   <div class="sep">سقف الاستهلاك التقريبي</div>
@@ -192,10 +193,32 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
     <p class="hlp">تُقاس من آخر كلمة سمعها المحرّك — لا من بدء التشغيل — فلا تتوقف وأنت لا تزال تتكلم مهما طال إملاؤك أو توقفت للتفكير.</p>
   </div>
 
+  <div class="sep">الخطوط</div>
+  <div class="field">
+    <label>أضف أي خط مثبَّت على جهازك — بلا أي تعديل بالكود، تماماً متل الوورد</label>
+    <button class="smallbtn" id="btnAddFont" type="button">➕ أضف خطاً من جهازك</button>
+    <p class="hlp">يعمل على كروم وEdge على الكمبيوتر فقط، ويطلب إذنك أول مرة. الخط يبقى محفوظاً بهذا المتصفح وحده ولا يغادر جهازك إطلاقاً.</p>
+    <div id="customFontsList"></div>
+  </div>
+
   <button class="smallbtn" id="btnCloseSettings" type="button">إغلاق</button>
 </div>
 
-<div id="guide">
+<div id="fontPicker" class="overlay">
+  <div class="gsheet">
+    <div class="ghead">
+      <b>اختر خطاً من جهازك</b>
+      <div class="spacer"></div>
+      <button class="smallbtn" id="btnFontPickerClose">✕ إغلاق</button>
+    </div>
+    <div class="gbody">
+      <input type="search" id="fpSearch" placeholder="ابحث باسم الخط…">
+      <div id="fpList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="guide" class="overlay">
   <div class="gsheet">
     <div class="ghead">
       <b>دليل الإملاء العائم</b>
@@ -231,12 +254,20 @@ var LANG_LABEL = { ar:"عربي (سوري أولاً)", sv:"سويدي", en:"إ�
 var LANG_NAME_FOR_PROMPT = { ar:"العربية", sv:"السويدية", en:"الإنجليزية" };
 var LANG_DIR = { ar:"rtl", sv:"ltr", en:"ltr" };
 
-/* ---------- fonts — starts as JoyRead's list, easy to extend: add one line here ---------- */
-var FONT_LIST = [
+/* ---------- fonts — built-ins ship with the app; the person can add more of
+   their own from Settings without any code change (see Local Font Access
+   picker below) ---------- */
+var BUILTIN_FONTS = [
   { id:"readex",    name:"Readex Pro",           css:"'Readex Pro','Segoe UI',system-ui,sans-serif" },
   { id:"atkinson",  name:"Atkinson Hyperlegible", css:"'Atkinson Hyperlegible','Segoe UI',system-ui,sans-serif" }
-  /* to add a font: import it in <head>, then add one object here */
+  /* to bundle another Google Font permanently for everyone: import it in
+     <head>, then add one object here. For a font already installed on one
+     person's own computer, they don't need this — the "أضف خطاً من جهازك"
+     button in Settings does it themselves, no code edit needed. */
 ];
+function customFonts(){ try{ return JSON.parse(LS.get("fd.customFonts") || "[]"); }catch(e){ return []; } }
+function saveCustomFonts(list){ LS.set("fd.customFonts", JSON.stringify(list)); }
+function getFontList(){ return BUILTIN_FONTS.concat(customFonts()); }
 
 function fillSelect(sel, list, current){
   sel.innerHTML = "";
@@ -248,10 +279,10 @@ function fillSelect(sel, list, current){
   });
 }
 fillSelect($("#lang"), Object.keys(LANG_LABEL).map(function(k){ return {value:k, label:LANG_LABEL[k]}; }), LS.get("fd.lang") || "ar");
-fillSelect($("#font"), FONT_LIST.map(function(f){ return {value:f.id, label:f.name}; }), LS.get("fd.font") || "readex");
+fillSelect($("#font"), getFontList().map(function(f){ return {value:f.id, label:f.name}; }), LS.get("fd.font") || "readex");
 
 function applyFont(){
-  var f = FONT_LIST.find(function(x){ return x.id === $("#font").value; }) || FONT_LIST[0];
+  var f = getFontList().find(function(x){ return x.id === $("#font").value; }) || BUILTIN_FONTS[0];
   $("#box").style.fontFamily = f.css;
 }
 function applyLangDir(){
@@ -262,6 +293,86 @@ function applyLangDir(){
 $("#lang").addEventListener("change", function(){ LS.set("fd.lang", this.value); applyLangDir(); });
 $("#font").addEventListener("change", function(){ LS.set("fd.font", this.value); applyFont(); });
 applyFont(); applyLangDir();
+
+/* ---------- add fonts from this device (Local Font Access API) —
+   Chrome/Edge desktop only, exactly the two browsers this tool targets.
+   Once approved, fonts are already installed on the OS, so no font file
+   needs loading: setting font-family to the family name is enough. ---------- */
+function localFontsSupported(){ return typeof window.queryLocalFonts === "function"; }
+function slugId(s){ return "cf_" + s.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g,"_").slice(0,40) + "_" + (Date.now()%100000); }
+function refreshFontSelect(){
+  var cur = $("#font").value || LS.get("fd.font") || "readex";
+  fillSelect($("#font"), getFontList().map(function(f){ return {value:f.id, label:f.name}; }), cur);
+  applyFont();
+}
+function paintCustomFontsSettings(){
+  var box = $("#customFontsList"); if(!box) return;
+  var list = customFonts();
+  box.innerHTML = "";
+  if(!list.length){ var p = document.createElement("p"); p.className = "hlp"; p.textContent = "ما ضفت خطاً من جهازك بعد."; box.appendChild(p); return; }
+  list.forEach(function(f){
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0";
+    var name = document.createElement("span"); name.textContent = f.name; name.style.fontSize = "12.8px";
+    var del = document.createElement("button"); del.type = "button"; del.className = "smallbtn"; del.textContent = "حذف";
+    del.addEventListener("click", function(){
+      saveCustomFonts(customFonts().filter(function(x){ return x.id !== f.id; }));
+      refreshFontSelect(); paintCustomFontsSettings();
+    });
+    row.appendChild(name); row.appendChild(del); box.appendChild(row);
+  });
+}
+function addCustomFont(family){
+  var list = customFonts();
+  if(list.some(function(f){ return f.name === family; })) return;
+  list.push({ id:slugId(family), name:family, css:"'" + family + "','Segoe UI',system-ui,sans-serif" });
+  saveCustomFonts(list);
+  refreshFontSelect(); paintCustomFontsSettings();
+}
+function paintFontPicker(q){
+  var box = $("#fpList"); box.innerHTML = "";
+  var already = getFontList().map(function(f){ return f.name; });
+  var families = window._fpFamilies || [];
+  var shown = 0;
+  families.forEach(function(fam){
+    if(q && fam.toLowerCase().indexOf(q) < 0) return;
+    shown++;
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)";
+    var name = document.createElement("span"); name.textContent = fam; name.style.fontFamily = "'" + fam.replace(/'/g,"") + "'";
+    var exists = already.indexOf(fam) >= 0;
+    var btn = document.createElement("button"); btn.type = "button"; btn.className = "smallbtn";
+    btn.textContent = exists ? "مُضاف ✓" : "إضافة";
+    btn.disabled = exists;
+    btn.addEventListener("click", function(){ addCustomFont(fam); btn.textContent = "مُضاف ✓"; btn.disabled = true; });
+    row.appendChild(name); row.appendChild(btn); box.appendChild(row);
+  });
+  if(!shown){ box.textContent = families.length ? "لا نتيجة." : "ما وصل ولا خط."; }
+}
+async function openFontPicker(){
+  if(!localFontsSupported()){
+    note("هذه الميزة تعمل على كروم وEdge على الكمبيوتر فقط — غير مدعومة بهذا المتصفح.", true);
+    return;
+  }
+  var list;
+  try{ list = await window.queryLocalFonts(); }
+  catch(err){
+    note("رُفض إذن خطوط الجهاز. لتفعيله لاحقاً: أيقونة القفل يسار شريط العنوان ← أذونات الموقع ← الخطوط ← السماح.", true);
+    return;
+  }
+  var seen = {}, families = [];
+  list.forEach(function(f){ if(!seen[f.family]){ seen[f.family] = 1; families.push(f.family); } });
+  families.sort(function(a,b){ return a.localeCompare(b); });
+  window._fpFamilies = families;
+  $("#fpSearch").value = "";
+  paintFontPicker("");
+  $("#fontPicker").classList.add("show");
+}
+$("#btnAddFont").addEventListener("click", openFontPicker);
+$("#btnFontPickerClose").addEventListener("click", function(){ $("#fontPicker").classList.remove("show"); });
+$("#fontPicker").addEventListener("click", function(e){ if(e.target === this) this.classList.remove("show"); });
+$("#fpSearch").addEventListener("input", function(){ paintFontPicker(this.value.trim().toLowerCase()); });
+paintCustomFontsSettings();
 
 /* ---------- shared session state ---------- */
 var D = { engine:null, on:false, stop:false, pos:0, li:0, kept:[], written:0, idleT:null, lastHeard:0,
@@ -402,7 +513,7 @@ function freeStop(){
 
 /* ================= PAID dictation — short chunks via Gemini ================= */
 var CHUNK_MS = 5000;
-var RATE_PER_MIN = { "gemini-2.5-flash":0.01, "gemini-2.0-flash":0.008, "gemini-2.5-pro":0.03 }; /* rough estimate only */
+var RATE_PER_MIN = { "gemini-3.5-flash-lite":0.005, "gemini-3.7-flash":0.012, "gemini-3.1-pro-preview":0.03 }; /* rough estimate only */
 
 function getKey(){ return ($("#gkey").value || "").trim(); }
 
@@ -464,7 +575,7 @@ async function blobToWavBase64(blob){
   return { b64:b64, durSec:durSec };
 }
 async function callGemini(base64Wav){
-  var key = getKey(), model = $("#gmodel").value || "gemini-2.5-flash";
+  var key = getKey(), model = $("#gmodel").value || "gemini-3.5-flash-lite";
   var langName = LANG_NAME_FOR_PROMPT[$("#lang").value] || "العربية";
   var prompt = "أنت نظام تفريغ صوتي فقط. حوّل هذا المقطع الصوتي إلى نص مكتوب حرفياً بلغة " + langName +
     ". لا تترجم، لا تلخّص، لا تضف أي مقدمة أو تعليق أو علامات اقتباس، فقط النص المسموع كما هو. إن كان المقطع صامتاً أو بلا كلام واضح فأعد سطراً فارغاً بلا أي شرح.";
@@ -587,7 +698,8 @@ $("#btnClearKey").addEventListener("click", function(){
 });
 $("#gkey").value = LS.get("fd.gkey") || "";
 $("#gkey").addEventListener("input", function(){ LS.set("fd.gkey", this.value.trim()); });
-$("#gmodel").value = LS.get("fd.gmodel") || "gemini-2.5-flash";
+$("#gmodel").value = LS.get("fd.gmodel") || "gemini-3.5-flash-lite";
+if(!$("#gmodel").value){ $("#gmodel").value = "gemini-3.5-flash-lite"; LS.set("fd.gmodel", "gemini-3.5-flash-lite"); }
 $("#gmodel").addEventListener("change", function(){ LS.set("fd.gmodel", this.value); costPaint(); });
 $("#idleTimeout").value = LS.get("fd.idle") || "30";
 $("#idleTimeout").addEventListener("change", function(){ LS.set("fd.idle", this.value); });
@@ -597,16 +709,17 @@ costPaint();
 
 /* ---------- guide ---------- */
 var GUIDE = [
+  ["📌 طريقة التنصيب", "الأداة ملف واحد مستضاف على رابط ثابت. أنشئ إشارة مرجعية جديدة بمتصفحك (Ctrl+Shift+B لإظهار شريط المفضلة إن كان مخفياً، ثم زر الفأرة اليمين على الشريط ← «إضافة صفحة»)، سمّها ما شئت، وبخانة العنوان الصق: javascript:(function(){var u='" + location.href + "';var w=440,h=600;var x=Math.max(0,window.screenX+window.outerWidth-w-30);var y=Math.max(0,window.screenY+70);window.open(u,'floatingDictation','width='+w+',height='+h+',left='+x+',top='+y+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no');})();  ثم احفظ. من بعدها ضغطة واحدة عليها فوق أي موقع تفتح هذه الأداة كنافذة صغيرة منفصلة، لا كتبويب."],
   ["🎙️ إملاء مجاني", "يستمع بمحرك متصفحك (كروم يرسل صوتك لجوجل، Edge لمايكروسوفت — بلا مفتاحك وبلا تكلفة). النص يظهر حياً وهو يتكوّن، ولا يتوقف عند وقفة تفكير قصيرة — فقط عند صمت حقيقي حسب المدة المضبوطة بالإعدادات ⚙، أو عند ضغط «إيقاف»."],
   ["☁️ إملاء Gemini", "يسجّل صوتك بمقاطع قصيرة متتالية (كل خمس ثوانٍ تقريباً) ويرسل كل مقطع لحسابك في Gemini بمفتاحك الخاص، ثم يضيف النص أولاً بأول — بلا انتظار حتى تضغط «إيقاف». يحتاج مفتاح Google AI من الإعدادات ⚙ أولاً."],
   ["⏹ إيقاف", "يقطع أي إملاء جارٍ فوراً، مجانياً كان أو مدفوعاً."],
   ["الشارة أعلى يسار الشاشة", "تقول لك في كل لحظة أين يذهب صوتك: خامل، أو محلي عبر متصفحك، أو مُرسَل إلى Gemini."],
   ["قائمة اللغة", "عربي (تبدأ باللهجة السورية ثم تجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح) أو سويدي أو إنجليزي. تُطبَّق على محرك الإملاء المجاني واتجاه الكتابة معاً، وتُخبر Gemini بها في المسار المدفوع."],
-  ["قائمة الخط", "خط لكل ذوق، وقابلة للتوسعة لاحقاً بإضافة خط واحد للقائمة."],
+  ["قائمة الخط", "تبدأ بخطين، وتقدر تضيف عليها أي خط مثبَّت على جهازك بنفسك من ⚙ الإعدادات ← «أضف خطاً من جهازك» — بلا أي تعديل بالكود، تماماً متل الوورد. يعمل على كروم وEdge على الكمبيوتر فقط."],
   ["⧉ نسخ", "ينسخ كل ما في الصندوق إلى الحافظة بضغطة واحدة."],
   ["⤓ / ↺", "⤓ يحفظ مكان هذه النافذة وحجمها بالضبط، و↺ يعيدها إلى ما حفظته. يعملان فقط إن فتحت النافذة عبر الإشارة المرجعية (Bookmarklet) لا كتبويب عادي."],
   ["صندوق النص", "قابل للتعديل بالكتابة العادية في أي وقت — قبل الإملاء أو أثناءه أو بعده — لتصحيح أي كلمة."],
-  ["⚙ الإعدادات", "مفتاح Gemini (يُحفظ في متصفحك فقط)، نموذج الإملاء المدفوع، سقف استهلاك تقريبي شهري يوقف الإملاء المدفوع تلقائياً عند بلوغه، ومدة صمت الإيقاف التلقائي للإملاء المجاني."],
+  ["⚙ الإعدادات", "مفتاح Gemini (يُحفظ في متصفحك فقط)، نموذج الإملاء المدفوع، سقف استهلاك تقريبي شهري يوقف الإملاء المدفوع تلقائياً عند بلوغه، مدة صمت الإيقاف التلقائي للإملاء المجاني، وإدارة الخطوط المضافة من جهازك."],
   ["الدقة بين كروم وEdge", "الإملاء المجاني قد يختلف قليلاً لأنه محرك كل متصفح الخاص به. الإملاء المدفوع عبر Gemini يعطي نفس الدقة تماماً في المتصفحين، لأنه نفس النموذج بغضّ النظر عن المتصفح."]
 ];
 function paintGuide(q){
