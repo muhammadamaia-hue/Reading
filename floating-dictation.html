@@ -56,6 +56,7 @@ header{background:var(--panel); border-bottom:1px solid var(--line); box-shadow:
 .iconbtn.stop.show{display:flex}
 .iconbtn:disabled{opacity:.45; cursor:not-allowed}
 select.mini{border:1px solid var(--line); border-radius:10px; padding:6px 8px; font-size:12.5px; background:#fff}
+.ver{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
 .badge{
   font-size:11.5px; padding:5px 10px; border-radius:999px; border:1px solid var(--line);
   color:var(--muted); background:#fff; white-space:nowrap; display:none;
@@ -129,6 +130,7 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
   <div class="wrap row">
     <div class="logo">🎙</div>
     <div class="title">إملاء</div>
+    <span class="ver" id="verTag" title="رقم نسخة هذه النافذة. قارنه بأحدث ملف عندك قبل الرفع."></span>
     <span class="badge" id="destBadge"></span>
     <div class="spacer"></div>
     <button class="iconbtn" id="btnGuide" title="شرح كل زر بالترتيب، وطريقة التنصيب، وحدود الأداة، ومعلومات عن الإملاء عموماً">؟ الدليل</button>
@@ -896,7 +898,17 @@ $("#costCap").addEventListener("input", function(){ LS.set("fd.cap", this.value)
 costPaint();
 
 /* ---------- guide ---------- */
+/* One place defines the version. Bump this line when shipping a change; the
+   guide entry and the header stamp both read it, so they cannot disagree. */
+var VERSION = "1.0";
+var VERSION_DATE = "١٦ أغسطس ٢٠٢٦";
+
 var GUIDE = [
+  ["النسخة", "رقم النسخة وتاريخها",
+   "هذه النسخة " + VERSION + " بتاريخ " + VERSION_DATE + ". الرقم نفسه مكتوب بجانب اسم الأداة في أعلى الشريط، "
+   + "فتقدر تقارنه بأحدث نسخة عندك قبل أن ترفعها. "
+   + "الأداة المزروعة داخل الصفحة لها رقمها الخاص، ويظهر في تلميح زر ✕ في شريطها — "
+   + "لأنها ملف منفصل يتحدّث باستبدال الإشارة المرجعية، لا برفع هذا الملف."],
   ["الأزرار — الصف العلوي", "🎙 الاسم والشارة", "يمين الشريط العلوي اسم الأداة. جنبه تظهر شارة الوجهة أثناء الإملاء فقط، وتقول لك بالاسم إلى أين يذهب صوتك في تلك اللحظة: جوجل، أو مايكروسوفت، أو Gemini بمفتاحك. حين لا يكون هناك إملاء تختفي الشارة تماماً."],
   ["الأزرار — الصف العلوي", "؟ الدليل", "هذا الدليل. مرتّب بنفس ترتيب الأزرار على الشاشة، وفي آخره قسم معلومات عامة عن الإملاء لا علاقة له بتشغيل الأداة."],
   ["الأزرار — الصف العلوي", "⚙ الإعدادات", "مفتاح Gemini، واختيار النموذج، وسقف الاستهلاك التقريبي، ومدة الصمت التي يتوقف بعدها الإملاء المجاني، وإضافة خطوط من جهازك."],
@@ -1151,6 +1163,7 @@ else $("#btnPip").style.display = "none";
   });
 })();
 
+$("#verTag").textContent = "v" + VERSION;
 setButtons(); setDest("idle");
 if(!LS.ok()) note("تنبيه: حفظ الإعدادات محجوب في هذا المتصفح — لن يُحفظ مفتاحك بين الجلسات.", true);
 </script>
