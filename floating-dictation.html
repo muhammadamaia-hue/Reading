@@ -192,6 +192,14 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
 
   <div class="sep">سقف الاستهلاك التقريبي</div>
   <div class="field">
+    <label for="gtier">طبقة مفتاحك عند جوجل</label>
+    <select id="gtier">
+      <option value="free">مجانية — لا يُخصم شيء، والعدّاد يبقى صفراً</option>
+      <option value="paid">مدفوعة — يُخصم من رصيدك، والعدّاد يحسب</option>
+    </select>
+    <p class="hlp" id="tierWarn"></p>
+  </div>
+  <div class="field">
     <label for="costCap">أوقف الإملاء المدفوع تلقائياً بعد ($ شهرياً)</label>
     <input type="number" id="costCap" min="0" step="0.5" placeholder="مثلاً 5">
     <p class="hlp" id="costNote"></p>
@@ -652,7 +660,23 @@ function freeStop(){
 
 /* ================= PAID dictation — one recording via Gemini ================= */
 var PAID_MAX_SECS = 300;
-var RATE_PER_MIN = { "gemini-3.5-flash-lite":0.005, "gemini-3.7-flash":0.012, "gemini-3.1-pro-preview":0.03 }; /* rough estimate only */
+/* Prices per million tokens. The old counter multiplied recording minutes by a
+   flat guess; Google reports the actual tokens with every reply, so use those.
+   Ported from JoyRead, which was right about this. */
+var GEM_PRICE = {
+  "gemini-3.5-flash-lite": { in:0.10, out:0.40 },
+  "gemini-3.7-flash":      { in:0.30, out:2.50 },
+  "gemini-3.1-pro-preview":{ in:1.25, out:10.0 }
+};
+function onPaidTier(){ return LS.get("fd.tier") === "paid"; }
+/* On the free tier nothing is actually charged, so nothing is added — a counter
+   that invents spending is worse than no counter. */
+function costFromUsage(usage){
+  if(!onPaidTier() || !usage) return 0;
+  var p = GEM_PRICE[$("#gmodel").value] || GEM_PRICE["gemini-3.5-flash-lite"];
+  var usd = ((usage.promptTokenCount || 0) * p.in + (usage.candidatesTokenCount || 0) * p.out) / 1e6;
+  return usd > 0 ? usd : 0;
+}
 
 function getKey(){ return ($("#gkey").value || "").trim(); }
 
@@ -713,23 +737,60 @@ async function blobToWavBase64(blob){
   try{ ctx.close(); }catch(e){}
   return { b64:b64, durSec:durSec };
 }
+/* Google refuses requests when a model is busy, and those spikes clear in
+   seconds — a single 503 used to lose the whole recording. Ported from
+   JoyRead: retry on a short rising delay, but tell the two cases apart.
+   An exhausted quota looks similar and never clears, so retrying it only
+   wastes his time; that one is reported at once. */
+var GEM_WAITS = [1, 2, 4];
+function gemSleep(s){ return new Promise(function(r){ setTimeout(r, s * 1000); }); }
+
 async function callGemini(base64Wav){
   var key = getKey(), model = $("#gmodel").value || "gemini-3.5-flash-lite";
   var langName = LANG_NAME_FOR_PROMPT[$("#lang").value] || "العربية";
   var prompt = "أنت نظام تفريغ صوتي فقط. حوّل هذا المقطع الصوتي إلى نص مكتوب حرفياً بلغة " + langName +
     ". لا تترجم، لا تلخّص، لا تضف أي مقدمة أو تعليق أو علامات اقتباس، فقط النص المسموع كما هو. إن كان المقطع صامتاً أو بلا كلام واضح فأعد سطراً فارغاً بلا أي شرح.";
-  var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
-    method: "POST", headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ contents:[{ parts:[ {text:prompt}, {inline_data:{mime_type:"audio/wav", data:base64Wav}} ] }], generationConfig:{ temperature:0 } })
-  });
-  if(!res.ok){ var t = await res.text(); throw new Error("HTTP " + res.status + " — " + t.slice(0,180)); }
-  var data = await res.json();
-  var text = "";
-  try{
-    var parts = data.candidates[0].content.parts;
-    for(var i=0;i<parts.length;i++) if(parts[i].text) text += parts[i].text;
-  }catch(e){}
-  return text.trim();
+  var attempt = 0;
+  while(true){
+    var res, data;
+    try{
+      res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(key), {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ contents:[{ parts:[ {text:prompt}, {inline_data:{mime_type:"audio/wav", data:base64Wav}} ] }], generationConfig:{ temperature:0 } })
+      });
+      data = await res.json();
+    }catch(err){
+      /* a dropped connection is the same kind of transient failure */
+      if(attempt < GEM_WAITS.length){
+        note("تعذّر الاتصال — يعيد المحاولة بعد " + GEM_WAITS[attempt] + " ث …");
+        await gemSleep(GEM_WAITS[attempt++]);
+        continue;
+      }
+      throw err;
+    }
+    var e = (data && data.error) || null;
+    var msg = e ? String(e.message || "") : "";
+    var status = e ? String(e.status || "") : "";
+    var exhausted = /quota|RESOURCE_EXHAUSTED/i.test(status + " " + msg) && /quota|limit/i.test(msg);
+    var overloaded = res.status === 503 || res.status === 429 ||
+                     /high demand|overload|UNAVAILABLE/i.test(status + " " + msg);
+
+    if(exhausted) throw new Error("نفدت حصتك — إعادة المحاولة لا تُجدي. جرّب لاحقاً، أو بدّل النموذج، أو راجع رصيدك.");
+    if(e || !res.ok){
+      if(overloaded && attempt < GEM_WAITS.length){
+        note("النموذج مزدحم — يعيد المحاولة بعد " + GEM_WAITS[attempt] + " ث …");
+        await gemSleep(GEM_WAITS[attempt++]);
+        continue;
+      }
+      throw new Error(msg || ("HTTP " + res.status));
+    }
+    var text = "";
+    try{
+      var parts = data.candidates[0].content.parts;
+      for(var i=0;i<parts.length;i++) if(parts[i].text) text += parts[i].text;
+    }catch(e2){}
+    return { text: text.trim(), usage: data.usageMetadata || null };
+  }
 }
 /* One continuous recording, sent once when he stops — the same shape JoyRead
    uses. Cutting the audio into 5-second pieces sliced words in half, and a
@@ -747,12 +808,12 @@ function paidSend(blob, secs){
   }
   note("☁️ يُرسل " + secs + " ث إلى Gemini …");
   blobToWavBase64(blob).then(function(w){
-    return callGemini(w.b64).then(function(text){
-      var rate = RATE_PER_MIN[$("#gmodel").value] || 0.01;
-      costAdd((w.durSec/60) * rate);
-      if(!text){ note("لم يفهم Gemini شيئاً من التسجيل.", true); return; }
-      sessionInsert(applyPunct(text));
-      note("تم — " + secs + " ث · " + $("#gmodel").value);
+    return callGemini(w.b64).then(function(r){
+      var usd = costFromUsage(r.usage);
+      if(usd) costAdd(usd);
+      if(!r.text){ note("لم يفهم Gemini شيئاً من التسجيل.", true); return; }
+      sessionInsert(applyPunct(r.text));
+      note("تم — " + secs + " ث · " + $("#gmodel").value + (usd ? " · $" + usd.toFixed(4) : ""));
     });
   }).catch(function(err){
     note("تعذّر التفريغ: " + err.message, true);
@@ -828,7 +889,9 @@ function micTips(){
   $("#btnPaid").title =
     "يسجّل تسجيلاً واحداً متواصلاً حتى تضغط «إيقاف» (بحد أقصى ٥ دقائق)، ثم يرسله دفعة واحدة إلى Gemini بمفتاحك." +
     " النص يظهر عند الانتهاء لا أثناء الكلام. أدقّ من المجاني، ونفس الدقة في كروم وEdge." +
-    " يُخصم من رصيدك، وعلى الطبقة المدفوعة لا تستعمل جوجل صوتك في تدريب نماذجها.";
+    (onPaidTier()
+      ? " يُخصم من رصيدك، وعلى الطبقة المدفوعة لا تستعمل جوجل صوتك في تدريب نماذجها."
+      : " على الطبقة المجانية لا يكلّفك مالاً، لكن قد تستعمل جوجل صوتك في تحسين منتجاتها. بدّل الطبقة من ⚙ إن فوترت مفتاحك.");
 }
 micTips();
 
@@ -900,7 +963,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "1.0";
+var VERSION = "1.1";
 var VERSION_DATE = "١٦ أغسطس ٢٠٢٦";
 
 var GUIDE = [
@@ -914,6 +977,7 @@ var GUIDE = [
   ["الأزرار — الصف العلوي", "⚙ الإعدادات", "مفتاح Gemini، واختيار النموذج، وسقف الاستهلاك التقريبي، ومدة الصمت التي يتوقف بعدها الإملاء المجاني، وإضافة خطوط من جهازك."],
   ["الأزرار — مجموعة الإملاء", "🎙️ مجاني", "يستمع بمحرك متصفحك، بلا تكلفة وبلا مفتاح. النص يظهر حياً وهو يتكوّن، ويُكتب في الصندوق فور ما تسكت لحظة — لا تنتظر زر الإيقاف. الوقفات القصيرة للتفكير لا توقفه؛ يتوقف وحده فقط بعد مدة الصمت المضبوطة في الإعدادات. اختصاره: F2."],
   ["الأزرار — مجموعة الإملاء", "☁️ Gemini", "يسجّل تسجيلاً واحداً متواصلاً حتى تضغط إيقاف (بحد أقصى خمس دقائق)، ثم يرسله دفعة واحدة. لذلك النص يظهر عند الانتهاء لا أثناء الكلام، وهذا مقصود: تقطيع الصوت إلى مقاطع قصيرة يقطع الكلمات في منتصفها فيخمّن النموذج بقيتها. أدقّ من المجاني، وبنفس الدقة في كروم وEdge. يحتاج مفتاحاً من الإعدادات."],
+  ["الأزرار — مجموعة الإملاء", "ماذا يحدث إذا كان Gemini مزدحماً", "جوجل ترفض الطلب أحياناً حين يكون النموذج مزدحماً، وهذه الموجات تمرّ في ثوانٍ. فالأداة تعيد المحاولة وحدها بعد ثانية، ثم ثانيتين، ثم أربع، وتخبرك بما يجري — فلا يضيع تسجيلك لأن جوجل كانت مشغولة لحظة. أما نفاد الحصة فيبدو مشابهاً لكنه لا ينقضي بالانتظار، ولذلك يُبلَّغ فوراً بلا إعادة محاولة عابثة."],
   ["الأزرار — مجموعة الإملاء", "⏹ إيقاف", "يقطع أي إملاء جارٍ فوراً. في مسار Gemini تحديداً، الضغط على إيقاف هو ما يُرسل التسجيل فعلياً."],
   ["الأزرار — مجموعة اللغة", "قائمة اللغة", "عربي أو سويدي أو إنجليزي. العربي يبدأ باللهجة السورية ثم يجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح. تضبط أيضاً اتجاه الكتابة في الصندوق، وتُخبر Gemini باللغة في المسار المدفوع."],
   ["الأزرار — مجموعة اللغة", "،؟ أوامر الترقيم", "مطفأة افتراضياً. حين تشغّلها، تُكتب هذه الكلمات كعلامات بدل أن تُكتب حروفاً: نقطة، فاصلة، فاصلة منقوطة، علامة استفهام، علامة تعجب، نقطتان، سطر جديد، فقرة جديدة. عيبها الوحيد أنك إن قلت إحدى هذه الكلمات في جملة عادية فستتحول أيضاً — لذلك هي زر تشغّله وتطفئه أنت، لا ميزة دائمة."],
@@ -934,7 +998,7 @@ var GUIDE = [
   ["التنصيب", "ملاحظة عن أيقونة الإشارة المرجعية", "كروم يعرض أيقونة كرة أرضية افتراضية للإشارات المرجعية من نوع البوكماركلت، ولا توجد طريقة لتغييرها لا من الأداة ولا من إعدادات كروم، لأن كروم يجلب الأيقونة من موقع حقيقي والبوكماركلت ليس موقعاً. الحل العملي: سمّها اسماً قصيراً مميزاً وضعها في أول الشريط."],
   ["حدود الأداة", "أين لا تعمل", "لا تعمل في برامج الويندوز المثبَّتة — وورد، واتساب ديسكتوب، أوتلوك، تلغرام — لأنها خارج المتصفح تماماً، وحتى الإضافات لا تصل إليها؛ هنا Win+H هو الحل. ولا تعمل في صفحات المتصفح الداخلية وصفحة التبويب الجديد ومتجر الإضافات، وهذا قرار أمان من المتصفح نفسه لا يُتجاوز. المواقع الصارمة مثل يوتيوب كانت ترفض الشريط سابقاً وقد عولج ذلك. عارض PDF والملفات المحلية لم أجرّبهما، وإذن الميكروفون قد يُرفض فيهما — جرّب بنفسك."],
   ["حدود الأداة", "الفرق بين كروم وEdge", "الإملاء المجاني يعتمد على محرك كل متصفح: كروم يستعمل محرك جوجل السحابي، وEdge يستعمل محرك مايكروسوفت، وهو أضعف في العربية. للعربية استعمل كروم. أما مسار Gemini المدفوع فيعطي نفس الدقة في المتصفحين لأنه لا علاقة له بمحرك المتصفح."],
-  ["حدود الأداة", "التكلفة والسقف", "عدّاد الإعدادات تقديري ويخصّ هذه الأداة وحدها. الرقم الحقيقي لكل استخدامات مفتاحك موجود في صفحة Spend في Google AI Studio، وهو المرجع. الحماية الفعلية من الإنفاق الزائد هي رصيد مدفوع مسبقاً مع إطفاء التعبئة التلقائية — لا عدّاد محلي."],
+  ["حدود الأداة", "التكلفة والسقف", "اختر طبقة مفتاحك من ⚙ الإعدادات. على الطبقة المجانية لا يُخصم شيء فعلياً، فيبقى العدّاد صفراً — عدّاد يخترع إنفاقاً أسوأ من لا عدّاد. وعلى المدفوعة يحسب من عدد الوحدات الفعلي الذي ترجعه جوجل مع كل رد، لا بتقدير من طول التسجيل. ويبقى الرقم يخصّ هذه الأداة وحدها؛ الرقم الحقيقي لكل استخدامات مفتاحك في صفحة Spend في Google AI Studio. والحماية الفعلية من الإنفاق الزائد رصيد مدفوع مسبقاً مع إطفاء التعبئة التلقائية."],
   ["معلومات عامة عن الإملاء", "تنويه", "هذا القسم ليس شرحاً للأداة، بل معلومات عن الإملاء عموماً جمعناها لتختار الأداة المناسبة لكل موقف. بعض تفاصيله تتغير بين إصدار وإصدار، فتحقق بنفسك قبل الاعتماد عليها. آخر تحديث: أغسطس ٢٠٢٦."],
   ["معلومات عامة عن الإملاء", "Win+H — الأهم على ويندوز", "اضغط Win+H داخل أي مربع كتابة في ويندوز. ميزته الحاسمة أنه يعمل في كل البرامج المثبَّتة حيث لا تصل هذه الأداة أبداً، فهو مكمّل لها لا منافس. عيوبه: صوتك يُرسل إلى سيرفرات مايكروسوفت، ويتوقف وحده بعد خمس إلى عشر ثوانٍ من الصمت بلا إمكانية تعديل هذه المدة — وهذا بالضبط ما تجنّبناه هنا، إذ مدتنا ثلاثون ثانية قابلة للتمديد حتى عشرين دقيقة. دعمه للعربية يختلف بين إصدار وآخر، فتحقق من إعدادات ويندوز، قسم اللغة والمنطقة."],
   ["معلومات عامة عن الإملاء", "إملاء وورد", "من تبويب Home، مجموعة Voice. يحتاج اشتراك مايكروسوفت ٣٦٥ واتصال إنترنت دائم، والصوت يُرسل إلى سيرفرات مايكروسوفت وتقول إنها لا تخزّنه بعد المعالجة. فيه أوامر ترقيم صوتية وترقيم تلقائي، ويمكن تبديل اللغة من أيقونة الترس داخل لوحة الإملاء. المصادر تتضارب في وضع العربية والسويدية تحديداً: بعضها يعدّهما مدعومتين بالكامل وبعضها يضعهما في قائمة المعاينة بدقة أقل وأوامر أقل. جرّبهما بنفسك، فدقيقتان من التجربة أوضح من أي مصدر."],
@@ -1146,15 +1210,16 @@ else $("#btnPip").style.display = "none";
     var blob = new Blob([d.buf], {type: d.mime || "audio/webm"});
     if(d.lang && $("#lang").value !== d.lang){ $("#lang").value = d.lang; }
     blobToWavBase64(blob).then(function(w){
-      return callGemini(w.b64).then(function(text){
-        costAdd((w.durSec/60) * (RATE_PER_MIN[$("#gmodel").value] || 0.01));
-        if(!text){
+      return callGemini(w.b64).then(function(r){
+        var usd = costFromUsage(r.usage);
+        if(usd) costAdd(usd);
+        if(!r.text){
           reply({ type:"transcribeError", error:"لم يفهم Gemini شيئاً من التسجيل." });
           note("لم يفهم Gemini شيئاً من تسجيل الصفحة.", true);
           return;
         }
-        reply({ type:"transcribed", text: applyPunct(text) });
-        note("تم تفريغ " + secs + " ث للصفحة · " + $("#gmodel").value);
+        reply({ type:"transcribed", text: applyPunct(r.text) });
+        note("تم تفريغ " + secs + " ث للصفحة · " + $("#gmodel").value + (usd ? " · $" + usd.toFixed(4) : ""));
       });
     }).catch(function(err){
       reply({ type:"transcribeError", error: err.message });
@@ -1162,6 +1227,20 @@ else $("#btnPip").style.display = "none";
     });
   });
 })();
+
+/* The tier changes two real things: whether the counter means anything, and
+   whether Google may train on his audio. Both are stated where he chooses. */
+function tierPaint(){
+  var free = !onPaidTier();
+  $("#tierWarn").textContent = free
+    ? "على الطبقة المجانية قد تستعمل جوجل صوتك في تحسين منتجاتها وقد يخضع لمراجعة بشرية. وبما أنه لا يُخصم شيء، يبقى العدّاد صفراً."
+    : "على الطبقة المدفوعة لا تستعمل جوجل صوتك في تدريب نماذجها، والعدّاد يحسب من عدد الوحدات الفعلي الذي ترجعه جوجل مع كل رد.";
+  micTips();
+  costPaint();
+}
+$("#gtier").value = LS.get("fd.tier") || "free";
+$("#gtier").addEventListener("change", function(){ LS.set("fd.tier", this.value); tierPaint(); });
+tierPaint();
 
 $("#verTag").textContent = "v" + VERSION;
 setButtons(); setDest("idle");
