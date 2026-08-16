@@ -129,23 +129,24 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
     </div>
     <div class="spacer"></div>
     <span class="badge" id="destBadge">⚪ غير نشط</span>
-    <button class="iconbtn" id="btnPip" title="اجعلها عائمة فوق كل التطبيقات — بلا أي تثبيت">📌 فوق الكل</button>
-    <button class="iconbtn" id="btnGuide" title="شرح كل زر">؟ الدليل</button>
-    <button class="iconbtn" id="btnSettings" title="المفتاح والنموذج والسقف">⚙</button>
+    <button class="iconbtn" id="btnPip" title="يحوّل هذه النافذة إلى نافذة عائمة فوق كل التطبيقات، بلا أي تثبيت. تبقى نافذة فارغة في الخلفية لأن المتصفح يشترط ذلك — لا تُغلقها. حفظ/استعادة الموضع لا يعملان في هذا الوضع.">📌 فوق الكل</button>
+    <button class="iconbtn" id="btnGuide" title="شرح مفصّل لكل زر، وطريقة التنصيب، وأدوات إملاء أخرى ينفع اللجوء إليها">؟ الدليل</button>
+    <button class="iconbtn" id="btnSettings" title="مفتاح Gemini، النموذج، سقف الاستهلاك، مدة الصمت، والخطوط">⚙</button>
   </div>
   <div class="wrap row" style="padding-top:0">
-    <select class="mini" id="lang" title="لغة الإملاء"></select>
-    <select class="mini" id="font" title="خط النص"></select>
-    <button class="iconbtn free" id="btnFree" aria-pressed="false" title="إملاء بمحرك متصفحك — مجاني">🎙️ إملاء مجاني</button>
-    <button class="iconbtn paid" id="btnPaid" aria-pressed="false" title="إملاء عبر مفتاح Gemini الخاص بك">☁️ إملاء Gemini</button>
-    <button class="iconbtn stop" id="btnStop" title="إيقاف الإملاء فوراً">⏹ إيقاف</button>
+    <select class="mini" id="lang" title="لغة الإملاء واتجاه الكتابة. العربي يبدأ باللهجة السورية ثم يجرّب لهجات أخرى تلقائياً إن رفضها المتصفح."></select>
+    <select class="mini" id="font" title="خط الصندوق. تقدر تضيف أي خط من جهازك من ⚙ الإعدادات."></select>
+    <button class="iconbtn free" id="btnFree" aria-pressed="false">🎙️ إملاء مجاني</button>
+    <button class="iconbtn paid" id="btnPaid" aria-pressed="false">☁️ إملاء Gemini</button>
+    <button class="iconbtn stop" id="btnStop" title="يقطع أي إملاء جارٍ فوراً. في مسار Gemini، الإيقاف هو ما يُرسل التسجيل.">⏹ إيقاف</button>
+    <button class="iconbtn" id="btnPunct" aria-pressed="false" title="أوامر الترقيم بالصوت (مطفأة). حين تشتغل، قول «نقطة» أو «فاصلة» أو «علامة استفهام» أو «علامة تعجب» أو «فاصلة منقوطة» أو «نقطتان» أو «سطر جديد» أو «فقرة جديدة» فتُكتب كعلامة بدل كلمة. أطفئها إن أردت كتابة الكلمات نفسها.">،؟</button>
     <div class="spacer"></div>
-    <button class="iconbtn" id="btnSaveNote" title="يحفظ نص الصندوق كملاحظة منفصلة ويفرغ الصندوق لملاحظة جديدة">💾 احفظ</button>
-    <button class="iconbtn" id="btnNotes" title="الملاحظات المحفوظة">📝 الملاحظات</button>
-    <button class="iconbtn" id="btnToPage" title="يرسل النص إلى مربع الكتابة في الصفحة التي فتحت منها" style="display:none">⏎ أرسل للصفحة</button>
-    <button class="iconbtn" id="btnCopy" title="ينسخ كل النص">⧉ نسخ</button>
-    <button class="iconbtn" id="btnSavePos" title="يحفظ مكان وحجم هذه النافذة (النافذة العادية فقط)">⤓</button>
-    <button class="iconbtn" id="btnRestorePos" title="يعيد النافذة إلى المكان المحفوظ (النافذة العادية فقط)">↺</button>
+    <button class="iconbtn" id="btnSaveNote" title="ينقل نص الصندوق كله إلى قائمة الملاحظات ويُفرغ الصندوق لملاحظة جديدة">💾 احفظ</button>
+    <button class="iconbtn" id="btnNotes" title="الملاحظات المحفوظة — لكل واحدة وقتها وأزرار نسخ وتحميل للصندوق وحذف">📝 الملاحظات</button>
+    <button class="iconbtn" id="btnToPage" title="يرسل النص إلى مربع الكتابة في الصفحة التي فتحت منها الأداة" style="display:none">⏎ أرسل للصفحة</button>
+    <button class="iconbtn" id="btnCopy" title="ينسخ كل ما في الصندوق إلى الحافظة">⧉ نسخ</button>
+    <button class="iconbtn" id="btnSavePos" title="يحفظ مكان هذه النافذة وحجمها. يعمل فقط في النافذة العادية، لا في وضع «فوق الكل».">⤓</button>
+    <button class="iconbtn" id="btnRestorePos" title="يعيد النافذة إلى الموضع المحفوظ. يعمل فقط في النافذة العادية.">↺</button>
   </div>
 </header>
 
@@ -272,6 +273,51 @@ var LANG_LABEL = { ar:"عربي (سوري أولاً)", sv:"سويدي", en:"إ�
 var LANG_NAME_FOR_PROMPT = { ar:"العربية", sv:"السويدية", en:"الإنجليزية" };
 var LANG_DIR = { ar:"rtl", sv:"ltr", en:"ltr" };
 
+/* ---------- spoken punctuation ----------
+   Off by default, because the engine hands us plain text and cannot tell a
+   command from the same word said in a sentence. Multi-word phrases are used
+   where a bare word would collide with ordinary speech ("علامة استفهام", not
+   "استفهام"). While the toggle is off nothing here runs at all, so the tool
+   behaves exactly as it did before this existed. */
+var PUNCT = {
+  ar: [
+    ["فقرة جديدة", "\n\n"], ["سطر جديد", "\n"],
+    ["علامة استفهام", "؟"], ["علامة تعجب", "!"],
+    ["فاصلة منقوطة", "؛"], ["فاصلة", "،"],
+    ["نقطتان", ":"], ["نقطة", "."]
+  ],
+  sv: [
+    ["nytt stycke", "\n\n"], ["ny rad", "\n"],
+    ["frågetecken", "?"], ["utropstecken", "!"],
+    ["semikolon", ";"], ["kolon", ":"],
+    ["komma", ","], ["punkt", "."]
+  ],
+  en: [
+    ["new paragraph", "\n\n"], ["new line", "\n"],
+    ["question mark", "?"], ["exclamation mark", "!"],
+    ["semicolon", ";"], ["colon", ":"],
+    ["comma", ","], ["period", "."], ["full stop", "."]
+  ]
+};
+function punctOn(){ return LS.get("fd.punct") === "1"; }
+function applyPunct(text){
+  if(!punctOn() || !text) return text;
+  var list = PUNCT[$("#lang").value] || [];
+  var out = text;
+  list.forEach(function(pair){
+    /* longest phrases first (the arrays are ordered that way), so
+       "فاصلة منقوطة" is consumed before "فاصلة" can match inside it */
+    var phrase = pair[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    var re = new RegExp("(^|\\s)" + phrase + "(?=\\s|$)", "gi");
+    out = out.replace(re, pair[1]);
+  });
+  /* a mark hugs the word before it and takes one space after */
+  out = out.replace(/\s+([،؛؟!:.,;?])/g, "$1");
+  out = out.replace(/([،؛؟!:.,;?])(?=[^\s\n])/g, "$1 ");
+  out = out.replace(/[ \t]*\n[ \t]*/g, "\n");
+  return out.trim();
+}
+
 /* ---------- fonts — built-ins ship with the app; the person can add more of
    their own from Settings without any code change (see Local Font Access
    picker below) ---------- */
@@ -396,11 +442,26 @@ paintCustomFontsSettings();
 var D = { engine:null, on:false, stop:false, pos:0, li:0, kept:[], written:0, idleT:null, lastHeard:0,
           mr:null, stream:null, chain:Promise.resolve(), recTimer:null };
 
+/* Which company actually hears the free-mode audio. Nothing here runs on the
+   device: Chrome routes the microphone to Google, Edge routes it to Microsoft.
+   The badge used to say "محلي عبر متصفحك", which promised a privacy property
+   this tool does not have. */
+function dictEngine(){
+  var ua = navigator.userAgent;
+  if(/Edg\//.test(ua))     return { key:"ms",     name:"مايكروسوفت", via:"عبر Edge" };
+  if(/Firefox\//.test(ua)) return { key:"none",   name:"غير مدعوم",  via:"في فايرفوكس" };
+  if(/Chrome\//.test(ua))  return { key:"google", name:"جوجل",       via:"عبر كروم" };
+  return { key:"other", name:"مزوّد متصفحك", via:"" };
+}
 function setDest(state){
   var b = $("#destBadge");
   b.className = "badge";
-  if(state === "free"){ b.classList.add("on-free"); b.textContent = "🎙️ محلي عبر متصفحك"; }
-  else if(state === "paid"){ b.classList.add("on-paid"); b.textContent = "☁️ يُرسل إلى Gemini بمفتاحك"; }
+  if(state === "free"){
+    var e = dictEngine();
+    b.classList.add("on-free");
+    b.textContent = "🎙️ صوتك يذهب إلى " + e.name + (e.via ? " " + e.via : "");
+  }
+  else if(state === "paid"){ b.classList.add("on-paid"); b.textContent = "☁️ صوتك يذهب إلى Gemini بمفتاحك"; }
   else { b.textContent = "⚪ غير نشط"; }
 }
 function note(msg, isErr){
@@ -420,16 +481,32 @@ function sessionStart(){
   var el = $("#box");
   D.pos = (el.selectionStart != null) ? el.selectionEnd : el.value.length;
 }
+/* Dictated text lands at D.pos and D.pos advances with it. But if he has
+   clicked into the middle of the text to fix a word, writing to .value drags
+   his caret to the end and shreds the correction he is typing. So: notice that
+   he is working mid-text, and put him back on the exact spot afterwards. */
 function sessionInsert(text){
   if(!text) return;
   var el = $("#box");
+  var editing = (ACTIVE_DOC.activeElement === el);
+  var selA = 0, selB = 0, midText = false;
+  if(editing){
+    try{
+      selA = el.selectionStart; selB = el.selectionEnd;
+      midText = (selB < D.pos);        /* his caret sits behind the write head */
+    }catch(e){ editing = false; }
+  }
   var before = el.value.slice(0, D.pos);
   var after = el.value.slice(D.pos);
   var sep = (before && !/\s$/.test(before)) ? " " : "";
   var chunk = sep + text.trim() + " ";
   el.value = before + chunk + after;
   D.pos = (before + chunk).length;
-  el.selectionStart = el.selectionEnd = D.pos;
+  if(editing && midText){
+    try{ el.setSelectionRange(selA, selB); }catch(e){}
+  } else {
+    el.selectionStart = el.selectionEnd = D.pos;
+  }
 }
 
 /* ================= FREE dictation — Web Speech API ================= */
@@ -456,7 +533,7 @@ function dictFlush(upto){
   while(D.written <= upto && D.written < D.kept.length){
     var t = String(D.kept[D.written] || "").trim();
     D.written++;
-    if(t) sessionInsert(t);
+    if(t) sessionInsert(applyPunct(t));
   }
 }
 function showLive(text){
@@ -529,8 +606,8 @@ function freeStop(){
   D.engine = null; setDest("idle"); setButtons();
 }
 
-/* ================= PAID dictation — short chunks via Gemini ================= */
-var CHUNK_MS = 5000;
+/* ================= PAID dictation — one recording via Gemini ================= */
+var PAID_MAX_SECS = 300;
 var RATE_PER_MIN = { "gemini-3.5-flash-lite":0.005, "gemini-3.7-flash":0.012, "gemini-3.1-pro-preview":0.03 }; /* rough estimate only */
 
 function getKey(){ return ($("#gkey").value || "").trim(); }
@@ -610,43 +687,31 @@ async function callGemini(base64Wav){
   }catch(e){}
   return text.trim();
 }
-function paidLoop(){
-  if(D.stop || !D.stream) return;
-  var mime = paidMime();
-  var mr = new MediaRecorder(D.stream, mime ? {mimeType:mime} : undefined);
-  D.mr = mr;
-  var blobs = [];
-  mr.ondataavailable = function(e){ if(e.data && e.data.size) blobs.push(e.data); };
-  mr.onstop = function(){
-    if(blobs.length){
-      var blob = new Blob(blobs, {type: mr.mimeType || "audio/webm"});
-      enqueueChunk(blob);
-    }
-    if(!D.stop) paidLoop();
-  };
-  mr.start();
-  D.recTimer = setTimeout(function(){ try{ mr.stop(); }catch(e){} }, CHUNK_MS);
-}
-function enqueueChunk(blob){
-  D.chain = D.chain.then(function(){
-    var cap = parseFloat($("#costCap").value || "0");
-    var st = costState();
-    if(cap > 0 && st.total >= cap){
-      paidStop();
-      note("بلغت سقف الاستهلاك التقريبي ($" + cap.toFixed(2) + ") — أوقفت الإملاء المدفوع تلقائياً.", true);
-      return;
-    }
-    if(D.engine === "paid") note("☁️ يُعالج مقطعاً…");
-    return blobToWavBase64(blob).then(function(w){
-      return callGemini(w.b64).then(function(text){
-        var rate = RATE_PER_MIN[$("#gmodel").value] || 0.01;
-        costAdd((w.durSec/60) * rate);
-        if(text) sessionInsert(text);
-        if(D.engine === "paid") note("☁️ يُرسل إلى Gemini بمفتاحك");
-      });
-    }).catch(function(err){
-      if(D.engine === "paid" || D.stop) note("تعذّر تفريغ مقطع: " + err.message, true);
+/* One continuous recording, sent once when he stops — the same shape JoyRead
+   uses. Cutting the audio into 5-second pieces sliced words in half, and a
+   language model handed half a word invents a plausible whole one; that was the
+   hallucination. It also meant 12 requests a minute, which is at or over the
+   free tier's ceiling, which was the quota error. Both problems have the same
+   cure. The cost: the text arrives in one piece at the end rather than live —
+   the free path stays live for when that matters more than accuracy. */
+function paidSend(blob, secs){
+  var cap = parseFloat($("#costCap").value || "0");
+  var st = costState();
+  if(cap > 0 && st.total >= cap){
+    note("بلغت سقف الاستهلاك التقريبي ($" + cap.toFixed(2) + ") — لم يُرسل التسجيل.", true);
+    return;
+  }
+  note("☁️ يُرسل " + secs + " ث إلى Gemini …");
+  blobToWavBase64(blob).then(function(w){
+    return callGemini(w.b64).then(function(text){
+      var rate = RATE_PER_MIN[$("#gmodel").value] || 0.01;
+      costAdd((w.durSec/60) * rate);
+      if(!text){ note("لم يفهم Gemini شيئاً من التسجيل.", true); return; }
+      sessionInsert(applyPunct(text));
+      note("تم — " + secs + " ث · " + $("#gmodel").value);
     });
+  }).catch(function(err){
+    note("تعذّر التفريغ: " + err.message, true);
   });
 }
 async function paidStart(){
@@ -660,18 +725,78 @@ async function paidStart(){
     note("تعذّر فتح الميكروفون: " + (err.name === "NotAllowedError" ? "الإذن محظور — انقر أيقونة القفل يسار شريط العنوان ← الميكروفون ← السماح." : err.message), true);
     return;
   }
-  D.engine = "paid"; D.stop = false; D.chain = Promise.resolve();
+  var mime = paidMime();
+  var mr = new MediaRecorder(D.stream, mime ? {mimeType:mime} : undefined);
+  var blobs = [];
+  D.mr = mr; D.engine = "paid"; D.stop = false; D.recStart = Date.now();
+  mr.ondataavailable = function(e){ if(e.data && e.data.size) blobs.push(e.data); };
+  mr.onstop = function(){
+    var secs = Math.round((Date.now() - D.recStart) / 1000);
+    if(D.stream){ D.stream.getTracks().forEach(function(t){ t.stop(); }); D.stream = null; }
+    D.mr = null; D.engine = null; setDest("idle"); setButtons();
+    if(!blobs.length || secs < 1){ note("لم يُسجَّل شيء."); return; }
+    paidSend(new Blob(blobs, {type: mr.mimeType || "audio/webm"}), secs);
+  };
+  mr.start();
   setDest("paid"); setButtons(); costPaint();
-  paidLoop();
+  /* a forgotten recording would send a very long file and bill for it, so cap it */
+  D.recTimer = setInterval(function(){
+    var s = Math.round((Date.now() - D.recStart) / 1000);
+    if(s >= PAID_MAX_SECS){ note("بلغ الحدّ الأقصى (٥ دقائق) — يُرسل الآن."); paidStop(); return; }
+    note("● يسجّل " + s + " ث · صوتك يذهب إلى Gemini بمفتاحك · اضغط «إيقاف» ليُرسل");
+  }, 1000);
 }
 function paidStop(){
   D.stop = true;
-  if(D.recTimer) clearTimeout(D.recTimer);
-  if(D.mr){ try{ D.mr.stop(); }catch(e){} }
+  if(D.recTimer){ clearInterval(D.recTimer); D.recTimer = null; }
+  if(D.mr){ try{ D.mr.stop(); }catch(e){} return; }   /* onstop does the rest */
   if(D.stream){ D.stream.getTracks().forEach(function(t){ t.stop(); }); D.stream = null; }
   D.engine = null; setDest("idle"); setButtons();
-  note("");
 }
+
+/* ---------- spoken punctuation toggle ---------- */
+function punctPaint(){
+  var b = $("#btnPunct");
+  var on = punctOn();
+  b.setAttribute("aria-pressed", on ? "true" : "false");
+  b.title = (on ? "أوامر الترقيم بالصوت (تعمل الآن). " : "أوامر الترقيم بالصوت (مطفأة). حين تشتغل، ")
+    + "قول «نقطة» أو «فاصلة» أو «علامة استفهام» أو «علامة تعجب» أو «فاصلة منقوطة» أو «نقطتان» أو «سطر جديد» أو «فقرة جديدة» فتُكتب كعلامة بدل كلمة."
+    + (on ? " أطفئها إن أردت كتابة هذه الكلمات نفسها." : "");
+}
+$("#btnPunct").addEventListener("click", function(){
+  LS.set("fd.punct", punctOn() ? "0" : "1");
+  punctPaint();
+  note(punctOn() ? "أوامر الترقيم تعمل الآن." : "أوامر الترقيم أُطفئت — كل شيء يُكتب كلاماً عادياً.");
+});
+punctPaint();
+
+/* ---------- honest tooltips on the two mic buttons ----------
+   Nothing about free dictation is local, and on a billed key Google does not
+   train on the audio. Both facts belong where he decides, not in a footnote. */
+function micTips(){
+  var e = dictEngine();
+  $("#btnFree").title =
+    "يستمع بمحرك متصفحك. صوتك يخرج من جهازك ويذهب إلى " + e.name +
+    (e.via ? " " + e.via : "") + " بشروطهم لا بشروطك — لا يمرّ بمفتاحك ولا يدخل عدّاد التكلفة." +
+    " النص يظهر حياً وهو يتكوّن، والوقفات القصيرة لا توقفه؛ يتوقف وحده بعد مدة الصمت المضبوطة في ⚙." +
+    (e.key === "ms" ? " ملاحظة: محرّك Edge أضعف من محرّك كروم في العربية — استعمل كروم أو مسار Gemini." : "");
+  $("#btnPaid").title =
+    "يسجّل تسجيلاً واحداً متواصلاً حتى تضغط «إيقاف» (بحد أقصى ٥ دقائق)، ثم يرسله دفعة واحدة إلى Gemini بمفتاحك." +
+    " النص يظهر عند الانتهاء لا أثناء الكلام. أدقّ من المجاني، ونفس الدقة في كروم وEdge." +
+    " يُخصم من رصيدك، وعلى الطبقة المدفوعة لا تستعمل جوجل صوتك في تدريب نماذجها.";
+}
+micTips();
+
+/* ---------- keyboard shortcut ----------
+   Ctrl+Shift+Space toggles free dictation without leaving the keyboard. */
+document.addEventListener("keydown", function(e){
+  if(e.ctrlKey && e.shiftKey && (e.code === "Space" || e.key === " ")){
+    e.preventDefault();
+    if(D.engine === "free") freeStop();
+    else if(D.engine === "paid") paidStop();
+    else freeStart();
+  }
+});
 
 /* ---------- buttons ---------- */
 $("#btnFree").addEventListener("click", function(){ if(D.engine === "free") freeStop(); else freeStart(); });
@@ -727,20 +852,59 @@ costPaint();
 
 /* ---------- guide ---------- */
 var GUIDE = [
-  ["📌 طريقة التنصيب", "الأداة ملف واحد مستضاف على رابط ثابت. أنشئ إشارة مرجعية جديدة بمتصفحك (Ctrl+Shift+B لإظهار شريط المفضلة إن كان مخفياً، ثم زر الفأرة اليمين على الشريط ← «إضافة صفحة»)، سمّها ما شئت، وبخانة العنوان الصق: javascript:(function(){var u='" + location.href + "';var w=440,h=600;var x=Math.max(0,window.screenX+window.outerWidth-w-30);var y=Math.max(0,window.screenY+70);window.open(u,'floatingDictation','width='+w+',height='+h+',left='+x+',top='+y+',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no');})();  ثم احفظ. من بعدها ضغطة واحدة عليها فوق أي موقع تفتح هذه الأداة كنافذة صغيرة منفصلة، لا كتبويب."],
-  ["🎙️ إملاء مجاني", "يستمع بمحرك متصفحك (كروم يرسل صوتك لجوجل، Edge لمايكروسوفت — بلا مفتاحك وبلا تكلفة). النص يظهر حياً وهو يتكوّن، ولا يتوقف عند وقفة تفكير قصيرة — فقط عند صمت حقيقي حسب المدة المضبوطة بالإعدادات ⚙، أو عند ضغط «إيقاف»."],
-  ["☁️ إملاء Gemini", "يسجّل صوتك بمقاطع قصيرة متتالية (كل خمس ثوانٍ تقريباً) ويرسل كل مقطع لحسابك في Gemini بمفتاحك الخاص، ثم يضيف النص أولاً بأول — بلا انتظار حتى تضغط «إيقاف». يحتاج مفتاح Google AI من الإعدادات ⚙ أولاً."],
-  ["⏹ إيقاف", "يقطع أي إملاء جارٍ فوراً، مجانياً كان أو مدفوعاً."],
-  ["📌 فوق الكل", "يحوّل هذه النافذة إلى نافذة عائمة حقيقية فوق كل التطبيقات، بلا أي تثبيت — عبر ميزة متصفح اسمها Picture-in-Picture. شرطان: تبويب واحد لازم يبقى مفتوحاً بالخلفية (سكّره فيسكّرها معه)، وما فيها حفظ/استعادة موضع مخصص — المتصفح هو يلي يتحكم بمكانها. زرّها يتحول لـ«رجّعها عادية» وأنت بالوضع العائم."],
-  ["💾 احفظ / 📝 الملاحظات", "«احفظ» ينقل نص الصندوق كله إلى قائمة ملاحظات منفصلة ويُفرغ الصندوق لملاحظة جديدة — مفيد وأنت عم تعلّق على أشياء مختلفة وأنت متصفّح. «الملاحظات» تفتح القائمة كاملة: كل ملاحظة فيها وقتها، وأزرار نسخ، وتحميلها رجوعاً للصندوق للتعديل، وحذف."],
-  ["الشارة أعلى يسار الشاشة", "تقول لك في كل لحظة أين يذهب صوتك: خامل، أو محلي عبر متصفحك، أو مُرسَل إلى Gemini."],
-  ["قائمة اللغة", "عربي (تبدأ باللهجة السورية ثم تجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح) أو سويدي أو إنجليزي. تُطبَّق على محرك الإملاء المجاني واتجاه الكتابة معاً، وتُخبر Gemini بها في المسار المدفوع."],
-  ["قائمة الخط", "تبدأ بخطين، وتقدر تضيف عليها أي خط مثبَّت على جهازك بنفسك من ⚙ الإعدادات ← «أضف خطاً من جهازك» — بلا أي تعديل بالكود، تماماً متل الوورد. يعمل على كروم وEdge على الكمبيوتر فقط."],
-  ["⧉ نسخ", "ينسخ كل ما في الصندوق إلى الحافظة بضغطة واحدة."],
-  ["⤓ / ↺", "⤓ يحفظ مكان هذه النافذة وحجمها بالضبط، و↺ يعيدها إلى ما حفظته. يعملان فقط إن فتحت النافذة عبر الإشارة المرجعية (Bookmarklet) لا كتبويب عادي."],
-  ["صندوق النص", "قابل للتعديل بالكتابة العادية في أي وقت — قبل الإملاء أو أثناءه أو بعده — لتصحيح أي كلمة."],
-  ["⚙ الإعدادات", "مفتاح Gemini (يُحفظ في متصفحك فقط)، نموذج الإملاء المدفوع، سقف استهلاك تقريبي شهري يوقف الإملاء المدفوع تلقائياً عند بلوغه، مدة صمت الإيقاف التلقائي للإملاء المجاني، وإدارة الخطوط المضافة من جهازك."],
-  ["الدقة بين كروم وEdge", "الإملاء المجاني قد يختلف قليلاً لأنه محرك كل متصفح الخاص به. الإملاء المدفوع عبر Gemini يعطي نفس الدقة تماماً في المتصفحين، لأنه نفس النموذج بغضّ النظر عن المتصفح."]
+  ["\ud83d\udccc \u0637\u0631\u064a\u0642\u0629 \u0627\u0644\u062a\u0646\u0635\u064a\u0628 \u2014 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0646\u0641\u0635\u0644\u0629",
+   "\u0623\u0646\u0634\u0626 \u0625\u0634\u0627\u0631\u0629 \u0645\u0631\u062c\u0639\u064a\u0629 \u062c\u062f\u064a\u062f\u0629 (Ctrl+Shift+B \u0644\u0625\u0638\u0647\u0627\u0631 \u0634\u0631\u064a\u0637 \u0627\u0644\u0645\u0641\u0636\u0644\u0629\u060c \u062b\u0645 \u0632\u0631 \u0627\u0644\u0641\u0623\u0631\u0629 \u0627\u0644\u064a\u0645\u064a\u0646 \u0639\u0644\u0649 \u0627\u0644\u0634\u0631\u064a\u0637 \u2190 \u00ab\u0625\u0636\u0627\u0641\u0629 \u0635\u0641\u062d\u0629\u00bb)\u060c \u0648\u0641\u064a \u062e\u0627\u0646\u0629 \u0627\u0644\u0639\u0646\u0648\u0627\u0646 \u0627\u0644\u0635\u0642: javascript:(function(){var u=\'" + location.href.split("?")[0] + "\';var w=440,h=600;var x=Math.max(0,window.screenX+window.outerWidth-w-30);var y=Math.max(0,window.screenY+70);window.open(u,\'floatingDictation\',\'width=\'+w+\',height=\'+h+\',left=\'+x+\',top=\'+y+\',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no\');})();  \u062b\u0645 \u0627\u062d\u0641\u0638. \u0636\u063a\u0637\u0629 \u0648\u0627\u062d\u062f\u0629 \u0639\u0644\u064a\u0647\u0627 \u062a\u0641\u062a\u062d \u0647\u0630\u0647 \u0627\u0644\u0623\u062f\u0627\u0629 \u0643\u0646\u0627\u0641\u0630\u0629 \u0645\u0646\u0641\u0635\u0644\u0629."],
+
+  ["\ud83d\udccc \u0637\u0631\u064a\u0642\u0629 \u0627\u0644\u062a\u0646\u0635\u064a\u0628 \u2014 \u0627\u0644\u0623\u062f\u0627\u0629 \u0627\u0644\u0645\u0632\u0631\u0648\u0639\u0629 \u062f\u0627\u062e\u0644 \u0627\u0644\u0635\u0641\u062d\u0629",
+   "\u0625\u0634\u0627\u0631\u0629 \u0645\u0631\u062c\u0639\u064a\u0629 \u062b\u0627\u0646\u064a\u0629 \u0645\u0646\u0641\u0635\u0644\u0629\u060c \u0643\u0648\u062f\u0647\u0627 \u0623\u0637\u0648\u0644 \u0648\u064a\u0623\u062a\u064a\u0643 \u0641\u064a \u0645\u0644\u0641 \u0645\u0646\u0641\u0635\u0644. \u0627\u0644\u0641\u0631\u0642: \u0647\u0630\u0647 \u062a\u0632\u0631\u0639 \u0634\u0631\u064a\u0637\u0627\u064b \u0635\u063a\u064a\u0631\u0627\u064b \u062f\u0627\u062e\u0644 \u0627\u0644\u0635\u0641\u062d\u0629 \u0646\u0641\u0633\u0647\u0627\u060c \u0641\u064a\u0643\u062a\u0628 \u0627\u0644\u0625\u0645\u0644\u0627\u0621 \u0645\u0628\u0627\u0634\u0631\u0629 \u0641\u064a \u0645\u0631\u0628\u0639 \u0627\u0644\u0643\u062a\u0627\u0628\u0629 \u0627\u0644\u0630\u064a \u0646\u0642\u0631\u062a \u0641\u064a\u0647 \u2014 \u0628\u0644\u0627 \u0646\u0633\u062e \u0648\u0644\u0635\u0642. \u062a\u062e\u062a\u0641\u064a \u0645\u0639 \u0623\u064a \u062a\u062d\u062f\u064a\u062b \u0644\u0644\u0635\u0641\u062d\u0629\u060c \u0641\u062a\u0636\u063a\u0637\u0647\u0627 \u0645\u0646 \u062c\u062f\u064a\u062f. \u0647\u0630\u0627 \u062b\u0645\u0646 \u0639\u062f\u0645 \u0637\u0644\u0628 \u0623\u064a \u0635\u0644\u0627\u062d\u064a\u0629 \u062f\u0627\u0626\u0645\u0629."],
+
+  ["\ud83c\udf99\ufe0f \u0625\u0645\u0644\u0627\u0621 \u0645\u062c\u0627\u0646\u064a",
+   "\u064a\u0633\u062a\u0645\u0639 \u0628\u0645\u062d\u0631\u0643 \u0645\u062a\u0635\u0641\u062d\u0643. \u0645\u0647\u0645 \u062c\u062f\u0627\u064b: \u0644\u0627 \u0634\u064a\u0621 \u0647\u0646\u0627 \u064a\u062c\u0631\u064a \u0639\u0644\u0649 \u062c\u0647\u0627\u0632\u0643 \u2014 \u0643\u0631\u0648\u0645 \u064a\u0631\u0633\u0644 \u0635\u0648\u062a\u0643 \u0625\u0644\u0649 \u062c\u0648\u062c\u0644\u060c \u0648Edge \u064a\u0631\u0633\u0644\u0647 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643\u0631\u0648\u0633\u0648\u0641\u062a\u060c \u0628\u0634\u0631\u0648\u0637\u0647\u0645 \u0644\u0627 \u0628\u0634\u0631\u0648\u0637\u0643\u060c \u0648\u0644\u0627 \u064a\u0645\u0631\u0651 \u0628\u0645\u0641\u062a\u0627\u062d\u0643. \u0627\u0644\u0634\u0627\u0631\u0629 \u0623\u0639\u0644\u0649 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u062a\u0633\u0645\u0651\u064a \u0644\u0643 \u0627\u0644\u062c\u0647\u0629 \u0641\u064a \u0643\u0644 \u0644\u062d\u0638\u0629. \u0627\u0644\u0646\u0635 \u064a\u0638\u0647\u0631 \u062d\u064a\u0627\u064b \u0648\u0647\u0648 \u064a\u062a\u0643\u0648\u0651\u0646\u060c \u0648\u0627\u0644\u0648\u0642\u0641\u0627\u062a \u0627\u0644\u0642\u0635\u064a\u0631\u0629 \u0644\u0627 \u062a\u0648\u0642\u0641\u0647."],
+
+  ["\u2601\ufe0f \u0625\u0645\u0644\u0627\u0621 Gemini",
+   "\u064a\u0633\u062c\u0651\u0644 \u062a\u0633\u062c\u064a\u0644\u0627\u064b \u0648\u0627\u062d\u062f\u0627\u064b \u0645\u062a\u0648\u0627\u0635\u0644\u0627\u064b \u062d\u062a\u0649 \u062a\u0636\u063a\u0637 \u00ab\u0625\u064a\u0642\u0627\u0641\u00bb (\u0628\u062d\u062f \u0623\u0642\u0635\u0649 \u0640 \u0665 \u062f\u0642\u0627\u0626\u0642)\u060c \u062b\u0645 \u064a\u0631\u0633\u0644\u0647 \u062f\u0641\u0639\u0629 \u0648\u0627\u062d\u062f\u0629 \u0625\u0644\u0649 Gemini \u0628\u0645\u0641\u062a\u0627\u062d\u0643. \u0644\u0630\u0644\u0643 \u0627\u0644\u0646\u0635 \u064a\u0638\u0647\u0631 \u0639\u0646\u062f \u0627\u0644\u0627\u0646\u062a\u0647\u0627\u0621 \u0644\u0627 \u0623\u062b\u0646\u0627\u0621 \u0627\u0644\u0643\u0644\u0627\u0645 \u2014 \u0648\u0647\u0630\u0627 \u0645\u0642\u0635\u0648\u062f: \u062a\u0642\u0637\u064a\u0639 \u0627\u0644\u0635\u0648\u062a \u0625\u0644\u0649 \u0645\u0642\u0627\u0637\u0639 \u0642\u0635\u064a\u0631\u0629 \u064a\u0642\u0637\u0639 \u0627\u0644\u0643\u0644\u0645\u0627\u062a \u0641\u064a \u0645\u0646\u062a\u0635\u0641\u0647\u0627 \u0641\u064a\u062e\u0645\u0651\u0646 \u0627\u0644\u0646\u0645\u0648\u0630\u062c \u0628\u0642\u064a\u062a\u0647\u0627\u060c \u0648\u064a\u0633\u062a\u0646\u0632\u0641 \u062d\u0635\u062a\u0643 \u0628\u0637\u0644\u0628\u0627\u062a \u0643\u062b\u064a\u0631\u0629. \u0623\u062f\u0642\u0651 \u0645\u0646 \u0627\u0644\u0645\u062c\u0627\u0646\u064a\u060c \u0648\u0646\u0641\u0633 \u0627\u0644\u062f\u0642\u0629 \u0641\u064a \u0643\u0631\u0648\u0645 \u0648Edge."],
+
+  ["\ud83d\udd12 \u0627\u0644\u062e\u0635\u0648\u0635\u064a\u0629 \u2014 \u0625\u0644\u0649 \u0623\u064a\u0646 \u064a\u0630\u0647\u0628 \u0635\u0648\u062a\u0643 \u0648\u0646\u0635\u0651\u0643",
+   "\u0644\u0627 \u062a\u0648\u062c\u062f \u0623\u064a \u0633\u064a\u0631\u0641\u0631\u0627\u062a \u062e\u0627\u0635\u0629 \u0628\u0647\u0630\u0647 \u0627\u0644\u0623\u062f\u0627\u0629\u060c \u0648\u0644\u0627 \u064a\u0635\u0644\u0646\u064a \u0645\u0646\u0647\u0627 \u0634\u064a\u0621 \u0625\u0637\u0644\u0627\u0642\u0627\u064b. \u0646\u0635\u0651\u0643 \u0648\u0645\u0641\u062a\u0627\u062d\u0643 \u0648\u0645\u0644\u0627\u062d\u0638\u0627\u062a\u0643 \u0648\u062e\u0637\u0648\u0637\u0643 \u0643\u0644\u0647\u0627 \u0641\u064a \u0645\u062a\u0635\u0641\u062d\u0643 \u0648\u062d\u062f\u0647. \u0644\u0643\u0646 \u0627\u0644\u0635\u0648\u062a \u0642\u0635\u0629 \u0623\u062e\u0631\u0649: \u0641\u064a \u0627\u0644\u0645\u062c\u0627\u0646\u064a \u064a\u0630\u0647\u0628 \u0625\u0644\u0649 \u062c\u0648\u062c\u0644 (\u0643\u0631\u0648\u0645) \u0623\u0648 \u0645\u0627\u064a\u0643\u0631\u0648\u0633\u0648\u0641\u062a (Edge)\u060c \u0648\u0644\u0627 \u0623\u0645\u0644\u0643 \u0623\u064a \u062a\u062d\u0643\u0645 \u0628\u0645\u0627 \u064a\u0641\u0639\u0644\u0648\u0646\u0647 \u0628\u0647. \u0641\u064a Gemini \u064a\u0630\u0647\u0628 \u0625\u0644\u0649 \u062c\u0648\u062c\u0644 \u0628\u0645\u0641\u062a\u0627\u062d\u0643 \u2014 \u0648\u0639\u0644\u0649 \u0627\u0644\u0637\u0628\u0642\u0629 \u0627\u0644\u0645\u062f\u0641\u0648\u0639\u0629 \u0644\u0627 \u062a\u0633\u062a\u0639\u0645\u0644 \u062c\u0648\u062c\u0644 \u0635\u0648\u062a\u0643 \u0641\u064a \u062a\u062f\u0631\u064a\u0628 \u0646\u0645\u0627\u0630\u062c\u0647\u0627\u060c \u0628\u062e\u0644\u0627\u0641 \u0627\u0644\u0637\u0628\u0642\u0629 \u0627\u0644\u0645\u062c\u0627\u0646\u064a\u0629."],
+
+  ["\u23f9 \u0625\u064a\u0642\u0627\u0641",
+   "\u064a\u0642\u0637\u0639 \u0623\u064a \u0625\u0645\u0644\u0627\u0621 \u062c\u0627\u0631\u064d \u0641\u0648\u0631\u0627\u064b. \u0641\u064a \u0645\u0633\u0627\u0631 Gemini\u060c \u0627\u0644\u0625\u064a\u0642\u0627\u0641 \u0647\u0648 \u0645\u0627 \u064a\u064f\u0631\u0633\u0644 \u0627\u0644\u062a\u0633\u062c\u064a\u0644 \u0641\u0639\u0644\u064a\u0627\u064b."],
+
+  ["\u060c\u061f \u0623\u0648\u0627\u0645\u0631 \u0627\u0644\u062a\u0631\u0642\u064a\u0645 \u0628\u0627\u0644\u0635\u0648\u062a",
+   "\u0645\u0637\u0641\u0623\u0629 \u0627\u0641\u062a\u0631\u0627\u0636\u064a\u0627\u064b. \u062d\u064a\u0646 \u062a\u0634\u063a\u0651\u0644\u0647\u0627\u060c \u0647\u0630\u0647 \u0627\u0644\u0643\u0644\u0645\u0627\u062a \u062a\u064f\u0643\u062a\u0628 \u0643\u0639\u0644\u0627\u0645\u0627\u062a: \u0646\u0642\u0637\u0629 (.) \u00b7 \u0641\u0627\u0635\u0644\u0629 (\u060c) \u00b7 \u0641\u0627\u0635\u0644\u0629 \u0645\u0646\u0642\u0648\u0637\u0629 (\u061b) \u00b7 \u0639\u0644\u0627\u0645\u0629 \u0627\u0633\u062a\u0641\u0647\u0627\u0645 (\u061f) \u00b7 \u0639\u0644\u0627\u0645\u0629 \u062a\u0639\u062c\u0628 (!) \u00b7 \u0646\u0642\u0637\u062a\u0627\u0646 (:) \u00b7 \u0633\u0637\u0631 \u062c\u062f\u064a\u062f \u00b7 \u0641\u0642\u0631\u0629 \u062c\u062f\u064a\u062f\u0629. \u0627\u0644\u0639\u064a\u0628 \u0627\u0644\u0648\u062d\u064a\u062f: \u0625\u0646 \u0642\u0644\u062a \u0625\u062d\u062f\u0649 \u0647\u0630\u0647 \u0627\u0644\u0643\u0644\u0645\u0627\u062a \u0641\u064a \u062c\u0645\u0644\u0629 \u0639\u0627\u062f\u064a\u0629 \u0641\u0633\u062a\u062a\u062d\u0648\u0644 \u0623\u064a\u0636\u0627\u064b \u2014 \u0644\u0630\u0644\u0643 \u0647\u064a \u0632\u0631 \u062a\u0634\u063a\u0651\u0644\u0647 \u0648\u062a\u0637\u0641\u0626\u0647 \u0623\u0646\u062a\u060c \u0644\u0627 \u0645\u064a\u0632\u0629 \u062f\u0627\u0626\u0645\u0629. \u0648\u0628\u0623\u064a \u062d\u0627\u0644\u060c \u0627\u0644\u0635\u0646\u062f\u0648\u0642 \u0642\u0627\u0628\u0644 \u0644\u0644\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u064a\u062f\u0648\u064a \u062f\u0627\u0626\u0645\u0627\u064b."],
+
+  ["\u2328 \u0627\u062e\u062a\u0635\u0627\u0631 \u0644\u0648\u062d\u0629 \u0627\u0644\u0645\u0641\u0627\u062a\u064a\u062d",
+   "Ctrl+Shift+Space \u064a\u0628\u062f\u0623 \u0627\u0644\u0625\u0645\u0644\u0627\u0621 \u0627\u0644\u0645\u062c\u0627\u0646\u064a \u0648\u064a\u0648\u0642\u0641\u0647 \u0628\u0644\u0627 \u0645\u0627\u0648\u0633\u060c \u0641\u064a \u0627\u0644\u0623\u062f\u0627\u062a\u064a\u0646 \u0645\u0639\u0627\u064b."],
+
+  ["\ud83d\udccc \u0641\u0648\u0642 \u0627\u0644\u0643\u0644",
+   "\u064a\u062d\u0648\u0651\u0644 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0625\u0644\u0649 \u0639\u0627\u0626\u0645\u0629 \u0641\u0648\u0642 \u0643\u0644 \u0627\u0644\u062a\u0637\u0628\u064a\u0642\u0627\u062a\u060c \u0628\u0644\u0627 \u0623\u064a \u062a\u062b\u0628\u064a\u062a. \u0634\u0631\u0637\u0627\u0646 \u0645\u0641\u0631\u0648\u0636\u0627\u0646 \u0645\u0646 \u0627\u0644\u0645\u062a\u0635\u0641\u062d \u0644\u0627 \u0645\u0646\u0651\u064a: \u062a\u0628\u0642\u0649 \u0646\u0627\u0641\u0630\u0629 \u0641\u0627\u0631\u063a\u0629 \u0641\u064a \u0627\u0644\u062e\u0644\u0641\u064a\u0629 (\u0645\u0643\u062a\u0648\u0628 \u0641\u064a\u0647\u0627 \u0623\u0644\u0627 \u062a\u064f\u063a\u0644\u0642)\u060c \u0648\u062d\u0641\u0638/\u0627\u0633\u062a\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u0648\u0636\u0639 \u0644\u0627 \u064a\u0639\u0645\u0644\u0627\u0646 \u0644\u0623\u0646 \u0627\u0644\u0645\u062a\u0635\u0641\u062d \u0647\u0648 \u0645\u0646 \u064a\u062a\u062d\u0643\u0645 \u0628\u0645\u0643\u0627\u0646\u0647\u0627. \u0628\u062f\u064a\u0644 \u0623\u0646\u0638\u0641 \u0639\u0644\u0649 \u062c\u0647\u0627\u0632 \u062a\u0645\u0644\u0643 \u0635\u0644\u0627\u062d\u064a\u0629 \u0627\u0644\u062a\u062b\u0628\u064a\u062a \u0639\u0644\u064a\u0647: \u0628\u0631\u0646\u0627\u0645\u062c PowerToys \u0645\u0646 \u0645\u0627\u064a\u0643\u0631\u0648\u0633\u0648\u0641\u062a\u060c \u0641\u064a\u0647 Win+Ctrl+T \u064a\u062c\u0639\u0644 \u0623\u064a \u0646\u0627\u0641\u0630\u0629 \u0641\u0648\u0642 \u0627\u0644\u0643\u0644 \u2014 \u0641\u062a\u0628\u0642\u0649 \u0646\u0627\u0641\u0630\u0629 \u0648\u0627\u062d\u062f\u0629 \u0648\u064a\u0628\u0642\u0649 \u062d\u0641\u0638 \u0627\u0644\u0645\u0648\u0636\u0639 \u0634\u063a\u0651\u0627\u0644\u0627\u064b."],
+
+  ["\ud83d\udcbe \u0627\u062d\u0641\u0638 / \ud83d\udcdd \u0627\u0644\u0645\u0644\u0627\u062d\u0638\u0627\u062a",
+   "\u00ab\u0627\u062d\u0641\u0638\u00bb \u064a\u0646\u0642\u0644 \u0646\u0635 \u0627\u0644\u0635\u0646\u062f\u0648\u0642 \u0625\u0644\u0649 \u0642\u0627\u0626\u0645\u0629 \u0645\u0644\u0627\u062d\u0638\u0627\u062a \u0648\u064a\u064f\u0641\u0631\u063a \u0627\u0644\u0635\u0646\u062f\u0648\u0642. \u00ab\u0627\u0644\u0645\u0644\u0627\u062d\u0638\u0627\u062a\u00bb \u062a\u0641\u062a\u062d \u0627\u0644\u0642\u0627\u0626\u0645\u0629: \u0644\u0643\u0644 \u0648\u0627\u062d\u062f\u0629 \u0648\u0642\u062a\u0647\u0627\u060c \u0648\u0623\u0632\u0631\u0627\u0631 \u0646\u0633\u062e \u0648\u062a\u062d\u0645\u064a\u0644 \u0644\u0644\u0635\u0646\u062f\u0648\u0642 \u0648\u062d\u0630\u0641. \u0645\u062d\u0641\u0648\u0638\u0629 \u0641\u064a \u0645\u062a\u0635\u0641\u062d\u0643 \u0648\u062d\u062f\u0647."],
+
+  ["\u25a4 \u0627\u0644\u0635\u0646\u062f\u0648\u0642 \u0627\u0644\u0627\u062d\u062a\u064a\u0627\u0637\u064a (\u0641\u064a \u0627\u0644\u0623\u062f\u0627\u0629 \u0627\u0644\u0645\u0632\u0631\u0648\u0639\u0629)",
+   "\u0628\u0639\u0636 \u0627\u0644\u0645\u0648\u0627\u0642\u0639 \u062a\u0631\u0641\u0636 \u0627\u0644\u0643\u062a\u0627\u0628\u0629 \u0627\u0644\u0645\u0628\u0627\u0634\u0631\u0629 \u0641\u064a \u0645\u0631\u0628\u0639\u0627\u062a\u0647\u0627. \u0641\u064a \u0647\u0630\u0647 \u0627\u0644\u062d\u0627\u0644\u0629 \u064a\u0641\u062a\u062d \u0627\u0644\u0635\u0646\u062f\u0648\u0642 \u0648\u062d\u062f\u0647 \u062a\u0644\u0642\u0627\u0626\u064a\u0627\u064b \u0648\u064a\u0630\u0647\u0628 \u0627\u0644\u0646\u0635 \u0625\u0644\u064a\u0647 \u0628\u062f\u0644 \u0623\u0646 \u064a\u0636\u064a\u0639\u060c \u062b\u0645 \u062a\u0646\u0633\u062e\u0647 \u0645\u0646\u0647 \u0648\u062a\u0644\u0635\u0642\u0647 \u0628\u0646\u0641\u0633\u0643. \u062a\u0642\u062f\u0631 \u062a\u0641\u062a\u062d\u0647 \u0623\u0646\u062a \u0645\u062a\u0649 \u0634\u0626\u062a \u0628\u0632\u0631 \u25a4."],
+
+  ["\u2328 \u0645\u0624\u0634\u0631 \u0627\u0644\u0643\u062a\u0627\u0628\u0629 \u0623\u062b\u0646\u0627\u0621 \u0627\u0644\u062a\u0635\u062d\u064a\u062d",
+   "\u0644\u0648 \u062f\u062e\u0644\u062a \u062a\u0635\u062d\u0651\u062d \u0643\u0644\u0645\u0629 \u0641\u064a \u0642\u0644\u0628 \u0627\u0644\u0646\u0635 \u0628\u0627\u0644\u0643\u064a\u0628\u0648\u0631\u062f \u0648\u0627\u0644\u0625\u0645\u0644\u0627\u0621 \u0644\u0627 \u064a\u0632\u0627\u0644 \u064a\u0639\u0645\u0644\u060c \u064a\u0628\u0642\u0649 \u0645\u0624\u0634\u0631\u0643 \u0641\u064a \u0645\u0643\u0627\u0646\u0647 \u0648\u0644\u0627 \u064a\u0642\u0641\u0632 \u0625\u0644\u0649 \u0622\u062e\u0631 \u0627\u0644\u0646\u0635. \u0627\u0644\u0625\u0645\u0644\u0627\u0621 \u064a\u0643\u0645\u0644 \u0645\u0646 \u062d\u064a\u062b \u0648\u0642\u0641 \u0641\u064a \u0627\u0644\u0623\u0633\u0641\u0644."],
+
+  ["\ud83c\udd8e \u0627\u0644\u0644\u063a\u0629 \u0648\u0627\u0644\u062e\u0637",
+   "\u0627\u0644\u0639\u0631\u0628\u064a \u064a\u0628\u062f\u0623 \u0628\u0627\u0644\u0644\u0647\u062c\u0629 \u0627\u0644\u0633\u0648\u0631\u064a\u0629 (ar-SY) \u062b\u0645 \u064a\u062c\u0631\u0651\u0628 \u0644\u0647\u062c\u0627\u062a \u0623\u062e\u0631\u0649 \u062a\u0644\u0642\u0627\u0626\u064a\u0627\u064b \u0625\u0646 \u0631\u0641\u0636\u0647\u0627 \u0627\u0644\u0645\u062a\u0635\u0641\u062d. \u0627\u0644\u062e\u0637\u0648\u0637: \u062a\u0642\u062f\u0631 \u062a\u0636\u064a\u0641 \u0623\u064a \u062e\u0637 \u0645\u062b\u0628\u064e\u0651\u062a \u0639\u0644\u0649 \u062c\u0647\u0627\u0632\u0643 \u0645\u0646 \u2699 \u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0628\u0644\u0627 \u0623\u064a \u062a\u0639\u062f\u064a\u0644 \u0628\u0627\u0644\u0643\u0648\u062f."],
+
+  ["\ud83d\udcb0 \u0627\u0644\u062a\u0643\u0644\u0641\u0629 \u0648\u0627\u0644\u0633\u0642\u0641",
+   "\u0639\u062f\u0651\u0627\u062f \u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u062a\u0642\u062f\u064a\u0631\u064a \u0648\u064a\u062e\u0635\u0651 \u0647\u0630\u0647 \u0627\u0644\u0623\u062f\u0627\u0629 \u0648\u062d\u062f\u0647\u0627. \u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u062d\u0642\u064a\u0642\u064a \u0644\u0643\u0644 \u0627\u0633\u062a\u062e\u062f\u0627\u0645\u0627\u062a \u0645\u0641\u062a\u0627\u062d\u0643 \u0645\u0648\u062c\u0648\u062f \u0641\u064a \u0635\u0641\u062d\u0629 Spend \u0641\u064a Google AI Studio\u060c \u0648\u0647\u0648 \u0627\u0644\u0645\u0631\u062c\u0639. \u0627\u0644\u062d\u0645\u0627\u064a\u0629 \u0627\u0644\u0641\u0639\u0644\u064a\u0629 \u0645\u0646 \u0627\u0644\u0625\u0646\u0641\u0627\u0642 \u0627\u0644\u0632\u0627\u0626\u062f \u0647\u064a \u0631\u0635\u064a\u062f \u0645\u062f\u0641\u0648\u0639 \u0645\u0633\u0628\u0642\u0627\u064b \u0645\u0639 \u0625\u0637\u0641\u0627\u0621 \u0627\u0644\u062a\u0639\u0628\u0626\u0629 \u0627\u0644\u062a\u0644\u0642\u0627\u0626\u064a\u0629 \u2014 \u0644\u0627 \u0639\u062f\u0651\u0627\u062f \u0645\u062d\u0644\u064a."],
+
+  ["\u26a0 \u0623\u064a\u0646 \u0644\u0627 \u062a\u0639\u0645\u0644 \u0647\u0630\u0647 \u0627\u0644\u0623\u062f\u0627\u0629",
+   "\u0644\u0627 \u062a\u0639\u0645\u0644 \u0641\u064a: \u0628\u0631\u0627\u0645\u062c \u0627\u0644\u0648\u064a\u0646\u062f\u0648\u0632 \u0627\u0644\u0645\u062b\u0628\u064e\u0651\u062a\u0629 (\u0648\u0627\u062a\u0633\u0627\u0628 \u062f\u064a\u0633\u0643\u062a\u0648\u0628\u060c \u0648\u0648\u0631\u062f\u060c \u0623\u0648\u062a\u0644\u0648\u0643\u060c \u062a\u0644\u063a\u0631\u0627\u0645) \u2014 \u0647\u064a \u062e\u0627\u0631\u062c \u0627\u0644\u0645\u062a\u0635\u0641\u062d \u062a\u0645\u0627\u0645\u0627\u064b \u0648\u062d\u062a\u0649 \u0627\u0644\u0625\u0636\u0627\u0641\u0627\u062a \u0644\u0627 \u062a\u0635\u0644\u0647\u0627. \u0648\u0644\u0627 \u0641\u064a \u0635\u0641\u062d\u0627\u062a \u0627\u0644\u0645\u062a\u0635\u0641\u062d \u0627\u0644\u062f\u0627\u062e\u0644\u064a\u0629 (chrome:// \u0648edge://) \u0648\u0645\u062a\u062c\u0631 \u0627\u0644\u0625\u0636\u0627\u0641\u0627\u062a \u2014 \u0645\u0645\u0646\u0648\u0639\u0629 \u0628\u0642\u0631\u0627\u0631 \u0623\u0645\u0627\u0646 \u0645\u0646 \u0627\u0644\u0645\u062a\u0635\u0641\u062d \u0646\u0641\u0633\u0647. \u0639\u0627\u0631\u0636 PDF \u0648\u0645\u0644\u0641\u0627\u062a file:// \u0627\u0644\u0645\u062d\u0644\u064a\u0629: \u0644\u0645 \u0623\u062c\u0631\u0651\u0628\u0647\u0645\u0627\u060c \u0648\u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646 \u0642\u062f \u064a\u064f\u0631\u0641\u0636 \u0641\u064a\u0647\u0645\u0627 \u2014 \u062c\u0631\u0651\u0628 \u0628\u0646\u0641\u0633\u0643."],
+
+  ["\ud83e\ude9f \u0623\u062f\u0648\u0627\u062a \u0625\u0645\u0644\u0627\u0621 \u0623\u062e\u0631\u0649 \u2014 Win+H (\u0627\u0644\u0623\u0647\u0645)",
+   "\u0627\u0636\u063a\u0637 Win+H \u062f\u0627\u062e\u0644 \u0623\u064a \u0645\u0631\u0628\u0639 \u0643\u062a\u0627\u0628\u0629 \u0641\u064a \u0627\u0644\u0648\u064a\u0646\u062f\u0648\u0632. \u0645\u064a\u0632\u062a\u0647 \u0627\u0644\u062d\u0627\u0633\u0645\u0629: \u064a\u0639\u0645\u0644 \u0641\u064a \u0643\u0644 \u0627\u0644\u0628\u0631\u0627\u0645\u062c \u0627\u0644\u0645\u062b\u0628\u064e\u0651\u062a\u0629\u060c \u062d\u064a\u062b \u0644\u0627 \u062a\u0635\u0644 \u0623\u062f\u0627\u062a\u0646\u0627 \u0623\u0628\u062f\u0627\u064b \u2014 \u0641\u0647\u0648 \u0645\u0643\u0645\u0651\u0644 \u0644\u0647\u0627 \u0644\u0627 \u0645\u0646\u0627\u0641\u0633. \u0639\u064a\u0648\u0628\u0647 \u0628\u0635\u0631\u0627\u062d\u0629: \u0635\u0648\u062a\u0643 \u064a\u064f\u0631\u0633\u0644 \u0625\u0644\u0649 \u0633\u064a\u0631\u0641\u0631\u0627\u062a \u0645\u0627\u064a\u0643\u0631\u0648\u0633\u0648\u0641\u062a (\u0644\u064a\u0633 \u0645\u062d\u0644\u064a\u0627\u064b)\u060c \u0648\u064a\u062a\u0648\u0642\u0641 \u0648\u062d\u062f\u0647 \u0628\u0639\u062f \u062d\u0648\u0627\u0644\u064a \u0665-\u0661\u0660 \u062b\u0648\u0627\u0646\u064d \u0635\u0645\u062a \u0648\u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u0639\u062f\u064a\u0644 \u0647\u0630\u0647 \u0627\u0644\u0645\u062f\u0629 \u2014 \u0648\u0647\u0630\u0627 \u0628\u0627\u0644\u0636\u0628\u0637 \u0645\u0627 \u062a\u062c\u0646\u0651\u0628\u0646\u0627\u0647 \u0647\u0646\u0627 (\u0645\u062f\u062a\u0646\u0627 \u0663\u0660 \u062b\u0627\u0646\u064a\u0629 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062a\u0639\u062f\u064a\u0644 \u062d\u062a\u0649 \u0662\u0660 \u062f\u0642\u064a\u0642\u0629). \u062f\u0639\u0645\u0647 \u0644\u0644\u0639\u0631\u0628\u064a\u0629 \u064a\u062e\u062a\u0644\u0641 \u0628\u0627\u062e\u062a\u0644\u0627\u0641 \u0627\u0644\u0625\u0635\u062f\u0627\u0631\u060c \u0641\u062a\u062d\u0642\u0642 \u0645\u0646: Settings \u2190 Time & Language \u2190 Language & Region."],
+
+  ["\ud83e\ude9f \u0623\u062f\u0648\u0627\u062a \u0623\u062e\u0631\u0649 \u2014 Google Docs \u0648\u063a\u064a\u0631\u0647",
+   "Google Docs (\u0623\u062f\u0648\u0627\u062a \u2190 \u0627\u0644\u0643\u062a\u0627\u0628\u0629 \u0627\u0644\u0635\u0648\u062a\u064a\u0629\u060c \u0641\u064a \u0643\u0631\u0648\u0645 \u0641\u0642\u0637): \u064a\u062f\u0639\u0645 \u0627\u0644\u0639\u0631\u0628\u064a\u0629 \u0628\u0640\u0661\u0661 \u0644\u0647\u062c\u0629 \u0623\u0648 \u0623\u0643\u062b\u0631\u060c \u0644\u0643\u0646 \u0623\u0648\u0627\u0645\u0631 \u0627\u0644\u062a\u0631\u0642\u064a\u0645 \u0648\u0627\u0644\u062a\u0646\u0633\u064a\u0642 \u0641\u064a\u0647 \u062a\u0639\u0645\u0644 \u0628\u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a\u0629 \u0641\u0642\u0637\u060c \u0648\u064a\u062a\u0648\u0642\u0641 \u0628\u0639\u062f \u062d\u0648\u0627\u0644\u064a \u0665 \u062b\u0648\u0627\u0646\u064d \u0635\u0645\u062a. \u0625\u0645\u0644\u0627\u0621 Word \u0648Gboard \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u0628\u0627\u064a\u0644 \u062e\u064a\u0627\u0631\u0627\u062a \u0642\u0627\u0626\u0645\u0629 \u0623\u064a\u0636\u0627\u064b. \u062a\u0646\u0648\u064a\u0647: \u0647\u0630\u0647 \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0645\u0646 \u0623\u063a\u0633\u0637\u0633 \u0662\u0660\u0662\u0666 \u0648\u062f\u0639\u0645 \u0627\u0644\u0644\u063a\u0627\u062a \u064a\u062a\u063a\u064a\u0631 \u0628\u064a\u0646 \u0625\u0635\u062f\u0627\u0631 \u0648\u0622\u062e\u0631 \u2014 \u062a\u062d\u0642\u0642 \u0628\u0646\u0641\u0633\u0643 \u0642\u0628\u0644 \u0627\u0644\u0627\u0639\u062a\u0645\u0627\u062f \u0639\u0644\u064a\u0647\u0627."],
+
+  ["\ud83c\udf10 \u0627\u0644\u062f\u0642\u0629 \u0628\u064a\u0646 \u0643\u0631\u0648\u0645 \u0648Edge",
+   "\u0627\u0644\u0625\u0645\u0644\u0627\u0621 \u0627\u0644\u0645\u062c\u0627\u0646\u064a \u064a\u062e\u062a\u0644\u0641: \u0643\u0631\u0648\u0645 \u064a\u0633\u062a\u0639\u0645\u0644 \u0645\u062d\u0631\u0643 \u062c\u0648\u062c\u0644\u060c \u0648Edge \u064a\u0633\u062a\u0639\u0645\u0644 \u0645\u062d\u0631\u0643 \u0645\u0627\u064a\u0643\u0631\u0648\u0633\u0648\u0641\u062a \u0627\u0644\u0623\u0636\u0639\u0641 \u0641\u064a \u0627\u0644\u0639\u0631\u0628\u064a\u0629. \u0644\u0644\u0639\u0631\u0628\u064a\u0629 \u0627\u0633\u062a\u0639\u0645\u0644 \u0643\u0631\u0648\u0645. \u0625\u0645\u0644\u0627\u0621 Gemini \u0627\u0644\u0645\u062f\u0641\u0648\u0639 \u064a\u0639\u0637\u064a \u0646\u0641\u0633 \u0627\u0644\u062f\u0642\u0629 \u0641\u064a \u0627\u0644\u0645\u062a\u0635\u0641\u062d\u064a\u0646\u060c \u0644\u0623\u0646\u0647 \u0644\u0627 \u0639\u0644\u0627\u0642\u0629 \u0644\u0647 \u0628\u0645\u062d\u0631\u0643 \u0627\u0644\u0645\u062a\u0635\u0641\u062d."]
 ];
 function paintGuide(q){
   var box = $("#gList"); box.innerHTML = "";
@@ -840,6 +1004,14 @@ async function togglePip(){
     var pipWin = await window.documentPictureInPicture.requestWindow({ width:420, height:640 });
     movePipStyles(pipWin.document);
     pipWin.document.title = document.title;
+    /* a PiP window inherits no favicon, so it showed Chrome's globe */
+    Array.from(document.querySelectorAll("link[rel*='icon']")).forEach(function(l){
+      var c = pipWin.document.createElement("link");
+      c.rel = l.rel; c.href = l.href;
+      pipWin.document.head.appendChild(c);
+    });
+    pipWin.document.documentElement.setAttribute("dir","rtl");
+    pipWin.document.documentElement.setAttribute("lang","ar");
     pipWin.document.body.style.margin = "0";
     Array.from(document.body.children).forEach(function(el){
       if(el.tagName !== "SCRIPT") pipWin.document.body.appendChild(el);
@@ -847,7 +1019,22 @@ async function togglePip(){
     ACTIVE_DOC = pipWin.document;
     pipWin.document.addEventListener("keydown", escHandler);
     setPipButton(true);
+    /* The parent window must stay open — the browser requires it to host the
+       PiP window — but an empty window reads as a crash, so it says why. */
+    var shim = document.createElement("div");
+    shim.id = "pipShim";
+    shim.setAttribute("dir","rtl");
+    shim.style.cssText = "font-family:'Readex Pro','Segoe UI',system-ui,sans-serif;padding:26px 22px;"
+      + "max-width:520px;margin:0 auto;color:#151a20;line-height:1.85;text-align:center";
+    shim.innerHTML = "<div style='font-size:40px;margin-bottom:10px'>📌</div>"
+      + "<div style='font-weight:700;font-size:16px;margin-bottom:8px'>الأداة انتقلت إلى النافذة العائمة الصغيرة</div>"
+      + "<div style='font-size:13.5px;color:#5c6673'>لا تُغلق هذه النافذة — المتصفح يشترط بقاءها مفتوحة "
+      + "لتشغيل النافذة العائمة، وإغلاقها يُغلق الاثنتين معاً. صغّرها وانساها."
+      + "<br><br>لإرجاع الأداة إلى هنا، اضغط «↩ رجّعها عادية» في النافذة العائمة.</div>";
+    document.body.appendChild(shim);
     pipWin.addEventListener("pagehide", function(){
+      var s = document.getElementById("pipShim");
+      if(s) s.remove();
       Array.from(pipWin.document.body.children).forEach(function(el){ document.body.appendChild(el); });
       ACTIVE_DOC = document;
       setPipButton(false);
