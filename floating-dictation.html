@@ -1098,6 +1098,53 @@ else $("#btnPip").style.display = "none";
       note("تعذّر الإرسال — الصفحة الأصلية غالباً أُغلقت أو تحدّثت.", true);
     }
   });
+
+  /* Transcription on behalf of the in-page widget.
+     The widget cannot call Gemini itself without the key, and handing the key
+     to whatever site he happens to be on would expose it to that site's own
+     scripts. So the widget sends the recorded audio here, this window — which
+     owns the key — does the call, and only the resulting text goes back. */
+  window.addEventListener("message", function(ev){
+    var d = ev.data;
+    if(!d || d.source !== "floatingDictationPage") return;
+    if(ev.source !== window.opener) return;
+    function reply(msg){
+      msg.source = "floatingDictation";
+      try{ ev.source.postMessage(msg, ev.origin); }catch(e){}
+    }
+    if(d.type === "needKey"){ reply({ type:"keyState", has: !!getKey() }); return; }
+    if(d.type !== "transcribe" || !d.buf) return;
+
+    if(!getKey()){
+      reply({ type:"transcribeError", error:"ضع مفتاح Google AI في الإعدادات ⚙ أولاً." });
+      openSettings();
+      return;
+    }
+    var cap = parseFloat($("#costCap").value || "0");
+    if(cap > 0 && costState().total >= cap){
+      reply({ type:"transcribeError", error:"بلغت سقف الاستهلاك التقريبي — لم يُرسل التسجيل." });
+      return;
+    }
+    var secs = d.secs || 0;
+    note("☁️ يفرّغ " + secs + " ث من الصفحة …");
+    var blob = new Blob([d.buf], {type: d.mime || "audio/webm"});
+    if(d.lang && $("#lang").value !== d.lang){ $("#lang").value = d.lang; }
+    blobToWavBase64(blob).then(function(w){
+      return callGemini(w.b64).then(function(text){
+        costAdd((w.durSec/60) * (RATE_PER_MIN[$("#gmodel").value] || 0.01));
+        if(!text){
+          reply({ type:"transcribeError", error:"لم يفهم Gemini شيئاً من التسجيل." });
+          note("لم يفهم Gemini شيئاً من تسجيل الصفحة.", true);
+          return;
+        }
+        reply({ type:"transcribed", text: applyPunct(text) });
+        note("تم تفريغ " + secs + " ث للصفحة · " + $("#gmodel").value);
+      });
+    }).catch(function(err){
+      reply({ type:"transcribeError", error: err.message });
+      note("تعذّر تفريغ تسجيل الصفحة: " + err.message, true);
+    });
+  });
 })();
 
 setButtons(); setDest("idle");
