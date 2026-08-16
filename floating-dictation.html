@@ -533,7 +533,7 @@ function sessionInsert(text){
 
 /* ================= FREE dictation — Web Speech API ================= */
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-var SETTLE_MS = 900;   /* pause after which a held sentence is considered final */
+var SETTLE_MS = 600;   /* silence after which pending text is written out */
 
 function cmpKey(s){
   var t = String(s || "").toLowerCase();
@@ -603,18 +603,20 @@ function dictRun(){
     if(kept.length || inflight.length) D.lastHeard = Date.now();
     D.kept = kept;
     dictFlush(kept.length - 2);
-    showLive(kept.slice(D.written).concat(inflight).join(" ").trim());
-    /* The newest sentence is held back because the engine often revises it.
-       But holding it until he presses Stop made him wait for text he had
-       already finished saying. So a short pause in speech is treated as "this
-       sentence is settled" and it goes in — the behaviour of the old
-       extension he was used to. */
+    var live = kept.slice(D.written).concat(inflight).join(" ").trim();
+    showLive(live);
+    /* Text used to sit here until he pressed Stop. The reason Stop worked is
+       that stopping the recogniser makes the engine finalise whatever it is
+       still holding — in Arabic it will otherwise keep the last sentence
+       marked interim indefinitely and never finalise on its own.
+       So silence does what Stop did: cycle the recogniser. onend already
+       flushes the finals and starts a fresh session, so nothing can be
+       written twice. */
     if(D.settleT) clearTimeout(D.settleT);
-    if(!inflight.length && D.kept.length > D.written){
+    if(live){
       D.settleT = setTimeout(function(){
-        if(D.engine !== "free" || D.stop) return;
-        dictFlush(D.kept.length);
-        showLive("");
+        if(D.engine !== "free" || D.stop || !D.rec) return;
+        try{ D.rec.stop(); }catch(e){}    /* onend flushes, then run() again */
       }, SETTLE_MS);
     }
   };
@@ -630,6 +632,7 @@ function dictRun(){
     if(e === "network"){ D.stop = true; note("تعذّر الاتصال بخدمة التعرّف.", true); return; }
   };
   r.onend = function(){
+    if(D.settleT){ clearTimeout(D.settleT); D.settleT = null; }
     dictFlush(D.kept.length); showLive("");
     if(D.stop){ D.rec = null; idleClear(); D.engine = null; setDest("idle"); setButtons(); if(!D.idleQuit) note(""); return; }
     try{ dictRun(); }catch(err){ D.rec = null; D.engine = null; setButtons(); note("توقّف الإملاء: " + err.message, true); }
