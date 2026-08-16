@@ -569,17 +569,30 @@ function idleWatch(){
   idleClear();
   D.lastHeard = Date.now();
   var limit = parseInt($("#idleTimeout").value, 10) * 1000;
+  var lastShown = -1;
+  /* Polls instead of being re-armed by incoming speech: the final sentence has
+     nothing spoken after it, so a timer set on arrival never fired for it. */
   D.idleT = setInterval(function(){
     var quiet = Date.now() - D.lastHeard;
-    var left = Math.max(0, Math.ceil((limit - quiet) / 1000));
     if(quiet >= limit){
       D.idleQuit = true;
       note("توقف الإملاء المجاني — صمت طويل. اضغط «إملاء مجاني» لتستأنف.", true);
       freeStop();
       return;
     }
-    if(quiet > 4000) note("صمت — يتوقف بعد " + left + " ث إن لم تكمل");
-  }, 1000);
+    /* he has gone quiet: cycle the recogniser so the engine finalises what it
+       is still holding — the same thing pressing Stop does */
+    if(D.pending && quiet >= SETTLE_MS && !D.stop && D.rec){
+      D.pending = false;
+      try{ D.rec.stop(); }catch(e){}
+      return;
+    }
+    var left = Math.max(0, Math.ceil((limit - quiet) / 1000));
+    if(quiet > 4000 && left !== lastShown){
+      lastShown = left;
+      note("صمت — يتوقف بعد " + left + " ث إن لم تكمل");
+    }
+  }, 200);
 }
 function freeStart(){
   if(!SR){ note("هذا المتصفح لا يدعم الإملاء المجاني. جرّب كروم أو Edge.", true); return; }
@@ -605,20 +618,9 @@ function dictRun(){
     dictFlush(kept.length - 2);
     var live = kept.slice(D.written).concat(inflight).join(" ").trim();
     showLive(live);
-    /* Text used to sit here until he pressed Stop. The reason Stop worked is
-       that stopping the recogniser makes the engine finalise whatever it is
-       still holding — in Arabic it will otherwise keep the last sentence
-       marked interim indefinitely and never finalise on its own.
-       So silence does what Stop did: cycle the recogniser. onend already
-       flushes the finals and starts a fresh session, so nothing can be
-       written twice. */
-    if(D.settleT) clearTimeout(D.settleT);
-    if(live){
-      D.settleT = setTimeout(function(){
-        if(D.engine !== "free" || D.stop || !D.rec) return;
-        try{ D.rec.stop(); }catch(e){}    /* onend flushes, then run() again */
-      }, SETTLE_MS);
-    }
+    /* Only record that text is waiting; the watcher decides when he has
+       actually gone quiet, which is the real signal. */
+    D.pending = !!live;
   };
   r.onerror = function(ev){
     var e = ev.error;
@@ -632,7 +634,7 @@ function dictRun(){
     if(e === "network"){ D.stop = true; note("تعذّر الاتصال بخدمة التعرّف.", true); return; }
   };
   r.onend = function(){
-    if(D.settleT){ clearTimeout(D.settleT); D.settleT = null; }
+    D.pending = false;
     dictFlush(D.kept.length); showLive("");
     if(D.stop){ D.rec = null; idleClear(); D.engine = null; setDest("idle"); setButtons(); if(!D.idleQuit) note(""); return; }
     try{ dictRun(); }catch(err){ D.rec = null; D.engine = null; setButtons(); note("توقّف الإملاء: " + err.message, true); }
@@ -641,7 +643,7 @@ function dictRun(){
 }
 function freeStop(){
   D.stop = true; idleClear(); showLive("");
-  if(D.settleT){ clearTimeout(D.settleT); D.settleT = null; }
+  D.pending = false;
   if(D.rec){ try{ D.rec.stop(); }catch(e){} }
   D.engine = null; setDest("idle"); setButtons();
 }
