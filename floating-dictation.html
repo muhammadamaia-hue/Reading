@@ -36,7 +36,7 @@ button{font-family:inherit; cursor:pointer}
 select,input{font-family:inherit}
 .wrap{padding:10px 12px}
 header{background:var(--panel); border-bottom:1px solid var(--line); box-shadow:var(--shadow)}
-.row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.row{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
 .logo{
   width:30px; height:30px; border-radius:9px; background:var(--accent); color:#fff;
   display:flex; align-items:center; justify-content:center; font-size:16px; flex:none;
@@ -49,13 +49,20 @@ header{background:var(--panel); border-bottom:1px solid var(--line); box-shadow:
   font-size:13px; color:var(--ink); display:flex; align-items:center; gap:5px;
 }
 .iconbtn:hover{background:#f4f6f8}
+/* engine buttons carry the colour grammar even when idle: green = free via the
+   browser engine, amber = pays from his balance — same grammar as the bar */
+.iconbtn.eng{padding:6px 12px}
+.iconbtn.eng svg{display:block}
+.iconbtn.eng.free{color:var(--free)}
+.iconbtn.eng.paid{color:var(--paid)}
+.iconbtn.langbtn{min-width:40px; justify-content:center; font-size:12px; padding:6px 8px}
 .iconbtn[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft); color:var(--accent)}
 .iconbtn.free[aria-pressed="true"]{border-color:var(--free); background:var(--free-soft); color:var(--free)}
 .iconbtn.paid[aria-pressed="true"]{border-color:var(--paid); background:var(--paid-soft); color:var(--paid)}
 .iconbtn.stop{border-color:var(--bad); background:var(--bad-soft); color:var(--bad); display:none}
 .iconbtn.stop.show{display:flex}
 .iconbtn:disabled{opacity:.45; cursor:not-allowed}
-select.mini{border:1px solid var(--line); border-radius:10px; padding:6px 8px; font-size:12.5px; background:#fff}
+select.mini{border:1px solid var(--line); border-radius:10px; padding:6px 8px; font-size:12.5px; background:#fff; max-width:92px; text-overflow:ellipsis}
 .ver{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
 .badge{
   font-size:11.5px; padding:5px 10px; border-radius:999px; border:1px solid var(--line);
@@ -66,8 +73,9 @@ select.mini{border:1px solid var(--line); border-radius:10px; padding:6px 8px; f
 .badge.on-paid{border-color:var(--paid); color:var(--paid); background:var(--paid-soft)}
 /* buttons cluster by purpose — dictate, text, window — so the row reads as
    three small groups instead of one long undifferentiated strip */
-.grp{display:flex; align-items:center; gap:5px; padding-inline-end:8px; margin-inline-end:2px}
-.grp + .grp{border-inline-start:1px solid var(--line); padding-inline-start:10px}
+.grp{display:flex; align-items:center; gap:4px; padding-inline-end:6px; margin-inline-end:1px}
+.grp + .grp{border-inline-start:1px solid var(--line); padding-inline-start:7px}
+#btnPip,#btnSavePos,#btnRestorePos,#btnCopy,#btnSaveNote,#btnNotes,#btnToPage{padding:6px 7px}
 
 main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; min-height:0}
 #box{
@@ -133,21 +141,26 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
     <span class="ver" id="verTag" title="رقم نسخة هذه النافذة. قارنه بأحدث ملف عندك قبل الرفع."></span>
     <span class="badge" id="destBadge"></span>
     <div class="spacer"></div>
-    <button class="iconbtn" id="btnGuide" title="شرح كل زر بالترتيب، وطريقة التنصيب، وحدود الأداة، ومعلومات عن الإملاء عموماً">؟ الدليل</button>
+    <button class="iconbtn" id="btnGuide" title="شرح كل زر بالترتيب، وطريقة التنصيب، وحدود الأداة، ومعلومات عن الإملاء عموماً">الدليل</button>
     <button class="iconbtn" id="btnSettings" title="مفتاح Gemini، النموذج، سقف الاستهلاك، مدة الصمت، والخطوط">⚙</button>
   </div>
 
   <div class="wrap row" style="padding-top:0">
     <span class="grp">
-      <button class="iconbtn free" id="btnFree" aria-pressed="false">🎙️ مجاني</button>
-      <button class="iconbtn paid" id="btnPaid" aria-pressed="false">☁️ Gemini</button>
+      <button class="iconbtn eng free" id="btnFree" aria-pressed="false" aria-label="الإملاء المجاني"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg></button>
+      <button class="iconbtn eng paid" id="btnPaid" aria-pressed="false" aria-label="إملاء Gemini بمفتاحك"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6 8 3.5h8L14.5 6z"/><path d="M9.5 6h5c3 2.8 4.5 5.6 4.5 8.5A5.5 5.5 0 0 1 13.5 20h-3A5.5 5.5 0 0 1 5 14.5C5 11.6 6.5 8.8 9.5 6z"/><text x="12" y="16.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">$</text></svg></button>
       <button class="iconbtn stop" id="btnStop" title="يقطع أي إملاء جارٍ فوراً. في مسار Gemini، الإيقاف هو ما يُرسل التسجيل.">⏹ إيقاف</button>
     </span>
     <span class="grp">
-      <select class="mini" id="lang" title="لغة الإملاء واتجاه الكتابة. العربي يبدأ باللهجة السورية ثم يجرّب لهجات أخرى تلقائياً إن رفضها المتصفح."></select>
+      <input type="hidden" id="lang" value="ar">
+      <button class="iconbtn langbtn" id="btnLangar" aria-pressed="false" title="عربي — يبدأ باللهجة السورية ثم يجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح. تبديل اللغة أثناء الإملاء المجاني يعيد تشغيل الاستماع باللغة الجديدة.">ar</button>
+      <button class="iconbtn langbtn" id="btnLangsv" aria-pressed="false" title="سويدي">sv</button>
+      <button class="iconbtn langbtn" id="btnLangen" aria-pressed="false" title="إنجليزي">en</button>
       <button class="iconbtn" id="btnPunct" aria-pressed="false">،؟</button>
     </span>
-    <div class="spacer"></div>
+  </div>
+
+  <div class="wrap row" style="padding-top:0">
     <span class="grp">
       <button class="iconbtn" id="btnCopy" title="ينسخ كل ما في الصندوق إلى الحافظة">⧉ نسخ</button>
       <button class="iconbtn" id="btnToPage" title="يرسل النص إلى مربع الكتابة في الصفحة التي فتحت منها الأداة" style="display:none">⏎ للصفحة</button>
@@ -156,6 +169,8 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
     </span>
     <span class="grp">
       <select class="mini" id="font" title="خط الصندوق. تقدر تضيف أي خط من جهازك من ⚙ الإعدادات."></select>
+    </span>
+    <span class="grp" style="margin-inline-start:auto">
       <button class="iconbtn" id="btnPip" title="يحوّل هذه النافذة إلى نافذة عائمة فوق كل التطبيقات، بلا أي تثبيت. تبقى نافذة فارغة في الخلفية لأن المتصفح يشترط ذلك — لا تُغلقها.">📌</button>
       <button class="iconbtn" id="btnSavePos" title="يحفظ مكان هذه النافذة وحجمها. يعمل في النافذة العادية فقط.">⤓</button>
       <button class="iconbtn" id="btnRestorePos" title="يعيد النافذة إلى الموضع المحفوظ. يعمل في النافذة العادية فقط.">↺</button>
@@ -164,7 +179,7 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
 </header>
 
 <main>
-  <textarea id="box" placeholder="اضغط «إملاء مجاني» أو «إملاء Gemini» لتبدأ — أو اكتب هنا مباشرة…" spellcheck="true"></textarea>
+  <textarea id="box" placeholder="اضغط زر الميكروفون الأخضر أو زر كيس النقود لتبدأ — أو اكتب هنا مباشرة…" spellcheck="true"></textarea>
   <div id="liveStrip"></div>
   <div id="note"></div>
 </main>
@@ -290,7 +305,6 @@ var DICT_LANGS = {
   sv: ["sv-SE","sv"],
   en: ["en-US","en-GB","en"]
 };
-var LANG_LABEL = { ar:"عربي (سوري أولاً)", sv:"سويدي", en:"إنجليزي" };
 var LANG_NAME_FOR_PROMPT = { ar:"العربية", sv:"السويدية", en:"الإنجليزية" };
 var LANG_DIR = { ar:"rtl", sv:"ltr", en:"ltr" };
 
@@ -363,7 +377,6 @@ function fillSelect(sel, list, current){
     sel.appendChild(o);
   });
 }
-fillSelect($("#lang"), Object.keys(LANG_LABEL).map(function(k){ return {value:k, label:LANG_LABEL[k]}; }), LS.get("fd.lang") || "ar");
 fillSelect($("#font"), getFontList().map(function(f){ return {value:f.id, label:f.name}; }), LS.get("fd.font") || "readex");
 
 function applyFont(){
@@ -375,9 +388,32 @@ function applyLangDir(){
   $("#box").setAttribute("dir", LANG_DIR[l] || "rtl");
   $("#box").setAttribute("lang", l);
 }
-$("#lang").addEventListener("change", function(){ LS.set("fd.lang", this.value); applyLangDir(); });
+/* ---------- language buttons — one visible button per language, the active
+   one highlighted, same pattern as the bar. #lang is a hidden input that stays
+   the single source of truth for every reader ($("#lang").value). Switching
+   while free dictation is running restarts listening in the new language,
+   also same as the bar. ---------- */
+var LANG_BTN = { ar:"#btnLangar", sv:"#btnLangsv", en:"#btnLangen" };
+function langPaint(){
+  var cur = $("#lang").value;
+  Object.keys(LANG_BTN).forEach(function(k){
+    var b = $(LANG_BTN[k]);
+    if(b) b.setAttribute("aria-pressed", k === cur ? "true" : "false");
+  });
+}
+function setLang(l, restart){
+  if(!DICT_LANGS[l]) return;
+  $("#lang").value = l;
+  LS.set("fd.lang", l);
+  applyLangDir(); langPaint();
+  if(restart && D.engine === "free"){ freeStop(); setTimeout(freeStart, 250); }
+}
+Object.keys(LANG_BTN).forEach(function(k){
+  $(LANG_BTN[k]).addEventListener("click", function(){ setLang(k, true); });
+});
+$("#lang").value = LS.get("fd.lang") || "ar";
 $("#font").addEventListener("change", function(){ LS.set("fd.font", this.value); applyFont(); });
-applyFont(); applyLangDir();
+applyFont(); applyLangDir(); langPaint();
 
 /* ---------- add fonts from this device (Local Font Access API) —
    Chrome/Edge desktop only, exactly the two browsers this tool targets.
@@ -586,7 +622,7 @@ function idleWatch(){
     var quiet = Date.now() - D.lastHeard;
     if(quiet >= limit){
       D.idleQuit = true;
-      note("توقف الإملاء المجاني — صمت طويل. اضغط «إملاء مجاني» لتستأنف.", true);
+      note("توقف الإملاء المجاني — صمت طويل. اضغط زر الميكروفون الأخضر لتستأنف.", true);
       freeStop();
       return;
     }
@@ -963,7 +999,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "1.5";
+var VERSION = "1.6";
 var VERSION_DATE = "٣١ أغسطس ٢٠٢٦";
 
 var GUIDE = [
@@ -973,21 +1009,21 @@ var GUIDE = [
    + "الأداة المزروعة داخل الصفحة لها رقمها الخاص، ويظهر في تلميح زر ✕ في شريطها — "
    + "لأنها ملف منفصل يتحدّث باستبدال الإشارة المرجعية، لا برفع هذا الملف."],
   ["الأزرار — الصف العلوي", "🎙 الاسم والشارة", "يمين الشريط العلوي اسم الأداة. جنبه تظهر شارة الوجهة أثناء الإملاء فقط، وتقول لك بالاسم إلى أين يذهب صوتك في تلك اللحظة: جوجل، أو مايكروسوفت، أو Gemini بمفتاحك. حين لا يكون هناك إملاء تختفي الشارة تماماً."],
-  ["الأزرار — الصف العلوي", "؟ الدليل", "هذا الدليل. مرتّب بنفس ترتيب الأزرار على الشاشة، وفي آخره قسم معلومات عامة عن الإملاء لا علاقة له بتشغيل الأداة."],
+  ["الأزرار — الصف العلوي", "الدليل", "هذا الدليل. مرتّب بنفس ترتيب الأزرار على الشاشة، وفي آخره قسم معلومات عامة عن الإملاء لا علاقة له بتشغيل الأداة."],
   ["الأزرار — الصف العلوي", "⚙ الإعدادات", "مفتاح Gemini، واختيار النموذج، وسقف الاستهلاك التقريبي، ومدة الصمت التي يتوقف بعدها الإملاء المجاني، وإضافة خطوط من جهازك."],
-  ["الأزرار — مجموعة الإملاء", "🎙️ مجاني", "يستمع بمحرك متصفحك، بلا تكلفة وبلا مفتاح. النص يظهر حياً وهو يتكوّن، ويُكتب في الصندوق فور ما تسكت لحظة — لا تنتظر زر الإيقاف. الوقفات القصيرة للتفكير لا توقفه؛ يتوقف وحده فقط بعد مدة الصمت المضبوطة في الإعدادات. اختصاره: F2."],
-  ["الأزرار — مجموعة الإملاء", "☁️ Gemini", "يسجّل تسجيلاً واحداً متواصلاً حتى تضغط إيقاف (بحد أقصى خمس دقائق)، ثم يرسله دفعة واحدة. لذلك النص يظهر عند الانتهاء لا أثناء الكلام، وهذا مقصود: تقطيع الصوت إلى مقاطع قصيرة يقطع الكلمات في منتصفها فيخمّن النموذج بقيتها. أدقّ من المجاني، وبنفس الدقة في كروم وEdge. يحتاج مفتاحاً من الإعدادات."],
-  ["الأزرار — مجموعة الإملاء", "ماذا يحدث إذا كان Gemini مزدحماً", "جوجل ترفض الطلب أحياناً حين يكون النموذج مزدحماً، وهذه الموجات تمرّ في ثوانٍ. فالأداة تعيد المحاولة وحدها بعد ثانية، ثم ثانيتين، ثم أربع، وتخبرك بما يجري — فلا يضيع تسجيلك لأن جوجل كانت مشغولة لحظة. أما نفاد الحصة فيبدو مشابهاً لكنه لا ينقضي بالانتظار، ولذلك يُبلَّغ فوراً بلا إعادة محاولة عابثة."],
-  ["الأزرار — مجموعة الإملاء", "⏹ إيقاف", "يقطع أي إملاء جارٍ فوراً. في مسار Gemini تحديداً، الضغط على إيقاف هو ما يُرسل التسجيل فعلياً."],
-  ["الأزرار — مجموعة اللغة", "قائمة اللغة", "عربي أو سويدي أو إنجليزي. العربي يبدأ باللهجة السورية ثم يجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح. تضبط أيضاً اتجاه الكتابة في الصندوق، وتُخبر Gemini باللغة في المسار المدفوع."],
-  ["الأزرار — مجموعة اللغة", "،؟ أوامر الترقيم", "مطفأة افتراضياً. حين تشغّلها، تُكتب هذه الكلمات كعلامات بدل أن تُكتب حروفاً: نقطة، فاصلة، فاصلة منقوطة، علامة استفهام، علامة تعجب، نقطتان، سطر جديد، فقرة جديدة. عيبها الوحيد أنك إن قلت إحدى هذه الكلمات في جملة عادية فستتحول أيضاً — لذلك هي زر تشغّله وتطفئه أنت، لا ميزة دائمة."],
-  ["الأزرار — مجموعة النص", "⧉ نسخ", "ينسخ كل ما في الصندوق إلى الحافظة بضغطة واحدة."],
-  ["الأزرار — مجموعة النص", "⏎ للصفحة", "لا يظهر إلا حين تفتح هذه النافذة من الأداة المزروعة داخل صفحة. يرسل النص إلى مربع الكتابة في تلك الصفحة تحديداً — لا إلى أي شيء آخر مفتوح على شاشتك. حتى لو كان وورد ظاهراً أمامك، النص يذهب إلى الصفحة التي انطلقت منها الأداة."],
-  ["الأزرار — مجموعة النص", "💾 احفظ", "ينقل نص الصندوق كله إلى قائمة الملاحظات ويُفرغ الصندوق لملاحظة جديدة. مفيد وأنت تعلّق على أشياء مختلفة أثناء التصفح."],
-  ["الأزرار — مجموعة النص", "📝 الملاحظات", "يفتح قائمة ما حفظته: لكل ملاحظة وقتها، وأزرار نسخ، وتحميلها رجوعاً إلى الصندوق للتعديل، وحذف. محفوظة في متصفحك وحده."],
-  ["الأزرار — مجموعة النافذة", "قائمة الخط", "خط الصندوق. تبدأ بخطين، وتقدر تضيف أي خط مثبَّت على جهازك من الإعدادات، بلا أي تعديل بالكود."],
-  ["الأزرار — مجموعة النافذة", "📌 فوق الكل", "يحوّل النافذة إلى عائمة فوق كل التطبيقات، بلا أي تثبيت. المتصفح يشترط بقاء نافذة فارغة في الخلفية — مكتوب فيها ألا تُغلقها — وفي هذا الوضع لا يعمل حفظ الموضع ولا استعادته لأن المتصفح هو من يتحكم بمكان النافذة. متى تحتاجه فعلاً: نادراً. إن كنت داخل المتصفح فالأداة المزروعة أفضل منه، وإن كنت في برنامج ويندوز فالأداة أصلاً لا تكتب هناك. وعلى جهاز تملك صلاحية التثبيت عليه، برنامج PowerToys من مايكروسوفت يعطيك نفس النتيجة بنافذة واحدة عبر Win+Ctrl+T."],
-  ["الأزرار — مجموعة النافذة", "⤓ و ↺ حفظ الموضع", "الأول يحفظ مكان النافذة وحجمها بالضبط، والثاني يعيدها إليه. يعملان في النافذة العادية فقط."],
+  ["الأزرار — صف الإملاء", "أيقونة الميكروفون الخضراء — المجاني", "زر بأيقونة بلا كلمة، والأخضر يعني أن الإملاء لا يمرّ بمفتاحك ولا يدخل عدّاد التكلفة. يستمع بمحرك متصفحك، بلا تكلفة وبلا مفتاح. النص يظهر حياً وهو يتكوّن، ويُكتب في الصندوق فور ما تسكت لحظة — لا تنتظر زر الإيقاف. الوقفات القصيرة للتفكير لا توقفه؛ يتوقف وحده فقط بعد مدة الصمت المضبوطة في الإعدادات. اختصاره: F2."],
+  ["الأزرار — صف الإملاء", "أيقونة كيس النقود الكهرمانية — Gemini", "زر بأيقونة كيس نقود، بنفس لغة ألوان الشريط: الكهرماني يعني أن هذا الزر يصرف من رصيدك. يسجّل تسجيلاً واحداً متواصلاً حتى تضغط إيقاف (بحد أقصى خمس دقائق)، ثم يرسله دفعة واحدة. لذلك النص يظهر عند الانتهاء لا أثناء الكلام، وهذا مقصود: تقطيع الصوت إلى مقاطع قصيرة يقطع الكلمات في منتصفها فيخمّن النموذج بقيتها. أدقّ من المجاني، وبنفس الدقة في كروم وEdge. يحتاج مفتاحاً من الإعدادات."],
+  ["الأزرار — صف الإملاء", "ماذا يحدث إذا كان Gemini مزدحماً", "جوجل ترفض الطلب أحياناً حين يكون النموذج مزدحماً، وهذه الموجات تمرّ في ثوانٍ. فالأداة تعيد المحاولة وحدها بعد ثانية، ثم ثانيتين، ثم أربع، وتخبرك بما يجري — فلا يضيع تسجيلك لأن جوجل كانت مشغولة لحظة. أما نفاد الحصة فيبدو مشابهاً لكنه لا ينقضي بالانتظار، ولذلك يُبلَّغ فوراً بلا إعادة محاولة عابثة."],
+  ["الأزرار — صف الإملاء", "⏹ إيقاف", "يظهر أثناء الإملاء فقط. يقطع أي إملاء جارٍ فوراً. في مسار Gemini تحديداً، الضغط على إيقاف هو ما يُرسل التسجيل فعلياً."],
+  ["الأزرار — صف الإملاء", "ar / sv / en أزرار اللغة", "ثلاثة أزرار ظاهرة بدل القائمة المنسدلة، كما في الشريط: تبدّل اللغة بنقرة واحدة وترى الفعّالة بنظرة لأن زرّها يظهر مضلَّلاً. العربي يبدأ باللهجة السورية ثم يجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح. تضبط أيضاً اتجاه الكتابة في الصندوق، وتُخبر Gemini باللغة في المسار المدفوع. وإن بدّلت اللغة أثناء الإملاء المجاني أعادت الأداة تشغيل الاستماع باللغة الجديدة وحدها."],
+  ["الأزرار — صف الإملاء", "،؟ أوامر الترقيم", "مطفأة افتراضياً. حين تشغّلها، تُكتب هذه الكلمات كعلامات بدل أن تُكتب حروفاً: نقطة، فاصلة، فاصلة منقوطة، علامة استفهام، علامة تعجب، نقطتان، سطر جديد، فقرة جديدة. عيبها الوحيد أنك إن قلت إحدى هذه الكلمات في جملة عادية فستتحول أيضاً — لذلك هي زر تشغّله وتطفئه أنت، لا ميزة دائمة."],
+  ["الأزرار — صف النص والنافذة","⧉ نسخ", "ينسخ كل ما في الصندوق إلى الحافظة بضغطة واحدة."],
+  ["الأزرار — صف النص والنافذة","⏎ للصفحة", "لا يظهر إلا حين تفتح هذه النافذة من الأداة المزروعة داخل صفحة. يرسل النص إلى مربع الكتابة في تلك الصفحة تحديداً — لا إلى أي شيء آخر مفتوح على شاشتك. حتى لو كان وورد ظاهراً أمامك، النص يذهب إلى الصفحة التي انطلقت منها الأداة."],
+  ["الأزرار — صف النص والنافذة","💾 احفظ", "ينقل نص الصندوق كله إلى قائمة الملاحظات ويُفرغ الصندوق لملاحظة جديدة. مفيد وأنت تعلّق على أشياء مختلفة أثناء التصفح."],
+  ["الأزرار — صف النص والنافذة","📝 الملاحظات", "يفتح قائمة ما حفظته: لكل ملاحظة وقتها، وأزرار نسخ، وتحميلها رجوعاً إلى الصندوق للتعديل، وحذف. محفوظة في متصفحك وحده."],
+  ["الأزرار — صف النص والنافذة","قائمة الخط", "خط الصندوق. تبدأ بخطين، وتقدر تضيف أي خط مثبَّت على جهازك من الإعدادات، بلا أي تعديل بالكود."],
+  ["الأزرار — صف النص والنافذة","📌 فوق الكل", "يحوّل النافذة إلى عائمة فوق كل التطبيقات، بلا أي تثبيت. أثناء التفعيل يتحوّل الزر إلى ↩ وضغطه يرجعها عادية. المتصفح يشترط بقاء نافذة فارغة في الخلفية — مكتوب فيها ألا تُغلقها — وفي هذا الوضع لا يعمل حفظ الموضع ولا استعادته لأن المتصفح هو من يتحكم بمكان النافذة. متى تحتاجه فعلاً: نادراً. إن كنت داخل المتصفح فالأداة المزروعة أفضل منه، وإن كنت في برنامج ويندوز فالأداة أصلاً لا تكتب هناك. وعلى جهاز تملك صلاحية التثبيت عليه، برنامج PowerToys من مايكروسوفت يعطيك نفس النتيجة بنافذة واحدة عبر Win+Ctrl+T."],
+  ["الأزرار — صف النص والنافذة","⤓ و ↺ حفظ الموضع", "الأول يحفظ مكان النافذة وحجمها بالضبط، والثاني يعيدها إليه. يعملان في النافذة العادية فقط."],
   ["الأزرار — الأداة المزروعة", "شكل الشريط", "الشريط له حالتان. حين يبتعد الماوس عنه ينكمش إلى دائرة الميكروفون وحدها، فلا يغطي من الصفحة إلا حجم إصبع؛ وحين يقترب الماوس منها يعود الشريط كاملاً. أثناء الإملاء تبقى تحت الدائرة شارة الوجهة وصندوق الرسائل والعدّ التنازلي حتى وهو منكمش، لأنك تحتاجها، والدائرة تنبض بالأحمر ما دام يسجّل. الشريط الكامل مرتَّب في ثلاثة صفوف: الأول زر الإغلاق ✕ صغيراً في الزاوية ومقبض التحريك ⠿⠿⠿ بجانبه، الثاني ما تلمسه وأنت تملي: 🎙️ ثم أزرار اللغة ar و sv و en، والثالث ما تضبطه مرة وتنساه: 💰 ثم ▤ ثم ⚙. لا ينكمش الشريط ما دام صف الإعدادات مفتوحاً أو الصندوق الاحتياطي ظاهراً، حتى لا يختفي وأنت تعمل فيهما؛ أغلقهما ويعود إلى الانكماش. عند ضغط الإشارة المرجعية يظهر كاملاً لحظتين ثم ينكمش. ومكانه يُحفظ لكل موقع على حدة، لأنه يعيش داخل صفحة الموقع نفسه فذاكرته تخصّ ذلك الموقع وحده. ولا يخرج عن حدود الشاشة: إن ضاقت النافذة أو سحبته إلى الحافة أعاد نفسه إلى الداخل. ونصوص الشريط كلها لا تدخل في تحديد نص الصفحة، فحين تحدد نصاً في الموقع أو تضغط تحديد الكل لا يُنسخ معه شيء من الشريط — ما عدا الصندوق الاحتياطي، فنصه يُحدَّد لأنك تحتاج نسخه."],
   ["الأزرار — الأداة المزروعة", "⠿⠿⠿ مقبض التحريك والسحب من الدائرة", "في الحالة الكاملة اضغط على المقبض واسحب، ومؤشّر الفأرة يصير يداً ممسكة. وفي الحالة المنكمشة الدائرة نفسها هي ما تسحبه. السحب لا يبدأ تسجيلاً أبداً: الشريط يفرّق بين سحب يحرّك الفأرة بضعة بكسلات ونقرة قصيرة في مكانها، والنقرة وحدها تشغّل الإملاء أو توقفه."],
   ["الأزرار — الأداة المزروعة", "🎙️ الميكروفون (في الشريط)", "الإملاء المجاني نفسه، لكنه يكتب مباشرة في مربع الكتابة الذي نقرت فيه على الصفحة، بلا نسخ ولا لصق. أيقونة بلا كلمة توفيراً للعرض، ويتحوّل إلى ⏹ ويحمرّ أثناء التسجيل، وينبض حين يكون الشريط منكمشاً على الدائرة، والضغط عليه يوقف. اختصاره F2. يتوقف وحده بعد مدة الصمت المضبوطة في ⚙ الشريط — لا في إعدادات هذه النافذة — والافتراضي دقيقتان. الشارة تحت الشريط تسمّي لك الجهة التي يذهب إليها صوتك أثناء التسجيل."],
@@ -1095,7 +1131,11 @@ var pipSupported = "documentPictureInPicture" in window;
 function setPipButton(active){
   var b = $("#btnPip");
   if(!b) return;
-  b.textContent = active ? "↩ رجّعها عادية" : "📌 فوق الكل";
+  /* icon only, so the row width never jumps when the state flips */
+  b.textContent = active ? "↩" : "📌";
+  b.title = active
+    ? "يرجع الأداة من النافذة العائمة إلى النافذة العادية."
+    : "يحوّل هذه النافذة إلى نافذة عائمة فوق كل التطبيقات، بلا أي تثبيت. تبقى نافذة فارغة في الخلفية لأن المتصفح يشترط ذلك — لا تُغلقها.";
   b.setAttribute("aria-pressed", active ? "true" : "false");
 }
 function movePipStyles(target){
@@ -1146,7 +1186,7 @@ async function togglePip(){
       + "<div style='font-weight:700;font-size:16px;margin-bottom:8px'>الأداة انتقلت إلى النافذة العائمة الصغيرة</div>"
       + "<div style='font-size:13.5px;color:#5c6673'>لا تُغلق هذه النافذة — المتصفح يشترط بقاءها مفتوحة "
       + "لتشغيل النافذة العائمة، وإغلاقها يُغلق الاثنتين معاً. صغّرها وانساها."
-      + "<br><br>لإرجاع الأداة إلى هنا، اضغط «↩ رجّعها عادية» في النافذة العائمة.</div>";
+      + "<br><br>لإرجاع الأداة إلى هنا، اضغط زر ↩ في النافذة العائمة.</div>";
     document.body.appendChild(shim);
     pipWin.addEventListener("pagehide", function(){
       var s = document.getElementById("pipShim");
@@ -1178,7 +1218,7 @@ else $("#btnPip").style.display = "none";
     try{
       window.opener.postMessage({source:"floatingDictation", type:"insert", text:t}, "*");
       btn.textContent = "✓ انبعت";
-      setTimeout(function(){ btn.textContent = "⏎ أرسل للصفحة"; }, 1200);
+      setTimeout(function(){ btn.textContent = "⏎ للصفحة"; }, 1200);
     }catch(e){
       note("تعذّر الإرسال — الصفحة الأصلية غالباً أُغلقت أو تحدّثت.", true);
     }
@@ -1213,7 +1253,7 @@ else $("#btnPip").style.display = "none";
     var secs = d.secs || 0;
     note("☁️ يفرّغ " + secs + " ث من الصفحة …");
     var blob = new Blob([d.buf], {type: d.mime || "audio/webm"});
-    if(d.lang && $("#lang").value !== d.lang){ $("#lang").value = d.lang; }
+    if(d.lang && $("#lang").value !== d.lang){ setLang(d.lang, false); }
     blobToWavBase64(blob).then(function(w){
       return callGemini(w.b64).then(function(r){
         var usd = costFromUsage(r.usage);
