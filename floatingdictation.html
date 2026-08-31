@@ -78,9 +78,21 @@ select.mini{border:1px solid var(--line); border-radius:10px; padding:6px 8px; f
 #btnPip,#btnSavePos,#btnRestorePos,#btnCopy,#btnSaveNote,#btnNotes,#btnToPage{padding:6px 7px}
 
 main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; min-height:0}
+/* شريط تحرير ملتصق بأعلى الصندوق: يقرأ كأنه حافّة الصندوق لا صفّ أزرار ثالث */
+.editbar{
+  display:flex; align-items:center; gap:3px; background:var(--panel);
+  border:1px solid var(--line); border-bottom:0;
+  border-radius:var(--radius) var(--radius) 0 0; padding:3px 6px; margin-bottom:-1px;
+}
+.ebtn{
+  border:0; background:transparent; border-radius:7px; padding:3px 7px; font-size:13px;
+  color:var(--muted); line-height:1.4;
+}
+.ebtn:hover:not(:disabled){ background:#eef1f5; color:var(--ink) }
+.ebtn:disabled{ opacity:.35; cursor:not-allowed }
 #box{
   flex:1; min-height:120px; width:100%; resize:none; border:1px solid var(--line);
-  border-radius:var(--radius); padding:12px; font-size:15.5px; line-height:1.7;
+  border-radius:0 0 var(--radius) var(--radius); padding:12px; font-size:15.5px; line-height:1.7;
   background:var(--panel); box-shadow:var(--shadow); color:var(--ink);
 }
 #box:focus{outline:2px solid var(--accent-line); outline-offset:1px}
@@ -177,6 +189,15 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:6px; mi
 </header>
 
 <main>
+  <div class="editbar" id="editBar">
+    <button class="ebtn" id="edCut"  title="يقص المحدَّد إلى الحافظة. وإن لم تحدّد شيئاً قصّ كل الصندوق.">✂</button>
+    <button class="ebtn" id="edCopy" title="ينسخ المحدَّد إلى الحافظة. وإن لم تحدّد شيئاً نسخ كل الصندوق.">⧉</button>
+    <button class="ebtn" id="edPaste" title="يلصق ما في الحافظة عند المؤشر. إن رفض المتصفح قراءة الحافظة استعمل Ctrl+V.">📋</button>
+    <button class="ebtn" id="edAll"  title="يحدّد كل نص الصندوق">⬚</button>
+    <button class="ebtn" id="edClear" title="يمسح الصندوق كله — ويبقى التراجع متاحاً">🗑</button>
+    <div class="spacer"></div>
+    <button class="ebtn" id="edUndo" title="يتراجع عن آخر تعديل من هذا الشريط: مسح أو قص أو لصق. حتى عشر خطوات." disabled>↶</button>
+  </div>
   <textarea id="box" placeholder="اضغط زر الميكروفون الأخضر أو زر كيس النقود لتبدأ — أو اكتب هنا مباشرة…" spellcheck="true"></textarea>
   <div id="liveStrip"></div>
   <div id="note"></div>
@@ -355,16 +376,46 @@ function applyPunct(text){
    their own from Settings without any code change (see Local Font Access
    picker below) ---------- */
 var BUILTIN_FONTS = [
-  { id:"readex",    name:"Readex Pro",           css:"'Readex Pro','Segoe UI',system-ui,sans-serif" },
-  { id:"atkinson",  name:"Atkinson Hyperlegible", css:"'Atkinson Hyperlegible','Segoe UI',system-ui,sans-serif" }
-  /* to bundle another Google Font permanently for everyone: import it in
-     <head>, then add one object here. For a font already installed on one
-     person's own computer, they don't need this — the "أضف خطاً من جهازك"
-     button in Settings does it themselves, no code edit needed. */
+  /* خطّا الأداة، محمّلان مع الصفحة فيعملان على أي جهاز */
+  { id:"readex",    name:"Readex Pro (مرفق)",            css:"'Readex Pro','Segoe UI',system-ui,sans-serif", langs:["ar","sv","en"] },
+  { id:"atkinson",  name:"Atkinson Hyperlegible (مرفق)", css:"'Atkinson Hyperlegible','Segoe UI',system-ui,sans-serif", langs:["ar","sv","en"] },
+  /* خطوط عربية شائعة على ويندوز. لا تُحمَّل من الإنترنت: إن لم تكن مثبَّتة
+     على الجهاز رجع المتصفح إلى البديل الذي بعدها في السلسلة، فلا يظهر خطأ. */
+  { id:"segoe",     name:"Segoe UI",              css:"'Segoe UI',system-ui,sans-serif",                 langs:["ar","sv","en"] },
+  { id:"tahoma",    name:"Tahoma",                css:"Tahoma,'Segoe UI',sans-serif",                    langs:["ar","sv","en"] },
+  { id:"arial",     name:"Arial",                 css:"Arial,Helvetica,sans-serif",                      langs:["ar","sv","en"] },
+  { id:"dubai",     name:"Dubai",                 css:"Dubai,'Segoe UI',Tahoma,sans-serif",              langs:["ar"] },
+  { id:"trad",      name:"Traditional Arabic",    css:"'Traditional Arabic','Times New Roman',serif",    langs:["ar"] },
+  { id:"simpl",     name:"Simplified Arabic",     css:"'Simplified Arabic',Tahoma,sans-serif",           langs:["ar"] },
+  { id:"amiri",     name:"Amiri",                 css:"Amiri,'Traditional Arabic',serif",                langs:["ar"] },
+  { id:"noto",      name:"Noto Naskh Arabic",     css:"'Noto Naskh Arabic','Segoe UI',serif",            langs:["ar"] },
+  /* خطوط لاتينية للسويدي والإنجليزي */
+  { id:"calibri",   name:"Calibri",               css:"Calibri,'Segoe UI',sans-serif",                   langs:["sv","en"] },
+  { id:"verdana",   name:"Verdana",               css:"Verdana,Geneva,sans-serif",                       langs:["sv","en"] },
+  { id:"georgia",   name:"Georgia",               css:"Georgia,'Times New Roman',serif",                 langs:["sv","en"] },
+  { id:"times",     name:"Times New Roman",       css:"'Times New Roman',Times,serif",                   langs:["sv","en"] },
+  { id:"consolas",  name:"Consolas",              css:"Consolas,'Courier New',monospace",                langs:["sv","en"] }
+  /* لإضافة خط جديد للجميع: سطر واحد هنا. أما خط مثبَّت على جهازك وحدك فلا
+     يحتاج تعديل كود إطلاقاً — زر «أضف خطاً من جهازك» في الإعدادات يكفي. */
 ];
+/* الخط الافتراضي لكل لغة، وأول ما تفتح الأداة. يتبدّل مع تبديل اللغة، ويبقى
+   اختيارك اليدوي لكل لغة محفوظاً على حدة فلا تعيد ضبطه كل مرة. */
+var LANG_FONT_DEFAULT = { ar:"readex", sv:"readex", en:"readex" };
+function fontKey(l){ return "fd.font." + l; }
 function customFonts(){ try{ return JSON.parse(LS.get("fd.customFonts") || "[]"); }catch(e){ return []; } }
 function saveCustomFonts(list){ LS.set("fd.customFonts", JSON.stringify(list)); }
+/* خطوط جهازك تظهر مع كل اللغات، لأنك أنت من أضافها وأنت أدرى بأين تصلح */
 function getFontList(){ return BUILTIN_FONTS.concat(customFonts()); }
+function fontsForLang(l){
+  return getFontList().filter(function(f){ return !f.langs || f.langs.indexOf(l) >= 0; });
+}
+function currentFontId(){
+  var l = ($("#lang") && $("#lang").value) || "ar";
+  var saved = LS.get(fontKey(l));
+  var list = fontsForLang(l);
+  if(saved && list.some(function(f){ return f.id === saved; })) return saved;
+  return LANG_FONT_DEFAULT[l] || "readex";
+}
 
 function fillSelect(sel, list, current){
   sel.innerHTML = "";
@@ -375,11 +426,17 @@ function fillSelect(sel, list, current){
     sel.appendChild(o);
   });
 }
-fillSelect($("#font"), getFontList().map(function(f){ return {value:f.id, label:f.name}; }), LS.get("fd.font") || "readex");
+refreshFontSelect();
 
 function applyFont(){
   var f = getFontList().find(function(x){ return x.id === $("#font").value; }) || BUILTIN_FONTS[0];
   $("#box").style.fontFamily = f.css;
+}
+/* القائمة تعرض خطوط اللغة الحالية وحدها، فلا تبحث عن خط عربي بين خطوط سويدية */
+function refreshFontSelect(){
+  var l = ($("#lang") && $("#lang").value) || "ar";
+  fillSelect($("#font"), fontsForLang(l).map(function(f){ return {value:f.id, label:f.name}; }), currentFontId());
+  applyFont();
 }
 function applyLangDir(){
   var l = $("#lang").value;
@@ -403,15 +460,15 @@ function setLang(l, restart){
   if(!DICT_LANGS[l]) return;
   $("#lang").value = l;
   LS.set("fd.lang", l);
-  applyLangDir(); langPaint();
+  applyLangDir(); langPaint(); refreshFontSelect();
   if(restart && D.engine === "free"){ freeStop(); setTimeout(freeStart, 250); }
 }
 Object.keys(LANG_BTN).forEach(function(k){
   $(LANG_BTN[k]).addEventListener("click", function(){ setLang(k, true); });
 });
 $("#lang").value = LS.get("fd.lang") || "ar";
-$("#font").addEventListener("change", function(){ LS.set("fd.font", this.value); applyFont(); });
-applyFont(); applyLangDir(); langPaint();
+$("#font").addEventListener("change", function(){ LS.set(fontKey($("#lang").value), this.value); applyFont(); });
+applyLangDir(); langPaint(); refreshFontSelect();
 
 /* ---------- add fonts from this device (Local Font Access API) —
    Chrome/Edge desktop only, exactly the two browsers this tool targets.
@@ -419,11 +476,6 @@ applyFont(); applyLangDir(); langPaint();
    needs loading: setting font-family to the family name is enough. ---------- */
 function localFontsSupported(){ return typeof window.queryLocalFonts === "function"; }
 function slugId(s){ return "cf_" + s.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g,"_").slice(0,40) + "_" + (Date.now()%100000); }
-function refreshFontSelect(){
-  var cur = $("#font").value || LS.get("fd.font") || "readex";
-  fillSelect($("#font"), getFontList().map(function(f){ return {value:f.id, label:f.name}; }), cur);
-  applyFont();
-}
 function paintCustomFontsSettings(){
   var box = $("#customFontsList"); if(!box) return;
   var list = customFonts();
@@ -450,7 +502,7 @@ function addCustomFont(family){
 }
 function paintFontPicker(q){
   var box = $("#fpList"); box.innerHTML = "";
-  var already = getFontList().map(function(f){ return f.name; });
+  var already = getFontList().map(function(f){ return f.name; });   /* بالاسم، فلا يُضاف خط مرتين */
   var families = window._fpFamilies || [];
   var shown = 0;
   families.forEach(function(fam){
@@ -944,7 +996,7 @@ function micTips(){
     "الزر المدفوع: يعالج صوتك نموذج " + modelName() + " بمفتاحك أنت، وتبدّله من ⚙ الإعدادات." +
     " يسجّل تسجيلاً واحداً متواصلاً حتى تضغط «إيقاف» (بحد أقصى ١٠ دقائق) ثم يرسله دفعة واحدة،" +
     " فالنص يظهر عند الانتهاء لا أثناء الكلام، جاهزاً للنسخ. أدقّ من المجاني، ونفس الدقة في كروم وEdge." +
-    " ويقبل خلط أكثر من لغة في التسجيل الواحد — يفرّغ كل لغة بحروفها — واللغة المختارة تبقى الأساس الذي يرجّحه." +
+    " ويفرّغ باللغة المختارة من أزرار اللغة." +
     (onPaidTier()
       ? " يُخصم من رصيدك، وعلى الطبقة المدفوعة لا تستعمل جوجل صوتك في تدريب نماذجها."
       : " على الطبقة المجانية لا يكلّفك مالاً، لكن قد تستعمل جوجل صوتك في تحسين منتجاتها. بدّل الطبقة من ⚙ إن فوترت مفتاحك.");
@@ -979,6 +1031,88 @@ $("#btnCopy").addEventListener("click", function(){
     b.textContent = "✗"; setTimeout(function(){ b.textContent = "⧉"; }, 1200);
   });
 });
+
+/* ---------- شريط التحرير ----------
+   الكتابة العادية يتراجع عنها المتصفح بـ Ctrl+Z. أما ما يفعله هذا الشريط
+   فيكتب في الصندوق برمجياً، وذلك يقطع سلسلة تراجع المتصفح — فله سلسلته
+   الخاصة: نحفظ نص الصندوق قبل كل عملية، حتى عشر خطوات، ويعيدها زر ↶. */
+var EDIT_UNDO = [];
+function edSnapshot(){
+  var el = $("#box");
+  EDIT_UNDO.push({ text: el.value, a: el.selectionStart, b: el.selectionEnd });
+  if(EDIT_UNDO.length > 10) EDIT_UNDO.shift();
+  edPaintUndo();
+}
+function edPaintUndo(){ $("#edUndo").disabled = EDIT_UNDO.length === 0; }
+function edSel(){
+  var el = $("#box");
+  var a = el.selectionStart, b = el.selectionEnd;
+  if(a === b){ a = 0; b = el.value.length; }        /* بلا تحديد: الصندوق كله */
+  return { a:a, b:b, text: el.value.slice(a, b) };
+}
+function edFlash(btn, mark){
+  var was = btn.textContent;
+  btn.textContent = mark;
+  setTimeout(function(){ btn.textContent = was; }, 900);
+}
+function edReplace(a, b, text){
+  var el = $("#box");
+  edSnapshot();
+  el.value = el.value.slice(0, a) + text + el.value.slice(b);
+  var caret = a + text.length;
+  el.focus();
+  try{ el.setSelectionRange(caret, caret); }catch(e){}
+  D.pos = caret;
+}
+$("#edCopy").addEventListener("click", function(){
+  var s = edSel(), b = this;
+  if(!s.text){ note("الصندوق فاضي — ما في شي تنسخه.", true); return; }
+  navigator.clipboard.writeText(s.text).then(function(){ edFlash(b, "✓"); }, function(){ edFlash(b, "✗"); });
+});
+$("#edCut").addEventListener("click", function(){
+  var s = edSel(), b = this;
+  if(!s.text){ note("الصندوق فاضي — ما في شي تقصّه.", true); return; }
+  navigator.clipboard.writeText(s.text).then(function(){
+    edReplace(s.a, s.b, "");
+    edFlash(b, "✓");
+  }, function(){ edFlash(b, "✗"); note("تعذّر النسخ إلى الحافظة، فلم يُقصّ شيء — استعمل Ctrl+X.", true); });
+});
+$("#edPaste").addEventListener("click", function(){
+  var el = $("#box"), b = this;
+  if(!navigator.clipboard || !navigator.clipboard.readText){
+    note("هذا المتصفح لا يعطي الصفحات قراءة الحافظة — استعمل Ctrl+V.", true); return;
+  }
+  navigator.clipboard.readText().then(function(t){
+    if(!t){ note("الحافظة فاضية."); return; }
+    edReplace(el.selectionStart, el.selectionEnd, t);
+    edFlash(b, "✓");
+  }, function(){
+    note("رفض المتصفح قراءة الحافظة — استعمل Ctrl+V، أو اسمح بالحافظة من أيقونة القفل يسار شريط العنوان.", true);
+  });
+});
+$("#edAll").addEventListener("click", function(){
+  var el = $("#box");
+  el.focus();
+  try{ el.setSelectionRange(0, el.value.length); }catch(e){}
+});
+$("#edClear").addEventListener("click", function(){
+  var el = $("#box");
+  if(!el.value){ note("الصندوق فاضي أصلاً."); return; }
+  edReplace(0, el.value.length, "");
+  note("مُسح الصندوق — زر ↶ يرجّعه.");
+});
+$("#edUndo").addEventListener("click", function(){
+  var st = EDIT_UNDO.pop();
+  if(!st) return;
+  var el = $("#box");
+  el.value = st.text;
+  el.focus();
+  try{ el.setSelectionRange(st.a, st.b); }catch(e){}
+  D.pos = st.b;
+  edPaintUndo();
+  note("رجّعت آخر تعديل.");
+});
+edPaintUndo();
 
 /* ---------- real OS window position — only works reliably on a window opened
    via window.open() from the bookmarklet, not a normal tab ---------- */
@@ -1027,7 +1161,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "1.8";
+var VERSION = "1.9";
 var VERSION_DATE = "٣١ أغسطس ٢٠٢٦";
 
 var GUIDE = [
@@ -1038,7 +1172,7 @@ var GUIDE = [
    + "لأنها ملف منفصل يتحدّث باستبدال الإشارة المرجعية، لا برفع هذا الملف."],
   ["الأزرار — سطر العنوان", "🎙 الاسم والشارة", "يمين سطر العنوان أيقونة الأداة فاسمها فرقم نسختها. وتظهر بعدها شارة الوجهة أثناء الإملاء فقط، وتسمّي لك من يعالج صوتك في تلك اللحظة بالضبط: في المجاني محرّك متصفحك — جوجل في كروم ومايكروسوفت في Edge — مع تنبيه أنه بلا مفتاحك، وفي المدفوع اسم النموذج الذي اخترته من الإعدادات. حين لا يكون هناك إملاء تختفي الشارة تماماً."],
   ["الأزرار — سطر الأزرار، من اليمين","أيقونة الميكروفون الخضراء — المجاني", "زر بأيقونة بلا كلمة، والأخضر يعني أن الإملاء لا يمرّ بمفتاحك ولا يدخل عدّاد التكلفة. وهذا صحيح دائماً حتى لو كانت طبقة مفتاحك مدفوعة: الزر المجاني لا يلمس المفتاح إطلاقاً، فلا تستغرب أن تقول الشارة «جوجل عبر كروم» وأنت على خطة مدفوعة — ذاك هو المقصود، وللمدفوع زر كيس النقود. يستمع بمحرك متصفحك، بلا تكلفة وبلا مفتاح. لغة واحدة في الجلسة، هي المختارة من أزرار اللغة. النص يظهر حياً وهو يتكوّن، ويُكتب في الصندوق فور ما تسكت لحظة — لا تنتظر زر الإيقاف. الوقفات القصيرة للتفكير لا توقفه؛ يتوقف وحده فقط بعد مدة الصمت المضبوطة في الإعدادات. اختصاره: F2."],
-  ["الأزرار — سطر الأزرار، من اليمين","أيقونة كيس النقود الكهرمانية — Gemini", "زر بأيقونة كيس نقود، بنفس لغة ألوان الشريط: الكهرماني يعني أن هذا الزر يصرف من رصيدك. يسجّل تسجيلاً واحداً متواصلاً حتى تضغط إيقاف (بحد أقصى عشر دقائق)، ثم يرسله دفعة واحدة. لذلك النص يظهر عند الانتهاء لا أثناء الكلام، وهذا مقصود: تقطيع الصوت إلى مقاطع قصيرة يقطع الكلمات في منتصفها فيخمّن النموذج بقيتها. أدقّ من المجاني، وبنفس الدقة في كروم وEdge. يحتاج مفتاحاً من الإعدادات، والتلميح على الزر والشارة أثناء التسجيل يسمّيان النموذج الذي يعالج صوتك. ويقبل هذا المسار خلط أكثر من لغة في التسجيل الواحد فيفرّغ كل لغة بحروفها، واللغة المختارة تبقى الأساس الذي يرجّحه."],
+  ["الأزرار — سطر الأزرار، من اليمين","أيقونة كيس النقود الكهرمانية — Gemini", "زر بأيقونة كيس نقود، بنفس لغة ألوان الشريط: الكهرماني يعني أن هذا الزر يصرف من رصيدك. يسجّل تسجيلاً واحداً متواصلاً حتى تضغط إيقاف (بحد أقصى عشر دقائق)، ثم يرسله دفعة واحدة. لذلك النص يظهر عند الانتهاء لا أثناء الكلام، وهذا مقصود: تقطيع الصوت إلى مقاطع قصيرة يقطع الكلمات في منتصفها فيخمّن النموذج بقيتها. أدقّ من المجاني، وبنفس الدقة في كروم وEdge. يحتاج مفتاحاً من الإعدادات، والتلميح على الزر والشارة أثناء التسجيل يسمّيان النموذج الذي يعالج صوتك. ويفرّغ باللغة المختارة من أزرار اللغة، لغة واحدة في التسجيل الواحد."],
   ["الأزرار — سطر الأزرار، من اليمين","ماذا يحدث إذا كان Gemini مزدحماً", "جوجل ترفض الطلب أحياناً حين يكون النموذج مزدحماً، وهذه الموجات تمرّ في ثوانٍ. فالأداة تعيد المحاولة وحدها بعد ثانية، ثم ثانيتين، ثم أربع، وتخبرك بما يجري — فلا يضيع تسجيلك لأن جوجل كانت مشغولة لحظة. أما نفاد الحصة فيبدو مشابهاً لكنه لا ينقضي بالانتظار، ولذلك يُبلَّغ فوراً بلا إعادة محاولة عابثة."],
   ["الأزرار — سطر الأزرار، من اليمين","⏹ إيقاف", "زر أحمر بأيقونة وحدها، يظهر أثناء الإملاء فقط ويختفي بعده. يقطع أي إملاء جارٍ فوراً. في مسار Gemini تحديداً، الضغط على إيقاف هو ما يُرسل التسجيل فعلياً."],
   ["الأزرار — سطر الأزرار، من اليمين","ar / sv / en أزرار اللغة", "ثلاثة أزرار ظاهرة بدل القائمة المنسدلة، كما في الشريط: تبدّل اللغة بنقرة واحدة وترى الفعّالة بنظرة لأن زرّها يظهر مضلَّلاً. العربي يبدأ باللهجة السورية ثم يجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح. تضبط أيضاً اتجاه الكتابة في الصندوق، وتُخبر Gemini باللغة في المسار المدفوع. وإن بدّلت اللغة أثناء الإملاء المجاني أعادت الأداة تشغيل الاستماع باللغة الجديدة وحدها."],
@@ -1047,7 +1181,7 @@ var GUIDE = [
   ["الأزرار — سطر الأزرار، من اليمين","⏎ للصفحة", "لا يظهر إلا حين تفتح هذه النافذة من الأداة المزروعة داخل صفحة. يرسل النص إلى مربع الكتابة في تلك الصفحة تحديداً — لا إلى أي شيء آخر مفتوح على شاشتك. حتى لو كان وورد ظاهراً أمامك، النص يذهب إلى الصفحة التي انطلقت منها الأداة."],
   ["الأزرار — سطر الأزرار، من اليمين","💾 احفظ", "ينقل نص الصندوق كله إلى قائمة الملاحظات ويُفرغ الصندوق لملاحظة جديدة. مفيد وأنت تعلّق على أشياء مختلفة أثناء التصفح."],
   ["الأزرار — سطر الأزرار، من اليمين","📝 الملاحظات", "يفتح قائمة ما حفظته: لكل ملاحظة وقتها، وأزرار نسخ، وتحميلها رجوعاً إلى الصندوق للتعديل، وحذف. محفوظة في متصفحك وحده."],
-  ["الأزرار — سطر الأزرار، من اليمين","قائمة الخط", "خط الصندوق. تبدأ بخطين، وتقدر تضيف أي خط مثبَّت على جهازك من الإعدادات، بلا أي تعديل بالكود."],
+  ["الأزرار — سطر الأزرار، من اليمين","قائمة الخط", "خط الصندوق، ولكل لغة قائمتها: تعرض القائمة خطوط اللغة الحالية وحدها فلا تبحث عن خط عربي بين خطوط سويدية. واختيارك يُحفظ لكل لغة على حدة ويتبدّل معها تلقائياً، فتبقى العربية بخطها والسويدية بخطها بلا ضبط في كل مرة. الخطان الأولان مرفقان مع الأداة فيعملان على أي جهاز، وبقية الخطوط تعتمد على ما هو مثبَّت على جهازك — وإن لم يكن الخط موجوداً رجع المتصفح إلى أقرب بديل بلا خطأ. وتقدر تضيف أي خط مثبَّت على جهازك من الإعدادات، فيظهر مع كل اللغات."],
   ["الأزرار — سطر الأزرار، من اليمين","📌 فوق الكل", "يحوّل النافذة إلى عائمة فوق كل التطبيقات، بلا أي تثبيت. أثناء التفعيل يتحوّل الزر إلى ↩ وضغطه يرجعها عادية. المتصفح يشترط بقاء نافذة فارغة في الخلفية — مكتوب فيها ألا تُغلقها — وفي هذا الوضع لا يعمل حفظ الموضع ولا استعادته لأن المتصفح هو من يتحكم بمكان النافذة. متى تحتاجه فعلاً: نادراً. إن كنت داخل المتصفح فالأداة المزروعة أفضل منه، وإن كنت في برنامج ويندوز فالأداة أصلاً لا تكتب هناك. وعلى جهاز تملك صلاحية التثبيت عليه، برنامج PowerToys من مايكروسوفت يعطيك نفس النتيجة بنافذة واحدة عبر Win+Ctrl+T."],
   ["الأزرار — سطر الأزرار، من اليمين","⤓ و ↺ حفظ الموضع", "الأول يحفظ مكان النافذة وحجمها بالضبط، والثاني يعيدها إليه. يعملان في النافذة العادية فقط."],
   ["الأزرار — سطر الأزرار، من اليمين","الدليل", "هذا الدليل. مرتّب بنفس ترتيب الأزرار على الشاشة، وفي آخره قسم معلومات عامة عن الإملاء لا علاقة له بتشغيل الأداة."],
@@ -1062,6 +1196,12 @@ var GUIDE = [
   ["الأزرار — الأداة المزروعة", "✕ الإغلاق (في الشريط)", "باهت اللون في طرف الصف الأول، بعيداً عن أزرار العمل حتى لا تغلق الشريط بالغلط وأنت تملي، ولا يحمرّ إلا عند الوقوف عليه. يخفي الشريط، ويعود بضغطة الإشارة المرجعية من جديد. والشريط يختفي وحده مع أي تحديث للصفحة. وتلميحه يحمل رقم نسخة الشريط."],
   ["الأزرار — الأداة المزروعة", "النص الحي وصندوق الرسائل", "النص وهو يتكوّن أثناء كلامك يظهر في لوحة واسعة وسط الشاشة بخط كبير مريح للقراءة، مهما كان مكان الشريط أو كان منكمشاً — لأنك تقرأ ما تمليه ولا تلاحق مكان الزر. أما الشريط الرمادي الصغير أسفل الأداة فيشرح ما يجري: يستمع الآن، أو صمت ويتوقف بعد كذا ثانية، أو سبب فشل ما. يبقى ظاهراً تحت الدائرة حتى والشريط منكمش، لأنه من الأشياء التي تحتاجها وأنت تملي. رسائل الحالة العادية تختفي وحدها بعد ثوانٍ، ورسائل الخطأ تبقى حتى تقرأها — وتختفي بنقرة واحدة عليها."],
   ["الأزرار — الأداة المزروعة", "ملاحظة: آخر جملة في المحرّرات المعقّدة", "في محرّرات مثل مربع الكتابة في كلود تنزل الجمل واحدة تلو الأخرى أثناء الكلام، لكن الجملة الأخيرة قد تبقى معلّقة حتى تضغط «إيقاف». هذا متوقّع في تلك المحرّرات وليس خللاً؛ في المواقع الأبسط تنزل الجملة الأخيرة وحدها كغيرها."],
+  ["الأزرار — شريط التحرير فوق الصندوق", "✂ ⧉ 📋 ⬚ 🗑 ↶", "شريط نحيف ملتصق بأعلى الصندوق: قص، نسخ، لصق، تحديد الكل، مسح، وتراجع. القص والنسخ يشتغلان على ما حدّدته، وإن لم تحدّد شيئاً أخذا الصندوق كله. واللصق يحتاج إذن الحافظة من المتصفح، وإن رفضه فـ Ctrl+V يعمل دائماً. أما زر ↶ فلسلسلة خاصة بهذا الشريط حتى عشر خطوات: ما يكتبه الشريط برمجياً يقطع سلسلة تراجع المتصفح، فصار له تراجعه — والكتابة العادية بيدك يتراجع عنها Ctrl+Z كالعادة."],
+  ["الأزرار — الأداة المزروعة", "شريط تحرير الصندوق الاحتياطي", "نفس الأزرار داخل الصندوق الاحتياطي في الشريط: ✂ قص، ⧉ نسخ، 📋 لصق، ⬚ تحديد الكل، ↶ تراجع، ثم ✕ الذي يغلق الصندوق ويمسحه. والتراجع هنا يشمل المسح بالإغلاق أيضاً ما دام الشريط قائماً."],
+  ["سجل المؤجّل", "ما هو هذا السجل", "أفكار متفق عليها لم تُنفَّذ بعد، مرتبة كما اتفقنا لا حسب أهميتها. لا يُحذف منها شيء إلا بقرارك، والأولوية قرارك أنت. مكتوبة هنا حتى لا تضيع بين المحادثات."],
+  ["سجل المؤجّل", "الواجهة والنصوص", "أيقونات من تصميمنا على أزرار المحركات الجديدة بلا شعارات شركات. وقاموس شخصي لكل لغة مع تعلّم التصحيحات محلياً. ومقاطع نصية جاهزة وأوامر صوتية مخصصة. وتظليل الكلمات قليلة الثقة في المسار المجاني مع عرض بدائلها. وإعدادات حسب الموقع أو حسب نوع الكتابة."],
+  ["سجل المؤجّل", "المحركات والمزوّدون", "بنية تسمح بإضافة أي مزوّد: خانة مفتاح لكل مزوّد، وجدول أسعار، ودالة إرسال، والشارة تسمّي الجهة في كل لحظة. ثم قائمة محركات تحت الزر المدفوع تضم نموذج التفريغ الجديد للتسجيلات بالوضع الحرفي افتراضاً، والنموذج الحي عبر ويب سوكت، والوضع الذكي كزر اختياري يعرض الفرق قبل قبوله، وقائمة مفردات مخصصة تُرسل مع كل طلب، وإيقاف مؤقت للتسجيل المدفوع حتى لا يُحاسَب الصمت، ووضع اختبار دقة يقارن المحركات على تسجيل واحد، ومفاتيح مزوّدين إضافيين. والقاعدة الثابتة: المسارات الحالية تبقى كما هي، والجديد يُضاف خياراً لا بديلاً."],
+  ["سجل المؤجّل", "مرفوض حالياً بقرارك", "انكماش النافذة الكبيرة إلى دائرة — مبدأ الانكماش للشريط وحده. مسجَّل هنا لأنه لا يُحذف من السجل شيء إلا بقرارك."],
   ["التنصيب", "النافذة المنفصلة", "أنشئ إشارة مرجعية جديدة: اضغط Ctrl+Shift+B لإظهار شريط المفضلة، ثم زر الفأرة اليمين على الشريط واختر إضافة صفحة. في خانة العنوان الصق الكود التالي ثم احفظ. ضغطة واحدة عليها تفتح هذه الأداة كنافذة منفصلة فوق أي موقع. الكود: " + "javascript:(function(){var u='" + location.href.split('?')[0] + "';window.open(u,'floatingDictation','width=440,height=600,resizable=yes,scrollbars=yes');})();" + ""],
   ["التنصيب", "الأداة المزروعة داخل الصفحة", "إشارة مرجعية ثانية منفصلة، كودها أطول ويأتيك في ملف. الفرق أنها تزرع شريطاً صغيراً داخل الصفحة نفسها، فيكتب الإملاء مباشرة في مربع الكتابة الذي نقرت فيه، بلا نسخ ولا لصق. يظهر كاملاً لحظتين ثم ينكمش إلى دائرة الميكروفون، ويعود كاملاً حين يقترب الماوس. يختفي مع أي تحديث للصفحة فتضغطها من جديد — وهذا ثمن ألا تطلب أي صلاحية دائمة على أي موقع. ولتحديث الشريط إلى نسخة أحدث تستبدل كود الإشارة المرجعية بالكود الجديد، لا برفع هذا الملف."],
   ["التنصيب", "ملاحظة عن أيقونة الإشارة المرجعية", "كروم يعرض أيقونة كرة أرضية افتراضية للإشارات المرجعية من نوع البوكماركلت، ولا توجد طريقة لتغييرها لا من الأداة ولا من إعدادات كروم، لأن كروم يجلب الأيقونة من موقع حقيقي والبوكماركلت ليس موقعاً. الحل العملي: سمّها اسماً قصيراً مميزاً وضعها في أول الشريط."],
