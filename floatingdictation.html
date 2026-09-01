@@ -316,6 +316,30 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:0; min-
     <p class="hlp">لون النص يُختار وحده حسب الخلفية: داكن على الفاتح وفاتح على الداكن.</p>
   </div>
 
+  <div class="sep">القاموس الشخصي والمقاطع الجاهزة</div>
+  <div class="field">
+    <label for="dictOn">الحالة</label>
+    <select id="dictOn">
+      <option value="1">يعمل — يُطبَّق على كل إملاء، مجاني أو مدفوع، هنا وفي الشريط</option>
+      <option value="0">مطفأ</option>
+    </select>
+    <p class="hlp">جدول من سطرين: ما يسمعه المحرك، وما تريده مكتوباً مكانه. يصلح لتصحيح كلمة يخطئ فيها دائماً، ولمقطع طويل تناديه بكلمة قصيرة. المطابقة تتجاهل التشكيل واختلاف الهمزات وعلامات الترقيم، وتبدأ بالعبارات الأطول.</p>
+  </div>
+  <div class="field">
+    <label for="dictFrom">ما يُسمع</label>
+    <div class="keyrow">
+      <input type="text" id="dictFrom" placeholder="مثلاً: بريدج" autocomplete="off">
+      <button class="smallbtn" id="btnDictGrab" type="button" title="يأخذ النص المحدَّد في الصندوق ويضعه هنا">التقط المحدَّد</button>
+    </div>
+    <label for="dictTo" style="margin-top:6px">ما يُكتب مكانه</label>
+    <textarea id="dictTo" rows="2" placeholder="مثلاً: bridge — ويقبل عدة أسطر للمقاطع الطويلة"></textarea>
+    <div class="keyrow" style="margin-top:6px">
+      <button class="smallbtn" id="btnDictAdd" type="button">➕ أضف القاعدة</button>
+    </div>
+    <p class="hlp">حدّد الكلمة الخطأ في الصندوق ثم اضغط «التقط المحدَّد»، اكتب الصواب، ثم «أضف» — وتُصحَّح في الصندوق فوراً وتُطبَّق على كل ما بعدها.</p>
+    <div id="dictList"></div>
+  </div>
+
   <div class="sep">الخطوط</div>
   <div class="field">
     <label>أضف أي خط مثبَّت على جهازك — بلا أي تعديل بالكود، تماماً متل الوورد</label>
@@ -416,6 +440,102 @@ var PUNCT = {
     ["comma", ","], ["period", "."], ["full stop", "."]
   ]
 };
+/* ---------- القاموس الشخصي والمقاطع الجاهزة ----------
+   جدول واحد من سطرين: ما يُسمع ← ما يُكتب. الآلة نفسها تخدم التصحيح الدائم
+   والمقاطع الجاهزة، فلا داعي لآلتين. يعمل افتراضياً لأن الجدول فارغ حتى
+   يملأه هو بنفسه، فلا مفاجآت. يُطبَّق قبل أوامر الترقيم لأنه يصف ما سُمع. */
+function dictGet(){ try{ var l = JSON.parse(LS.get("fd.dict") || "[]"); return Array.isArray(l) ? l : []; }catch(e){ return []; } }
+function dictOn(){ return LS.get("fd.dictOn") !== "0"; }
+function dictPushBar(){ barPush({ type:"setDict", on: dictOn() ? 1 : 0, list: dictGet() }); }
+function dictSave(l){ LS.set("fd.dict", JSON.stringify(l)); dictPaint(); dictPushBar(); }
+/* يبني من العبارة تعبيراً يتسامح مع التشكيل واختلاف الهمزات وهاء/تاء مربوطة
+   وياء/ألف مقصورة، وهي كلها مما يتقلّب فيه محرك التعرّف من جملة لأخرى */
+function dictRegex(phrase){
+  var out = "", DIA = "[\u064B-\u0652\u0670]*", chars = phrase.trim().split("");
+  for(var i=0;i<chars.length;i++){
+    var c = chars[i];
+    if(/[\u064B-\u0652\u0670]/.test(c)) continue;
+    if(/\s/.test(c)){ if(!/\\s\+$/.test(out)) out += "\\s+"; continue; }
+    if(/[اأإآ]/.test(c)) out += "[اأإآى]";          /* الألف المقصورة تُلفظ ألفاً: سينا/سينى */
+    else if(c === "ة" || c === "ه") out += "[ةه]";
+    else if(c === "ى") out += "[ىيا]";
+    else if(c === "ي") out += "[يى]";
+    else out += c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out += DIA;
+  }
+  return out;
+}
+function applyDict(text){
+  if(!dictOn() || !text) return text;
+  var list = dictGet().filter(function(r){ return r && r.a && String(r.a).trim(); });
+  if(!list.length) return text;
+  list.sort(function(p,q){ return String(q.a).length - String(p.a).length; });
+  var out = text;
+  list.forEach(function(r){
+    var re;
+    try{ re = new RegExp("(^|[\\s\\p{P}])" + dictRegex(String(r.a)) + "(?=$|[\\s\\p{P}])", "giu"); }catch(e){ return; }
+    var rep = String(r.b || "").replace(/\$/g, "$$$$");
+    out = out.replace(re, "$1" + rep);
+  });
+  return out;
+}
+var dictGrab = null;   /* موضع النص الملتقط من الصندوق كي يُصحَّح فوراً عند الإضافة */
+function dictPaint(){
+  var box = $("#dictList"); if(!box) return;
+  var list = dictGet();
+  box.innerHTML = "";
+  if($("#dictOn")) $("#dictOn").value = dictOn() ? "1" : "0";
+  if(!list.length){ var p = document.createElement("p"); p.className = "hlp"; p.textContent = "الجدول فارغ بعد."; box.appendChild(p); return; }
+  var head = document.createElement("p"); head.className = "hlp"; head.textContent = list.length + (list.length === 1 ? " قاعدة" : list.length === 2 ? " قاعدتان" : list.length < 11 ? " قواعد" : " قاعدة");
+  box.appendChild(head);
+  list.forEach(function(r, idx){
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-top:1px solid var(--line)";
+    var a = document.createElement("span"); a.textContent = r.a; a.style.cssText = "font-size:12.8px;flex:1;min-width:0;overflow-wrap:anywhere";
+    var arrow = document.createElement("span"); arrow.textContent = "←"; arrow.style.cssText = "color:var(--muted);font-size:12px;margin-top:1px";
+    var b = document.createElement("span"); b.textContent = r.b; b.style.cssText = "font-size:12.8px;flex:1.4;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere";
+    var del = document.createElement("button"); del.type = "button"; del.className = "smallbtn"; del.textContent = "حذف";
+    del.addEventListener("click", function(){ var l = dictGet(); l.splice(idx, 1); dictSave(l); });
+    row.appendChild(a); row.appendChild(arrow); row.appendChild(b); row.appendChild(del); box.appendChild(row);
+  });
+}
+function dictAdd(){
+  var a = ($("#dictFrom").value || "").trim(), b = ($("#dictTo").value || "");
+  if(!a){ note("اكتب أولاً ما يسمعه المحرك.", true); $("#dictFrom").focus(); return; }
+  if(!b.trim()){ note("اكتب ما تريده مكتوباً مكانه.", true); $("#dictTo").focus(); return; }
+  var l = dictGet(), key = cmpKey(a), found = false;
+  for(var i=0;i<l.length;i++){ if(cmpKey(l[i].a) === key){ l[i] = { a:a, b:b }; found = true; break; } }
+  if(!found) l.push({ a:a, b:b });
+  dictSave(l);
+  /* إن كانت القاعدة التُقطت من الصندوق، صحّح الموضع نفسه فوراً */
+  var fixed = false, el = $("#box");
+  if(dictGrab && el.value.slice(dictGrab.s, dictGrab.e) === dictGrab.t){
+    el.value = el.value.slice(0, dictGrab.s) + b + el.value.slice(dictGrab.e);
+    if(D.pos > dictGrab.e) D.pos += b.length - dictGrab.t.length;
+    fixed = true;
+  }
+  dictGrab = null;
+  $("#dictFrom").value = ""; $("#dictTo").value = "";
+  note((found ? "عُدّلت القاعدة" : "أُضيفت القاعدة") + (fixed ? " وصُحّح الصندوق." : "."));
+}
+function dictGrabSel(){
+  var el = $("#box"), s = el.selectionStart, e = el.selectionEnd;
+  var t = (s != null && e > s) ? el.value.slice(s, e) : "";
+  if(!t.trim()){ note("حدّد أولاً الكلمة الخطأ في الصندوق بالفأرة، ثم اضغط «التقط المحدَّد».", true); return; }
+  dictGrab = { s:s, e:e, t:t };
+  $("#dictFrom").value = t.trim();
+  $("#dictTo").focus();
+}
+$("#btnDictAdd").addEventListener("click", dictAdd);
+$("#btnDictGrab").addEventListener("click", dictGrabSel);
+$("#dictTo").addEventListener("keydown", function(e){ if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); dictAdd(); } });
+$("#dictOn").addEventListener("change", function(){
+  LS.set("fd.dictOn", this.value === "1" ? "1" : "0");
+  dictPushBar();
+  note(dictOn() ? "القاموس الشخصي يعمل." : "القاموس الشخصي مطفأ — كل شيء يُكتب كما سُمع.");
+});
+dictPaint();
+
 function punctOn(){ return LS.get("fd.punct") === "1"; }
 function applyPunct(text){
   if(!punctOn() || !text) return text;
@@ -794,7 +914,7 @@ function dictFlush(upto){
   while(D.written <= upto && D.written < D.kept.length){
     var t = String(D.kept[D.written] || "").trim();
     D.written++;
-    if(t) sessionInsert(applyPunct(t));
+    if(t) sessionInsert(applyPunct(applyDict(t)));
   }
 }
 function showLive(text){
@@ -1209,7 +1329,7 @@ function paidSend(blob, secs){
       var c = costFromUsage(r.usage, secs);
       if(c.usd) costAdd(c.usd);
       if(!r.text){ note("لم يفهم Gemini شيئاً من التسجيل.", true); return; }
-      sessionInsert(applyPunct(r.text));
+      sessionInsert(applyPunct(applyDict(r.text)));
       note("تم — " + fmtSecs(secs) + " · " + modelName() + (c.usd ? " · " + (c.est ? "≈$" : "$") + c.usd.toFixed(4) : ""));
     });
     });
@@ -1497,7 +1617,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "2.5";
+var VERSION = "2.6";
 var VERSION_DATE = "١ سبتمبر ٢٠٢٦";
 
 var GUIDE = [
@@ -1516,6 +1636,7 @@ var GUIDE = [
   ["الأزرار — سطر الأزرار، من اليمين","⏹ إيقاف", "زر أحمر بأيقونة وحدها، يظهر أثناء الإملاء فقط ويختفي بعده. يقطع أي إملاء جارٍ فوراً. في مسار Gemini تحديداً، الضغط على إيقاف هو ما يُرسل التسجيل فعلياً."],
   ["الأزرار — سطر الأزرار، من اليمين","ar / sv / en أزرار اللغة", "ثلاثة أزرار ظاهرة بدل القائمة المنسدلة، كما في الشريط: تبدّل اللغة بنقرة واحدة وترى الفعّالة بنظرة لأن زرّها يظهر مضلَّلاً. العربي يبدأ باللهجة السورية ثم يجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح. تضبط أيضاً اتجاه الكتابة في الصندوق، وتُخبر Gemini باللغة في المسار المدفوع. وإن بدّلت اللغة أثناء الإملاء المجاني أعادت الأداة تشغيل الاستماع باللغة الجديدة وحدها."],
   ["الأزرار — سطر الأزرار، من اليمين","،؟ أوامر الترقيم", "مطفأة افتراضياً. حين تشغّلها، تُكتب هذه الكلمات كعلامات بدل أن تُكتب حروفاً: نقطة، فاصلة، فاصلة منقوطة، علامة استفهام، علامة تعجب، نقطتان، سطر جديد، فقرة جديدة. عيبها الوحيد أنك إن قلت إحدى هذه الكلمات في جملة عادية فستتحول أيضاً — لذلك هي زر تشغّله وتطفئه أنت، لا ميزة دائمة. وحالتها تصل إلى الشريط المزروع أيضاً حين تكون النافذة مفتوحة من عجلته."],
+  ["الأزرار — سطر الأزرار، من اليمين","القاموس الشخصي والمقاطع الجاهزة", "من ⚙ الإعدادات. جدول من سطرين: ما يسمعه المحرك، وما تريده مكتوباً مكانه. يخدمك في شيئين بآلة واحدة: تصحيح دائم لكلمة يخطئ فيها المحرك كل مرة — اسم مريض، مصطلح سنّي، كلمة سويدية — فتكتب الصواب مرة واحدة ويُطبَّق تلقائياً على كل إملاء بعدها؛ ومقطع جاهز تكرّره يومياً تناديه بكلمة قصيرة فيُكتب كاملاً مكانها، ويقبل عدة أسطر. أسرع طريقة للإضافة: حدّد الكلمة الخطأ في الصندوق بالفأرة، اضغط «التقط المحدَّد» في الإعدادات، اكتب الصواب، ثم «أضف» أو Ctrl+Enter — فتُصحَّح في الصندوق فوراً وتُحفظ للمستقبل. المطابقة تتجاهل التشكيل واختلاف الهمزات والهاء والتاء المربوطة والياء والألف المقصورة وعلامات الترقيم، ولا تلمس كلمة داخل كلمة أخرى، وتبدأ بالعبارات الأطول فلا تفسد عبارة أطول قاعدة أقصر. يعمل على المسارين المجاني والمدفوع، ويُطبَّق قبل أوامر الترقيم لأنه يصف ما سُمع. ويصل جدولك إلى الشريط المزروع لحظة اتصاله بهذه النافذة فيعمل في مساره المجاني هناك أيضاً، ويُحفظ له لكل موقع على حدة. وله زر إطفاء في الإعدادات إن أردت الكتابة الحرفية مؤقتاً. ما لا يفعله: لا يتعلّم من تصحيحاتك اليدوية وحده — تخمين ما هو تصحيح وما هو إعادة صياغة يفسد النص أكثر مما يصلحه، فالقاعدة تُضاف بيدك."],
   ["الأزرار — سطر الأزرار، من اليمين","⧉ نسخ", "ينسخ كل ما في الصندوق إلى الحافظة بضغطة واحدة."],
   ["الأزرار — سطر الأزرار، من اليمين","⏎ للصفحة", "لا يظهر إلا حين تفتح هذه النافذة من الأداة المزروعة داخل صفحة. يرسل النص إلى مربع الكتابة في تلك الصفحة تحديداً — لا إلى أي شيء آخر مفتوح على شاشتك. حتى لو كان وورد ظاهراً أمامك، النص يذهب إلى الصفحة التي انطلقت منها الأداة."],
   ["الأزرار — سطر الأزرار، من اليمين","💾 احفظ", "ينقل نص الصندوق كله إلى قائمة الملاحظات ويُفرغ الصندوق لملاحظة جديدة. مفيد وأنت تعلّق على أشياء مختلفة أثناء التصفح."],
@@ -1524,7 +1645,7 @@ var GUIDE = [
   ["الأزرار — سطر الأزرار، من اليمين","📌 فوق الكل", "يحوّل النافذة إلى عائمة فوق كل التطبيقات، بلا أي تثبيت. أثناء التفعيل يتحوّل الزر إلى ↩ وضغطه يرجعها عادية. المتصفح يشترط بقاء نافذة فارغة في الخلفية — مكتوب فيها ألا تُغلقها — وفي هذا الوضع لا يعمل حفظ الموضع ولا استعادته لأن المتصفح هو من يتحكم بمكان النافذة. متى تحتاجه فعلاً: نادراً. إن كنت داخل المتصفح فالأداة المزروعة أفضل منه، وإن كنت في برنامج ويندوز فالأداة أصلاً لا تكتب هناك. وعلى جهاز تملك صلاحية التثبيت عليه، برنامج PowerToys من مايكروسوفت يعطيك نفس النتيجة بنافذة واحدة عبر Win+Ctrl+T."],
   ["الأزرار — سطر الأزرار، من اليمين","⤓ و ↺ حفظ الموضع", "الأول يحفظ مكان النافذة وحجمها بالضبط، والثاني يعيدها إليه. يعملان في النافذة العادية فقط."],
   ["الأزرار — سطر الأزرار، من اليمين","الدليل", "هذا الدليل. مرتّب بنفس ترتيب الأزرار على الشاشة، وفي آخره قسم معلومات عامة عن الإملاء لا علاقة له بتشغيل الأداة."],
-  ["الأزرار — سطر الأزرار، من اليمين","⚙ الإعدادات", "مفتاح Gemini، واختيار محرك الإملاء المدفوع ونموذجه، وسقف الاستهلاك التقريبي، ومدة الصمت التي يتوقف بعدها الإملاء المجاني، وأوامر الترقيم، وإضافة خطوط من جهازك، وقسم «الوضوح والحجم»: حجم خط القراءة من ١٤ إلى ٣٢، وعريض أو عادي، ولون خلفية بأربعة جاهزة ومنتقٍ حر — يسري على النص الحي وصندوق الكتابة والشارات والرسائل هنا وفي الشريط معاً، ولون النص يُحسب وحده من الخلفية فلا تركيبة غير مقروءة. ومدة الصمت والترقيم والوضوح يصلون أيضاً إلى الشريط المزروع لحظياً حين تكون هذه النافذة مفتوحة من عجلة الشريط، ويُحفظان له لكل موقع على حدة."],
+  ["الأزرار — سطر الأزرار، من اليمين","⚙ الإعدادات", "مفتاح Gemini، واختيار محرك الإملاء المدفوع ونموذجه، وسقف الاستهلاك التقريبي، ومدة الصمت التي يتوقف بعدها الإملاء المجاني، وأوامر الترقيم، وإضافة خطوط من جهازك، وقسم «الوضوح والحجم»: حجم خط القراءة من ١٤ إلى ٣٢، وعريض أو عادي، ولون خلفية بأربعة جاهزة ومنتقٍ حر — يسري على النص الحي وصندوق الكتابة والشارات والرسائل هنا وفي الشريط معاً، ولون النص يُحسب وحده من الخلفية فلا تركيبة غير مقروءة. ومدة الصمت والترقيم والوضوح والقاموس الشخصي يصلون أيضاً إلى الشريط المزروع لحظياً حين تكون هذه النافذة مفتوحة من عجلة الشريط، ويُحفظون له لكل موقع على حدة."],
   ["الأزرار — الأداة المزروعة", "شكل الشريط", "الشريط له حالتان. حين يبتعد الماوس عنه ينكمش إلى دائرة الميكروفون وحدها، فلا يغطي من الصفحة إلا حجم إصبع؛ وحين يقترب الماوس منها يعود الشريط كاملاً. وزر الميكروفون يبقى في نفس نقطة الشاشة بالضبط في الحالتين، فلا يهرب من تحت الفأرة ولا يحلّ ✕ مكانه: بقية الخانات تُبنى حوله وهو ثابت. أثناء الإملاء تبقى تحت الدائرة شارة الوجهة وصندوق الرسائل والعدّ التنازلي حتى وهو منكمش، لأنك تحتاجها، والدائرة تنبض بالأحمر ما دام يسجّل. الشريط الكامل مربع من تسع خانات في ثلاثة صفوف: الأول للتحكم بالصندوق نفسه — ⚙ ثم مقبض التحريك ⠿⠿⠿ ثم ✕ — والثاني للعمل: 🎙️ ثم 💰 ثم الصندوق الاحتياطي ▤، والثالث أزرار اللغة ar و sv و en. لا ينكمش الشريط ما دام الصندوق الاحتياطي ظاهراً، حتى لا يختفي وأنت تعمل فيه؛ أغلقه ويعود إلى الانكماش. عند ضغط الإشارة المرجعية يفتح مباشرةً كدائرة الميكروفون وحدها في نقطتها المحفوظة — لا شبكة ولا ✕ على الشاشة حتى تقرّب الماوس. ومكانه يُحفظ لكل موقع على حدة، لأنه يعيش داخل صفحة الموقع نفسه فذاكرته تخصّ ذلك الموقع وحده. ولا يخرج عن حدود الشاشة، والسحب يتوقف قبل الحافة بالمسافة التي تحتاجها الشبكة الكاملة لتنفتح حول الميكروفون من دون أن يُقصّ منها شيء؛ وإن ضاقت النافذة أعاد نفسه إلى الداخل. ونصوص الشريط كلها لا تدخل في تحديد نص الصفحة، فحين تحدد نصاً في الموقع أو تضغط تحديد الكل لا يُنسخ معه شيء من الشريط — ما عدا الصندوق الاحتياطي، فنصه يُحدَّد لأنك تحتاج نسخه."],
   ["الأزرار — الأداة المزروعة", "⠿⠿⠿ مقبض التحريك والسحب من الدائرة", "المقبض في وسط الصف الأول. في الحالة الكاملة اضغط عليه واسحب، ومؤشّر الفأرة يصير يداً ممسكة. وفي الحالة المنكمشة الدائرة نفسها هي ما تسحبه. السحب لا يبدأ تسجيلاً أبداً: الشريط يفرّق بين سحب يحرّك الفأرة بضعة بكسلات ونقرة قصيرة في مكانها، والنقرة وحدها تشغّل الإملاء أو توقفه."],
   ["الأزرار — الأداة المزروعة", "🎙️ الميكروفون (في الشريط)", "الإملاء المجاني نفسه، لكنه يكتب مباشرة في مربع الكتابة الذي نقرت فيه على الصفحة، بلا نسخ ولا لصق. أيقونة بلا كلمة توفيراً للعرض، ويتحوّل إلى ⏹ ويحمرّ أثناء التسجيل، وينبض حين يكون الشريط منكمشاً على الدائرة، والضغط عليه يوقف. اختصاره F2. يتوقف وحده بعد مدة الصمت المضبوطة في إعدادات هذه النافذة — عجلة الشريط ⚙ تفتحها بضغطة — وتُحفظ للشريط لكل موقع على حدة، والافتراضي نصف ساعة. الشارة تحت الشريط تسمّي لك الجهة التي يذهب إليها صوتك أثناء التسجيل."],
@@ -1752,6 +1873,7 @@ else $("#btnPip").style.display = "none";
       barPush({ type:"setModel", name: modelName() });
       var dp = dispGet();
       barPush({ type:"setDisp", s:dp.s, b:dp.b, bg:dp.bg });
+      dictPushBar();
       /* الشريط يرسل حال هذا الموقع عند الاتصال، فتعرضه القوائم هنا بصدق */
       if(d.idle > 0 && String($("#idleTimeout").value) !== String(d.idle)){
         $("#idleTimeout").value = String(d.idle); LS.set("fd.idle", String(d.idle));
@@ -1791,7 +1913,7 @@ else $("#btnPip").style.display = "none";
           note("لم يفهم Gemini شيئاً من تسجيل الصفحة.", true);
           return;
         }
-        reply({ type:"transcribed", text: applyPunct(r.text) });
+        reply({ type:"transcribed", text: applyPunct(applyDict(r.text)) });
         note("تم تفريغ " + fmtSecs(secs) + " للصفحة · " + modelName() + (usd ? " · " + (c.est ? "≈$" : "$") + usd.toFixed(4) : ""));
       });
       });
