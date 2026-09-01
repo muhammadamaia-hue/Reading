@@ -61,6 +61,13 @@ header{background:var(--panel); border-bottom:1px solid var(--line); box-shadow:
 .iconbtn.paid[aria-pressed="true"]{border-color:var(--paid); background:var(--paid-soft); color:var(--paid)}
 .iconbtn.stop{border-color:var(--bad); background:var(--bad-soft); color:var(--bad); display:none}
 .iconbtn.stop.show{display:flex}
+/* الإيقاف المؤقت: يظهر في التسجيل المدفوع وحده. وحين يكون معلّقاً يتغيّر لون
+   زر المحرك نفسه ويبقى ينبض، لأن أسوأ ما قد يحصل أن تنسى نفسك متوقفاً وتظنك تسجّل */
+.iconbtn.hold{border-color:var(--paid); background:var(--paid-soft); color:var(--paid); display:none}
+.iconbtn.hold.show{display:flex}
+.iconbtn.eng.paid.held{border-color:var(--paid); background:var(--paid-soft); color:var(--paid);
+  animation:heldpulse 1.6s ease-in-out infinite}
+@keyframes heldpulse{0%,100%{opacity:1}50%{opacity:.45}}
 .iconbtn:disabled{opacity:.45; cursor:not-allowed}
 select.mini{border:1px solid var(--line); border-radius:10px; padding:6px 8px; font-size:12.5px; background:#fff; max-width:92px; text-overflow:ellipsis}
 .ver{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
@@ -161,6 +168,7 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:0; min-
     <span class="grp">
       <button class="iconbtn eng free" id="btnFree" aria-pressed="false" aria-label="الإملاء المجاني"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg></button>
       <button class="iconbtn eng paid" id="btnPaid" aria-pressed="false" aria-label="إملاء Gemini بمفتاحك"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6 8 3.5h8L14.5 6z"/><path d="M9.5 6h5c3 2.8 4.5 5.6 4.5 8.5A5.5 5.5 0 0 1 13.5 20h-3A5.5 5.5 0 0 1 5 14.5C5 11.6 6.5 8.8 9.5 6z"/><text x="12" y="16.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">$</text></svg></button>
+      <button class="iconbtn hold" id="btnHold" title="يعلّق التسجيل المدفوع ويوقف العدّاد معه، فلا تدفع ثمن صمتك. اضغطه ثانية لتكمل على نفس التسجيل.">⏸</button>
       <button class="iconbtn stop" id="btnStop" title="يقطع أي إملاء جارٍ فوراً. في مسار Gemini، الإيقاف هو ما يُرسل التسجيل.">⏹</button>
     </span>
     <span class="grp">
@@ -714,6 +722,8 @@ function setButtons(){
   $("#btnFree").disabled = busy && D.engine !== "free";
   $("#btnPaid").disabled = busy && D.engine !== "paid";
   $("#btnStop").classList.toggle("show", busy);
+  $("#btnHold").classList.toggle("show", D.engine === "paid");
+  if(D.engine !== "paid") $("#btnPaid").classList.remove("held");
 }
 function sessionStart(){
   var el = $("#box");
@@ -818,7 +828,7 @@ function idleWatch(){
     var left = Math.max(0, Math.ceil((limit - quiet) / 1000));
     if(quiet > 4000 && left !== lastShown){
       lastShown = left;
-      note("صمت — يتوقف بعد " + left + " ث إن لم تكمل");
+      note("صمت — يتوقف بعد " + fmtSecs(left) + " إن لم تكمل");
     }
   }, 200);
 }
@@ -878,6 +888,20 @@ function freeStop(){
 
 /* ================= PAID dictation — one recording via Gemini ================= */
 var PAID_MAX_SECS = 1800;
+/* «634 ث» رقم لا تقرأه عين. تحت الدقيقة ثوانٍ، وفوقها دقيقة:ثانية، وفوق الساعة ساعة:دقيقة:ثانية */
+function fmtSecs(s){
+  s = Math.max(0, Math.round(s));
+  function two(n){ return (n < 10 ? "0" : "") + n; }
+  if(s < 60) return s === 1 ? "ثانية واحدة" : s === 2 ? "ثانيتان" : s + (s < 11 ? " ثوانٍ" : " ثانية");
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), q = s % 60;
+  if(h) return h + ":" + two(m) + ":" + two(q) + " ساعة";
+  return m + ":" + two(q) + " دقيقة";
+}
+/* الزمن المحتسب يستثني ما كان التسجيل فيه معلّقاً */
+function paidElapsed(){
+  var run = D.recHeld ? 0 : (Date.now() - D.recStart);
+  return Math.round(((D.recAcc || 0) + run) / 1000);
+}
 /* Prices per million tokens. The old counter multiplied recording minutes by a
    flat guess; Google reports the actual tokens with every reply, so use those.
    Ported from JoyRead, which was right about this. */
@@ -1163,7 +1187,7 @@ function paidSend(blob, secs){
       if(usd) costAdd(usd);
       if(!r.text){ note("لم يفهم Gemini شيئاً من التسجيل.", true); return; }
       sessionInsert(applyPunct(r.text));
-      note("تم — " + secs + " ث · " + modelName() + (usd ? " · $" + usd.toFixed(4) : ""));
+      note("تم — " + fmtSecs(secs) + " · " + modelName() + (usd ? " · $" + usd.toFixed(4) : ""));
     });
     });
   }).catch(function(err){
@@ -1184,10 +1208,10 @@ async function paidStart(){
   var mime = paidMime();
   var mr = new MediaRecorder(D.stream, mime ? {mimeType:mime} : undefined);
   var blobs = [];
-  D.mr = mr; D.engine = "paid"; D.stop = false; D.recStart = Date.now();
+  D.mr = mr; D.engine = "paid"; D.stop = false; D.recStart = Date.now(); D.recAcc = 0; D.recHeld = false;
   mr.ondataavailable = function(e){ if(e.data && e.data.size) blobs.push(e.data); };
   mr.onstop = function(){
-    var secs = Math.round((Date.now() - D.recStart) / 1000);
+    var secs = paidElapsed();
     if(D.stream){ D.stream.getTracks().forEach(function(t){ t.stop(); }); D.stream = null; }
     D.mr = null; D.engine = null; setDest("idle"); setButtons();
     if(!blobs.length || secs < 1){ note("لم يُسجَّل شيء."); return; }
@@ -1197,13 +1221,34 @@ async function paidStart(){
   setDest("paid"); setButtons(); costPaint();
   /* a forgotten recording would send a very long file and bill for it, so cap it */
   D.recTimer = setInterval(function(){
-    var s = Math.round((Date.now() - D.recStart) / 1000);
+    var s = paidElapsed();
+    if(D.recHeld){ note("⏸ معلّق عند " + fmtSecs(s) + " — العدّاد واقف ولا يُحتسب صمتك. اضغط ▶ لتكمل على نفس التسجيل."); return; }
     if(s >= PAID_MAX_SECS){ note("بلغ الحدّ الأقصى (٣٠ دقيقة) — يُرسل الآن."); paidStop(); return; }
-    note("● يسجّل " + s + " ث · صوتك يذهب إلى Gemini بمفتاحك · اضغط «إيقاف» ليُرسل");
+    note("● يسجّل " + fmtSecs(s) + " · صوتك يذهب إلى Gemini بمفتاحك · اضغط «إيقاف» ليُرسل");
   }, 1000);
 }
+/* MediaRecorder يوقف إنتاج البيانات فعلياً أثناء التعليق، فالمقطع المرسل يخرج
+   متصلاً بلا فجوات الصمت — أي لا يدخل الصمت في الفاتورة أصلاً، لا أنه يدخل ثم يُقتطع */
+function paidHold(){
+  if(D.engine !== "paid" || !D.mr) return;
+  if(D.recHeld){
+    try{ D.mr.resume(); }catch(e){ note("تعذّر استئناف التسجيل: " + e.message, true); return; }
+    D.recStart = Date.now(); D.recHeld = false;
+  } else {
+    try{ D.mr.pause(); }catch(e){ note("هذا المتصفح لا يدعم تعليق التسجيل — استعمل «إيقاف» ثم ابدأ تسجيلاً جديداً.", true); return; }
+    D.recAcc = (D.recAcc || 0) + (Date.now() - D.recStart); D.recHeld = true;
+  }
+  paidHoldPaint();
+}
+function paidHoldPaint(){
+  var b = $("#btnHold");
+  var held = !!(D.engine === "paid" && D.recHeld);
+  if(b){ b.textContent = held ? "▶" : "⏸"; b.setAttribute("aria-pressed", held ? "true" : "false"); }
+  $("#btnPaid").classList.toggle("held", held);
+  if(held) note("⏸ معلّق عند " + fmtSecs(paidElapsed()) + " — العدّاد واقف ولا يُحتسب صمتك. اضغط ▶ لتكمل على نفس التسجيل.");
+}
 function paidStop(){
-  D.stop = true;
+  D.stop = true; D.recHeld = false; $("#btnPaid").classList.remove("held");
   if(D.recTimer){ clearInterval(D.recTimer); D.recTimer = null; }
   if(D.mr){ try{ D.mr.stop(); }catch(e){} return; }   /* onstop does the rest */
   if(D.stream){ D.stream.getTracks().forEach(function(t){ t.stop(); }); D.stream = null; }
@@ -1269,6 +1314,7 @@ watchCaret();
 $("#btnFree").addEventListener("click", function(){ if(D.engine === "free") freeStop(); else freeStart(); });
 $("#btnPaid").addEventListener("click", function(){ if(D.engine === "paid") paidStop(); else paidStart(); });
 $("#btnStop").addEventListener("click", function(){ if(D.engine === "free") freeStop(); else if(D.engine === "paid") paidStop(); });
+$("#btnHold").addEventListener("click", paidHold);
 
 $("#btnCopy").addEventListener("click", function(){
   var t = $("#box").value;
@@ -1428,7 +1474,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "2.3";
+var VERSION = "2.4";
 var VERSION_DATE = "١ سبتمبر ٢٠٢٦";
 
 var GUIDE = [
@@ -1442,6 +1488,8 @@ var GUIDE = [
   ["الأزرار — سطر الأزرار، من اليمين","السطر الحي فوق الصندوق", "سطر رفيع بين شريط التحرير وأعلى الصندوق، يظهر فيه الكلام وهو يتكوّن قبل أن يستقرّ نصاً في الصندوق. كان تحت الصندوق سابقاً فكانت العين تنزل إليه، وصار فوقه ليكون قريباً من الأزرار وأول ما تقع عليه العين. يبقى محجوز المكان طوال جلسة الإملاء المجاني حتى وهو فارغ، لئلا يقفز الصندوق كلما سكتّ لحظة، ويكتب فيه «يستمع» ريثما تتكلم. ويختفي تماماً حين لا يكون هناك إملاء فلا يسرق مساحة وأنت تكتب بيدك. ويتبع حجم الخط وسماكته وألوان الوضوح التي ضبطتها للصندوق نفسه. أما مسار كيس النقود فلا سطر حياً فيه لأن النص يصل دفعة واحدة عند الإرسال."],
   ["الأزرار — سطر الأزرار، من اليمين","أيقونة كيس النقود الكهرمانية — Gemini", "زر بأيقونة كيس نقود، بنفس لغة ألوان الشريط: الكهرماني يعني أن هذا الزر يصرف من رصيدك. وله محركان تختار بينهما من ⚙: «العام» هو المسار الأصلي كما هو حرفياً بنماذجه الثلاثة، و«التفريغ Gemini 3.5 Transcribe» متخصص جديد يُضاف خياراً لا بديلاً — وضعه الحرفي افتراض ثابت، وتلميح لغته من أزرار اللغة (العربية المعرّفة عنده مصرية، وقد فرّغ نصك السوري بدقة عالية في تجربتك)، ومفرداتك المخصصة من الإعدادات تذهب معه حتى ألف مصطلح، وزر «الذكي» اختياري مطفأ لأنه قد يبدّل كلماتك، وصوته يمرّ دائماً عبر مخزن ملفات جوجل، وعدّاد التكلفة لا يحسبه بعد. أما آلية التسجيل فواحدة في المحركين: يسجّل تسجيلاً واحداً متواصلاً حتى تضغط إيقاف (بحد أقصى نصف ساعة)، ثم يرسله دفعة واحدة. لذلك النص يظهر عند الانتهاء لا أثناء الكلام، وهذا مقصود: تقطيع الصوت إلى مقاطع قصيرة يقطع الكلمات في منتصفها فيخمّن النموذج بقيتها. أدقّ من المجاني، وبنفس الدقة في كروم وEdge. يحتاج مفتاحاً من الإعدادات، والتلميح على الزر والشارة أثناء التسجيل يسمّيان النموذج الذي يعالج صوتك. والصوت يُصغَّر قبل الإرسال إلى الجودة التي تعالج بها جوجل الصوت أصلاً، فلا تنقص الدقة ويصغر الطلب. والتسجيل القصير يذهب في طلب واحد مباشر، أما الطويل فيُرفع أولاً إلى مخزن ملفات جوجل ثم يُفرَّغ — تراها في الرسائل خطوة بخطوة — والملف يُحذف عندهم تلقائياً بعد يومين. ويفرّغ باللغة المختارة من أزرار اللغة، لغة واحدة في التسجيل الواحد."],
   ["الأزرار — سطر الأزرار، من اليمين","ماذا يحدث إذا كان Gemini مزدحماً", "جوجل ترفض الطلب أحياناً حين يكون النموذج مزدحماً، وهذه الموجات تمرّ في ثوانٍ. فالأداة تعيد المحاولة وحدها بعد ثانية، ثم ثانيتين، ثم أربع، وتخبرك بما يجري — فلا يضيع تسجيلك لأن جوجل كانت مشغولة لحظة. أما نفاد الحصة فيبدو مشابهاً لكنه لا ينقضي بالانتظار، ولذلك يُبلَّغ فوراً بلا إعادة محاولة عابثة."],
+  ["الأزرار — سطر الأزرار، من اليمين","⏸ الإيقاف المؤقت", "زر كهرماني يظهر أثناء التسجيل المدفوع وحده. تضغطه فيتجمّد التسجيل ويقف العدّاد معه، وتضغطه ثانية فيكمل على نفس التسجيل لا على تسجيل جديد. فائدته أنك حين تتوقف لتفكّر أو يقاطعك أحد لا تدفع ثمن صمتك: المتصفح يوقف إنتاج الصوت فعلياً أثناء التعليق، فالمقطع يخرج متصلاً بلا فجوات، أي أن الصمت لا يدخل الفاتورة أصلاً لا أنه يدخل ثم يُحذف. وما دام التسجيل معلّقاً يتغيّر لون زر كيس النقود ويبقى ينبض، ويكتب السطر تحت الصندوق «معلّق عند» والوقت الذي جمعته حتى الآن — كي لا تنسى نفسك متوقفاً وأنت تحسبك تسجّل. والحد الأقصى نصف ساعة يُحسب من زمن الكلام وحده لا من زمن التعليق."],
+  ["الأزرار — سطر الأزرار، من اليمين","كيف يُقرأ عدّاد التسجيل", "كان العدّاد يكتب الثواني خاماً فيقول مثلاً ٦٣٤ ثانية وهو رقم لا تقرأه عين. صار يكتب الثواني وحدها تحت الدقيقة، ثم دقيقة:ثانية فوقها، ثم ساعة:دقيقة:ثانية فوق الساعة. ونفس الشيء في الشريط المزروع."],
   ["الأزرار — سطر الأزرار، من اليمين","⏹ إيقاف", "زر أحمر بأيقونة وحدها، يظهر أثناء الإملاء فقط ويختفي بعده. يقطع أي إملاء جارٍ فوراً. في مسار Gemini تحديداً، الضغط على إيقاف هو ما يُرسل التسجيل فعلياً."],
   ["الأزرار — سطر الأزرار، من اليمين","ar / sv / en أزرار اللغة", "ثلاثة أزرار ظاهرة بدل القائمة المنسدلة، كما في الشريط: تبدّل اللغة بنقرة واحدة وترى الفعّالة بنظرة لأن زرّها يظهر مضلَّلاً. العربي يبدأ باللهجة السورية ثم يجرّب لهجات عربية أخرى تلقائياً إن رفضها المتصفح. تضبط أيضاً اتجاه الكتابة في الصندوق، وتُخبر Gemini باللغة في المسار المدفوع. وإن بدّلت اللغة أثناء الإملاء المجاني أعادت الأداة تشغيل الاستماع باللغة الجديدة وحدها."],
   ["الأزرار — سطر الأزرار، من اليمين","،؟ أوامر الترقيم", "مطفأة افتراضياً. حين تشغّلها، تُكتب هذه الكلمات كعلامات بدل أن تُكتب حروفاً: نقطة، فاصلة، فاصلة منقوطة، علامة استفهام، علامة تعجب، نقطتان، سطر جديد، فقرة جديدة. عيبها الوحيد أنك إن قلت إحدى هذه الكلمات في جملة عادية فستتحول أيضاً — لذلك هي زر تشغّله وتطفئه أنت، لا ميزة دائمة. وحالتها تصل إلى الشريط المزروع أيضاً حين تكون النافذة مفتوحة من عجلته."],
@@ -1701,7 +1749,7 @@ else $("#btnPip").style.display = "none";
       return;
     }
     var secs = d.secs || 0;
-    note("☁️ يفرّغ " + secs + " ث من الصفحة …");
+    note("☁️ يفرّغ " + fmtSecs(secs) + " من الصفحة …");
     var blob = new Blob([d.buf], {type: d.mime || "audio/webm"});
     if(d.lang && $("#lang").value !== d.lang){ setLang(d.lang, false); }
     blobToWav(blob).then(function(w){
@@ -1719,7 +1767,7 @@ else $("#btnPip").style.display = "none";
           return;
         }
         reply({ type:"transcribed", text: applyPunct(r.text) });
-        note("تم تفريغ " + secs + " ث للصفحة · " + modelName() + (usd ? " · $" + usd.toFixed(4) : ""));
+        note("تم تفريغ " + fmtSecs(secs) + " للصفحة · " + modelName() + (usd ? " · $" + usd.toFixed(4) : ""));
       });
       });
     }).catch(function(err){
