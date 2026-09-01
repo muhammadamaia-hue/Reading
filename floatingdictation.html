@@ -233,6 +233,14 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:0; min-
     </select>
     <p class="hlp" id="engineHint"></p>
   </div>
+  <div class="field">
+    <label for="cmpMode">وجهة التسجيل المدفوع</label>
+    <select id="cmpMode">
+      <option value="0">المحرك المختار أعلاه — الوضع العادي</option>
+      <option value="1">لوحة المقارنة — التسجيل يذهب إلى كل المحركات وأنت تختار</option>
+    </select>
+    <p class="hlp">لوحة المقارنة وضع اختبار: التسجيل نفسه يُرسل إلى Flash-Lite وFlash وPro ومحرك التفريغ بأسلوبيه الحرفي والذكي، فترى خمس نتائج جنباً إلى جنب مع تكلفة كل واحدة، والفروق بين الحرفي والذكي ملوّنة. تدفع ثمن الخمسة معاً، فاستعملها لمقاطع قصيرة حين تريد أن تقرر أي محرك تعتمد. ولا يتأثر بها الشريط المزروع.</p>
+  </div>
   <div class="field" id="fldModel">
     <label for="gmodel">نموذج المحرك العام</label>
     <select id="gmodel">
@@ -364,6 +372,21 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:0; min-
   </div>
 </div>
 
+<div id="cmpPanel" class="overlay">
+  <div class="gsheet">
+    <div class="ghead">
+      <b>لوحة المقارنة</b>
+      <span class="hlp" id="cmpMeta" style="margin:0 8px"></span>
+      <div class="spacer"></div>
+      <button class="smallbtn" id="btnCmpClose">✕ إغلاق</button>
+    </div>
+    <div class="gbody">
+      <p class="hlp" id="cmpHint">النتائج تصل تباعاً. في عمود «ذكي» تُلوَّن الكلمات التي غيّرها عن الحرفي، وفي «حرفي» تُلوَّن الكلمات التي أسقطها الذكي.</p>
+      <div id="cmpList"></div>
+    </div>
+  </div>
+</div>
+
 <div id="fontPicker" class="overlay">
   <div class="gsheet">
     <div class="ghead">
@@ -407,7 +430,7 @@ var LS = {
 
 /* ---------- languages — Syrian Arabic first, same priority idea as JoyRead ---------- */
 var DICT_LANGS = {
-  ar: ["ar-SY","ar-SA","ar-EG","ar-AE","ar-JO","ar-LB","ar-IQ","ar"],
+  ar: ["ar-SY","ar-LB","ar-JO","ar-PS","ar-IQ","ar-SA","ar-AE","ar-EG","ar"],
   sv: ["sv-SE","sv"],
   en: ["en-US","en-GB","en"]
 };
@@ -1040,10 +1063,10 @@ function onPaidTier(){ return LS.get("fd.tier") === "paid"; }
    that invents spending is worse than no counter. */
 /* ترجع { usd, est } — و est تعني أن الرقم تقدير من طول التسجيل لا من وحدات
    حقيقية، فيُعرض بعلامة ≈ كي لا يُقرأ كأنه فاتورة. */
-function costFromUsage(usage, secs){
+function costFromUsage(usage, secs, spec){
   if(!onPaidTier()) return { usd:0, est:false };
-  var tr = engine() === "transcribe";
-  var p = tr ? TRANSCRIBE_PRICE : (GEM_PRICE[$("#gmodel").value] || GEM_PRICE["gemini-3.5-flash-lite"]);
+  var tr = spec ? spec.kind === "transcribe" : engine() === "transcribe";
+  var p = tr ? TRANSCRIBE_PRICE : (GEM_PRICE[(spec && spec.model) || $("#gmodel").value] || GEM_PRICE["gemini-3.5-flash-lite"]);
   /* أسماء حقول الوحدات تختلف بين واجهة generateContent وواجهة interactions،
      فنقبلها بكل صيغها المعروفة بدل أن نراهن على واحدة. */
   function pick(o, names){
@@ -1175,8 +1198,8 @@ async function gemUpload(bytes){
 var GEM_WAITS = [1, 2, 4];
 function gemSleep(s){ return new Promise(function(r){ setTimeout(r, s * 1000); }); }
 
-async function callGemini(audio){
-  var key = getKey(), model = $("#gmodel").value || "gemini-3.5-flash-lite";
+async function callGemini(audio, modelOverride){
+  var key = getKey(), model = modelOverride || $("#gmodel").value || "gemini-3.5-flash-lite";
   var audioPart = audio.uri
     ? { file_data:{ mime_type:"audio/wav", file_uri:audio.uri } }
     : { inline_data:{ mime_type:"audio/wav", data:audio.b64 } };
@@ -1242,10 +1265,11 @@ function vocabList(){
   }
   return out;
 }
-async function callTranscribe(uri){
+async function callTranscribe(uri, modeOverride){
   var key = getKey();
   var cfg = {};
-  cfg.mode = LS.get("fd.gsmart") === "smart" ? "smart" : { type:"verbatim" };
+  var mode = modeOverride || (LS.get("fd.gsmart") === "smart" ? "smart" : "verbatim");
+  cfg.mode = mode === "smart" ? "smart" : { type:"verbatim" };
   var langs = TR_LANG[$("#lang").value];
   if(langs) cfg.language_codes = langs;
   var vocab = vocabList();
@@ -1310,6 +1334,127 @@ async function callTranscribe(uri){
    free tier's ceiling, which was the quota error. Both problems have the same
    cure. The cost: the text arrives in one piece at the end rather than live —
    the free path stays live for when that matters more than accuracy. */
+/* ---------- لوحة المقارنة — وضع اختبار الدقة ومعاينة الفروقات ----------
+   تسجيل واحد يذهب إلى كل المحركات المدفوعة معاً: النماذج العامة الثلاثة، ومحرك
+   التفريغ بأسلوبيه الحرفي والذكي. النتائج تظهر تباعاً في بطاقات، مع تكلفة كل
+   واحدة، وزر يُدخل النص الذي تختاره في الصندوق. وبين الحرفي والذكي تلوين
+   للفروق كلمةً كلمة، فتقرر بعينك هل يستحق الذكي ثمن ما يغيّره. */
+function cmpOn(){ return LS.get("fd.cmp") === "1"; }
+function cmpJobs(){
+  return [
+    { id:"lite", label: MODEL_LABEL["gemini-3.5-flash-lite"], spec:{ kind:"general", model:"gemini-3.5-flash-lite" } },
+    { id:"flash", label: MODEL_LABEL["gemini-3.7-flash"],     spec:{ kind:"general", model:"gemini-3.7-flash" } },
+    { id:"pro",  label: MODEL_LABEL["gemini-3.1-pro-preview"], spec:{ kind:"general", model:"gemini-3.1-pro-preview" } },
+    { id:"trv",  label:"Gemini 3.5 Transcribe — حرفي", spec:{ kind:"transcribe", mode:"verbatim" } },
+    { id:"trs",  label:"Gemini 3.5 Transcribe — ذكي",  spec:{ kind:"transcribe", mode:"smart" } }
+  ];
+}
+/* فرق كلمةً كلمة بأطول تسلسل مشترك: الكلمات خارج التسلسل هي ما تغيّر */
+function wordDiff(a, b){
+  var A = a.split(/\s+/).filter(Boolean), B = b.split(/\s+/).filter(Boolean);
+  var n = A.length, m = B.length, i, j;
+  if(n * m > 250000) return { a:A.map(function(w){ return [w, false]; }), b:B.map(function(w){ return [w, false]; }) };
+  var L = []; for(i=0;i<=n;i++){ L.push(new Array(m+1).fill(0)); }
+  for(i=n-1;i>=0;i--) for(j=m-1;j>=0;j--) L[i][j] = cmpKey(A[i]) === cmpKey(B[j]) ? L[i+1][j+1] + 1 : Math.max(L[i+1][j], L[i][j+1]);
+  var ra = [], rb = []; i = 0; j = 0;
+  while(i < n && j < m){
+    if(cmpKey(A[i]) === cmpKey(B[j])){ ra.push([A[i], false]); rb.push([B[j], false]); i++; j++; }
+    else if(L[i+1][j] >= L[i][j+1]){ ra.push([A[i], true]); i++; }
+    else { rb.push([B[j], true]); j++; }
+  }
+  while(i < n) ra.push([A[i++], true]);
+  while(j < m) rb.push([B[j++], true]);
+  return { a:ra, b:rb };
+}
+function cmpPaintText(el, words, color){
+  el.textContent = "";
+  words.forEach(function(w, k){
+    var sp = document.createElement("span");
+    sp.textContent = w[0] + (k < words.length - 1 ? " " : "");
+    if(w[1]) sp.style.cssText = "background:" + color + ";border-radius:4px;padding:0 2px";
+    el.appendChild(sp);
+  });
+}
+function cmpCard(job){
+  var card = document.createElement("div"); card.className = "gsec"; card.id = "cmp_" + job.id;
+  var h = document.createElement("h4"); h.textContent = job.label;
+  var st = document.createElement("div"); st.className = "hlp"; st.textContent = "يفرّغ …";
+  var txt = document.createElement("div"); txt.className = "git"; txt.style.whiteSpace = "pre-wrap"; txt.style.minHeight = "18px";
+  var tools = document.createElement("div"); tools.style.cssText = "display:flex;gap:6px;margin-top:6px;flex-wrap:wrap";
+  var bIns = document.createElement("button"); bIns.type = "button"; bIns.className = "smallbtn"; bIns.textContent = "⏎ أدخل هذا في الصندوق"; bIns.disabled = true;
+  var bCopy = document.createElement("button"); bCopy.type = "button"; bCopy.className = "smallbtn"; bCopy.textContent = "⧉ نسخ"; bCopy.disabled = true;
+  tools.appendChild(bIns); tools.appendChild(bCopy);
+  card.appendChild(h); card.appendChild(st); card.appendChild(txt); card.appendChild(tools);
+  job.el = { card:card, st:st, txt:txt, ins:bIns, copy:bCopy };
+  return card;
+}
+function cmpSend(blob, secs){
+  var cap = parseFloat($("#costCap").value || "0");
+  if(cap > 0 && costState().total >= cap){
+    note("بلغت سقف الاستهلاك التقريبي ($" + cap.toFixed(2) + ") — لم يُرسل التسجيل.", true);
+    return;
+  }
+  var jobs = cmpJobs();
+  var list = $("#cmpList"); list.innerHTML = "";
+  jobs.forEach(function(j){ list.appendChild(cmpCard(j)); });
+  $("#cmpMeta").textContent = fmtSecs(secs) + " · خمسة محركات";
+  $("#cmpPanel").classList.add("show");
+  note("⚖ يجهّز التسجيل للمقارنة …");
+  var results = {};
+  function done(job, text, usd, est){
+    job.el.st.textContent = "تم" + (usd ? " · " + (est ? "≈$" : "$") + usd.toFixed(4) : "");
+    job.el.txt.textContent = text || "— لا نص —";
+    job.el.ins.disabled = !text; job.el.copy.disabled = !text;
+    job.el.ins.addEventListener("click", function(){
+      sessionInsert(applyPunct(applyDict(text)));
+      $("#cmpPanel").classList.remove("show");
+      note("أُدخل نص " + job.label + " في الصندوق.");
+    });
+    job.el.copy.addEventListener("click", function(){
+      navigator.clipboard.writeText(text).then(function(){ job.el.copy.textContent = "✓"; setTimeout(function(){ job.el.copy.textContent = "⧉ نسخ"; }, 900); });
+    });
+    results[job.id] = text || "";
+    if(results.trv !== undefined && results.trs !== undefined && results.trv && results.trs){
+      var d = wordDiff(results.trv, results.trs);
+      var jv = jobs.filter(function(x){ return x.id === "trv"; })[0], js = jobs.filter(function(x){ return x.id === "trs"; })[0];
+      cmpPaintText(jv.el.txt, d.a, "#b4231833");
+      cmpPaintText(js.el.txt, d.b, "#1f8a5f33");
+    }
+    var pending = jobs.filter(function(x){ return !x.finished; }).length;
+    if(!pending) note("⚖ اكتملت المقارنة — اختر من اللوحة ما يدخل الصندوق.");
+  }
+  function fail(job, err){
+    job.el.st.textContent = "تعذّر: " + (err && err.message ? err.message : err);
+    job.el.st.className = "hlp err";
+  }
+  blobToWav(blob).then(function(w){
+    var uriP = null;
+    function upload(){ if(!uriP) uriP = gemUpload(w.bytes).then(function(uri){ return { uri:uri }; }); return uriP; }
+    var inlineP = (w.bytes.length > GEM_INLINE_MAX) ? upload() : Promise.resolve({ b64: bytesToBase64(w.bytes) });
+    jobs.forEach(function(job){
+      var run = job.spec.kind === "transcribe"
+        ? upload().then(function(a){ return callTranscribe(a.uri, job.spec.mode); })
+        : inlineP.then(function(a){ return callGemini(a, job.spec.model); });
+      run.then(function(r){
+        var c = costFromUsage(r.usage, secs, job.spec);
+        if(c.usd) costAdd(c.usd);
+        job.finished = true;
+        done(job, (r.text || "").trim(), c.usd, c.est);
+      }).catch(function(err){ job.finished = true; fail(job, err); });
+    });
+  }).catch(function(err){
+    note("تعذّر تجهيز التسجيل: " + err.message, true);
+    jobs.forEach(function(job){ fail(job, err); });
+  });
+}
+$("#btnCmpClose").addEventListener("click", function(){ $("#cmpPanel").classList.remove("show"); });
+$("#cmpPanel").addEventListener("click", function(e){ if(e.target === this) this.classList.remove("show"); });
+$("#cmpMode").value = cmpOn() ? "1" : "0";
+$("#cmpMode").addEventListener("change", function(){
+  LS.set("fd.cmp", this.value === "1" ? "1" : "0");
+  note(cmpOn() ? "التسجيل المدفوع القادم يذهب إلى لوحة المقارنة." : "رجع التسجيل المدفوع إلى الوضع العادي.");
+});
+
 function paidSend(blob, secs){
   var cap = parseFloat($("#costCap").value || "0");
   var st = costState();
@@ -1358,7 +1503,7 @@ async function paidStart(){
     if(D.stream){ D.stream.getTracks().forEach(function(t){ t.stop(); }); D.stream = null; }
     D.mr = null; D.engine = null; setDest("idle"); setButtons();
     if(!blobs.length || secs < 1){ note("لم يُسجَّل شيء."); return; }
-    paidSend(new Blob(blobs, {type: mr.mimeType || "audio/webm"}), secs);
+    (cmpOn() ? cmpSend : paidSend)(new Blob(blobs, {type: mr.mimeType || "audio/webm"}), secs);
   };
   mr.start();
   setDest("paid"); setButtons(); costPaint();
@@ -1367,7 +1512,7 @@ async function paidStart(){
     var s = paidElapsed();
     if(D.recHeld){ note("⏸ معلّق عند " + fmtSecs(s) + " — العدّاد واقف ولا يُحتسب صمتك. اضغط ▶ لتكمل على نفس التسجيل."); return; }
     if(s >= PAID_MAX_SECS){ note("بلغ الحدّ الأقصى (٣٠ دقيقة) — يُرسل الآن."); paidStop(); return; }
-    note("● يسجّل " + fmtSecs(s) + " · صوتك يذهب إلى Gemini بمفتاحك · اضغط «إيقاف» ليُرسل");
+    note("● يسجّل " + fmtSecs(s) + (cmpOn() ? " · سيذهب إلى خمسة محركات للمقارنة" : " · صوتك يذهب إلى Gemini بمفتاحك") + " · اضغط «إيقاف» ليُرسل");
   }, 1000);
 }
 /* MediaRecorder يوقف إنتاج البيانات فعلياً أثناء التعليق، فالمقطع المرسل يخرج
@@ -1617,7 +1762,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "2.6";
+var VERSION = "2.7";
 var VERSION_DATE = "١ سبتمبر ٢٠٢٦";
 
 var GUIDE = [
@@ -1630,6 +1775,7 @@ var GUIDE = [
   ["الأزرار — سطر الأزرار، من اليمين","أيقونة الميكروفون الخضراء — المجاني", "زر بأيقونة بلا كلمة، والأخضر يعني أن الإملاء لا يمرّ بمفتاحك ولا يدخل عدّاد التكلفة. وهذا صحيح دائماً حتى لو كانت طبقة مفتاحك مدفوعة: الزر المجاني لا يلمس المفتاح إطلاقاً، فلا تستغرب أن تقول الشارة «جوجل عبر كروم» وأنت على خطة مدفوعة — ذاك هو المقصود، وللمدفوع زر كيس النقود. يستمع بمحرك متصفحك، بلا تكلفة وبلا مفتاح. لغة واحدة في الجلسة، هي المختارة من أزرار اللغة. النص يظهر حياً وهو يتكوّن، ويُكتب في الصندوق فور ما تسكت لحظة — لا تنتظر زر الإيقاف. الوقفات القصيرة للتفكير لا توقفه؛ يتوقف وحده فقط بعد مدة الصمت المضبوطة في الإعدادات، والافتراضي نصف ساعة كاملة فلا يقطعك وأنت تفكر. اختصاره: F2."],
   ["الأزرار — سطر الأزرار، من اليمين","السطر الحي فوق الصندوق", "سطر رفيع بين شريط التحرير وأعلى الصندوق، يظهر فيه الكلام وهو يتكوّن قبل أن يستقرّ نصاً في الصندوق. كان تحت الصندوق سابقاً فكانت العين تنزل إليه، وصار فوقه ليكون قريباً من الأزرار وأول ما تقع عليه العين. يبقى محجوز المكان طوال جلسة الإملاء المجاني حتى وهو فارغ، لئلا يقفز الصندوق كلما سكتّ لحظة، ويكتب فيه «يستمع» ريثما تتكلم. ويختفي تماماً حين لا يكون هناك إملاء فلا يسرق مساحة وأنت تكتب بيدك. ويتبع حجم الخط وسماكته وألوان الوضوح التي ضبطتها للصندوق نفسه. أما مسار كيس النقود فلا سطر حياً فيه لأن النص يصل دفعة واحدة عند الإرسال."],
   ["الأزرار — سطر الأزرار، من اليمين","أيقونة كيس النقود الكهرمانية — Gemini", "زر بأيقونة كيس نقود، بنفس لغة ألوان الشريط: الكهرماني يعني أن هذا الزر يصرف من رصيدك. وله محركان تختار بينهما من ⚙: «العام» هو المسار الأصلي كما هو حرفياً بنماذجه الثلاثة، و«التفريغ Gemini 3.5 Transcribe» متخصص جديد يُضاف خياراً لا بديلاً — وضعه الحرفي افتراض ثابت، وتلميح لغته من أزرار اللغة (العربية المعرّفة عنده مصرية، وقد فرّغ نصك السوري بدقة عالية في تجربتك)، ومفرداتك المخصصة من الإعدادات تذهب معه حتى ألف مصطلح، وزر «الذكي» اختياري مطفأ لأنه قد يبدّل كلماتك، وصوته يمرّ دائماً عبر مخزن ملفات جوجل، وعدّاد التكلفة لا يحسبه بعد. أما آلية التسجيل فواحدة في المحركين: يسجّل تسجيلاً واحداً متواصلاً حتى تضغط إيقاف (بحد أقصى نصف ساعة)، ثم يرسله دفعة واحدة. لذلك النص يظهر عند الانتهاء لا أثناء الكلام، وهذا مقصود: تقطيع الصوت إلى مقاطع قصيرة يقطع الكلمات في منتصفها فيخمّن النموذج بقيتها. أدقّ من المجاني، وبنفس الدقة في كروم وEdge. يحتاج مفتاحاً من الإعدادات، والتلميح على الزر والشارة أثناء التسجيل يسمّيان النموذج الذي يعالج صوتك. والصوت يُصغَّر قبل الإرسال إلى الجودة التي تعالج بها جوجل الصوت أصلاً، فلا تنقص الدقة ويصغر الطلب. والتسجيل القصير يذهب في طلب واحد مباشر، أما الطويل فيُرفع أولاً إلى مخزن ملفات جوجل ثم يُفرَّغ — تراها في الرسائل خطوة بخطوة — والملف يُحذف عندهم تلقائياً بعد يومين. ويفرّغ باللغة المختارة من أزرار اللغة، لغة واحدة في التسجيل الواحد."],
+  ["الأزرار — سطر الأزرار، من اليمين","⚖ لوحة المقارنة — اختبار الدقة ومعاينة الفروقات", "وضع اختبار تشغّله من ⚙ الإعدادات، خانة «وجهة التسجيل المدفوع». حين يكون شغّالاً، التسجيل الذي تسجّله بزر كيس النقود لا يذهب إلى محرك واحد بل إلى خمسة معاً: النماذج العامة الثلاثة Flash-Lite وFlash وPro، ومحرك التفريغ المتخصص بأسلوبيه الحرفي والذكي. تفتح لوحة فيها بطاقة لكل محرك، تصل نتائجها تباعاً مع تكلفة كل واحدة، وتحت كل نص زر يُدخله في الصندوق وزر ينسخه. وبين بطاقتي التفريغ تلوين للفروق كلمةً كلمة: في «ذكي» تُلوَّن بالأخضر الكلمات التي غيّرها أو أضافها عن الحرفي، وفي «حرفي» تُلوَّن بالأحمر الكلمات التي أسقطها الذكي — فترى بعينك ماذا يفعل الوضع الذكي بكلامك قبل أن تقرر اعتماده، وهذا هو الفحص الذي كشف من قبل أنه يحوّل كلمات سورية إلى مصرية. الغاية من اللوحة أن تقرر أي محرك تعتمد في عملك اليومي: سجّل مقطعاً قصيراً يشبه إملاءك المعتاد، قارن، ثم ارجع إلى الوضع العادي واختر ما أعجبك من قائمة النموذج. تدفع ثمن الخمسة معاً فلا تتركها شغّالة في العمل اليومي، والسطر أثناء التسجيل يذكّرك أنها شغّالة. سقف الاستهلاك يحميك هنا أيضاً. ولا تصل هذه اللوحة إلى الشريط المزروع: تسجيلاته تذهب دائماً إلى المحرك المختار في الوضع العادي."],
   ["الأزرار — سطر الأزرار، من اليمين","ماذا يحدث إذا كان Gemini مزدحماً", "جوجل ترفض الطلب أحياناً حين يكون النموذج مزدحماً، وهذه الموجات تمرّ في ثوانٍ. فالأداة تعيد المحاولة وحدها بعد ثانية، ثم ثانيتين، ثم أربع، وتخبرك بما يجري — فلا يضيع تسجيلك لأن جوجل كانت مشغولة لحظة. أما نفاد الحصة فيبدو مشابهاً لكنه لا ينقضي بالانتظار، ولذلك يُبلَّغ فوراً بلا إعادة محاولة عابثة."],
   ["الأزرار — سطر الأزرار، من اليمين","⏸ الإيقاف المؤقت", "زر كهرماني يظهر أثناء التسجيل المدفوع وحده. تضغطه فيتجمّد التسجيل ويقف العدّاد معه، وتضغطه ثانية فيكمل على نفس التسجيل لا على تسجيل جديد. فائدته أنك حين تتوقف لتفكّر أو يقاطعك أحد لا تدفع ثمن صمتك: المتصفح يوقف إنتاج الصوت فعلياً أثناء التعليق، فالمقطع يخرج متصلاً بلا فجوات، أي أن الصمت لا يدخل الفاتورة أصلاً لا أنه يدخل ثم يُحذف. وما دام التسجيل معلّقاً يتغيّر لون زر كيس النقود ويبقى ينبض، ويكتب السطر تحت الصندوق «معلّق عند» والوقت الذي جمعته حتى الآن — كي لا تنسى نفسك متوقفاً وأنت تحسبك تسجّل. والحد الأقصى نصف ساعة يُحسب من زمن الكلام وحده لا من زمن التعليق."],
   ["الأزرار — سطر الأزرار، من اليمين","كيف يُقرأ عدّاد التسجيل", "كان العدّاد يكتب الثواني خاماً فيقول مثلاً ٦٣٤ ثانية وهو رقم لا تقرأه عين. صار يكتب الثواني وحدها تحت الدقيقة، ثم دقيقة:ثانية فوقها، ثم ساعة:دقيقة:ثانية فوق الساعة. ونفس الشيء في الشريط المزروع."],
@@ -1676,7 +1822,7 @@ var GUIDE = [
   ["معلومات عامة عن الإملاء", "على الموبايل", "محرك جوجل داخل لوحة Gboard هو الأدق للعربية والسويدية والإنجليزية، ويدعم العمل بلا إنترنت بعد تنزيل حزمة اللغة. محرك سامسونج الخاص أضعف، ويمكن تجاوزه من إعدادات لوحة سامسونج باختيار إدخال جوجل الصوتي بدلاً منه. أما مساعدا الصوت Gemini وBixby فليسا بديلاً عن محرك الإملاء لكتابة نص طويل."],
   ["معلومات عامة عن الإملاء", "البحث الصوتي في جوجل ويوتيوب", "أيقونة الميكروفون في مربع البحث ليست أداة إملاء، بل بحث صوتي مصمم لجملة قصيرة واحدة، فلا تعتمد عليها لكتابة فقرة أو رسالة. ولغتها لا تتبع لغة المتصفح بل إعدادات حساب جوجل نفسه، فتُضبط من هناك."],
   ["معلومات عامة عن الإملاء", "الخصوصية وتخزين التسجيلات", "في كل هذه الأدوات يُرسل الصوت إلى السحابة افتراضياً، ما عدا الوضع المحلي بلا إنترنت على الموبايل. يمكنك مراجعة التسجيلات المخزّنة وحذفها من حساب جوجل عبر My Activity، ومن لوحة خصوصية مايكروسوفت، ومن إعدادات Bixby. جوجل تحذف تلقائياً كل ثلاثة أو ثمانية عشر أو ستة وثلاثين شهراً حسب اختيارك، ومايكروسوفت لم تعد تربط التسجيلات بالحساب منذ ٢٠٢٠، وسامسونج تحتفظ بها شهراً مرتبطة بالجهاز ثم سنة بشكل مجهول الهوية."],
-  ["معلومات عامة عن الإملاء", "اللهجة السورية", "لا توجد أداة من هذه الأدوات تدعم اللهجة السورية كخيار منفصل. التعرف يقوم أساساً على الفصحى أو أقرب لهجة شامية متاحة — فلسطينية أو لبنانية أو أردنية — والدقة فيها أقل من الإنجليزية بشكل عام. لهذا السبب تبدأ هذه الأداة بـ ar-SY ثم تتراجع تلقائياً إلى غيرها."],
+  ["معلومات عامة عن الإملاء", "اللهجة السورية", "لا توجد أداة من هذه الأدوات تدعم اللهجة السورية كخيار منفصل. التعرف يقوم أساساً على الفصحى أو أقرب لهجة شامية متاحة — فلسطينية أو لبنانية أو أردنية — والدقة فيها أقل من الإنجليزية بشكل عام. لهذا السبب تبدأ هذه الأداة باللهجة السورية دائماً، ولا تتراجع إلى غيرها إلا إن رفضها المتصفح — وعندها بترتيب القرب من السورية: اللبنانية، فالأردنية، فالفلسطينية، فالعراقية، ثم السعودية والإماراتية والمصرية، ثم عربية عامة بلا بلد. الترتيب نفسه في النافذة والشريط."],
   ["معلومات عامة عن الإملاء", "لا سيرفرات لهذه الأداة", "لا توجد أي سيرفرات خاصة بهذه الأداة، ولا يصل صانعها منها شيء. نصّك ومفتاحك وملاحظاتك وخطوطك كلها في متصفحك وحده. الصوت وحده يغادر، إلى الجهة التي تسمّيها لك الشارة في كل لحظة."],
 ];
 function paintGuide(q){
@@ -1701,7 +1847,7 @@ $("#btnGuide").addEventListener("click", function(){ $("#guide").classList.add("
 $("#btnGuideClose").addEventListener("click", function(){ $("#guide").classList.remove("show"); });
 $("#guide").addEventListener("click", function(e){ if(e.target === this) this.classList.remove("show"); });
 $("#gSearch").addEventListener("input", function(){ paintGuide(this.value.trim().toLowerCase()); });
-function escHandler(e){ if(e.key === "Escape"){ $("#guide").classList.remove("show"); $("#fontPicker").classList.remove("show"); $("#notesPanel").classList.remove("show"); } }
+function escHandler(e){ if(e.key === "Escape"){ $("#guide").classList.remove("show"); $("#fontPicker").classList.remove("show"); $("#notesPanel").classList.remove("show"); $("#cmpPanel").classList.remove("show"); } }
 document.addEventListener("keydown", escHandler);
 
 /* ---------- saved notes — same idea as JoyRead's floating idea notebook,
