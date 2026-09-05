@@ -1791,7 +1791,7 @@ async function liveStart(remote){
 }
 function liveHold(){
   if(!liveActive()) return;
-  if(LV.held){ LV.start = Date.now(); LV.held = false; }
+  if(LV.held){ LV.start = Date.now(); LV.held = false; LV.lastChunk = Date.now(); }   /* الصوت من الشريط يعود بعد لحظة؛ لا يُحسب انقطاعاً */
   else { LV.acc = (LV.acc || 0) + (Date.now() - LV.start); LV.held = true; liveFlush(); }
   D.recHeld = LV.held; paidHoldPaint(); liveTick();
 }
@@ -2152,7 +2152,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "3";
+var VERSION = "4";
 var VERSION_DATE = "5 سبتمبر 2026";
 
 var GUIDE = [
