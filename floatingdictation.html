@@ -1524,9 +1524,14 @@ var LIVE_PROV = {
   google: { name:"Gemini 3.5 Transcribe Live", rate:16000, maxSecs:600,  perMin:0.009, who:"جوجل" },
   openai: { name:"OpenAI GPT Live Transcribe", rate:24000, maxSecs:3600, perMin:0.017, who:"OpenAI" }
 };
+/* كشف الصمت المحلي لقناة OpenAI وحدها: نموذجهم الحي لا يقبل كشف نهاية الجملة
+   على خادمهم، ومن وثائقهم لا تصدر جملة نهائية إلا حين يبعث الطرف أمر تثبيت
+   input_audio_buffer.commit بنفسه. فنقيس شدة الصوت هنا ونثبّت عند كل سكتة. */
+var OA_VAD = { silenceMs:700, minSpeechMs:800, minGapMs:1500, floorInit:0.004, floorCap:0.012, minThresh:0.01, floorRatio:4 };
 var LV = { ws:null, ctx:null, node:null, src:null, stream:null, ready:false, held:false, prov:"google",
            start:0, acc:0, sessionStart:0, timer:null, closing:false, finalWait:null, buf:[], bufLen:0, sentChunks:0, oaText:"",
-           remote:false, remoteRate:0, lastChunk:0, lastTickSent:0, remoteErr:false };
+           remote:false, remoteRate:0, lastChunk:0, lastTickSent:0, remoteErr:false,
+           vad:null, oaParts:{}, oaOrder:[], commits:0 };
 
 function liveOn(){ var v = payEngineSel(); return v === "tr-live" || v === "oa-live"; }
 function liveProvider(){ return payReal() === "oa-live" ? "openai" : "google"; }
@@ -1564,9 +1569,30 @@ function liveFeed(f32, rate){
   if(LV.remote){ LV.lastChunk = Date.now(); if(Date.now() - LV.lastTickSent >= 1000 && !liveRemoteTick()) return; }
   if(!LV.ready || LV.held) return;           /* المعلّق لا يُرسل ولا يُحاسَب */
   var from = rate || (LV.ctx ? LV.ctx.sampleRate : liveP().rate);
+  if(LV.prov === "openai") liveVad(f32, from);
   var s = liveDownsample(f32, from, liveP().rate);
   LV.buf.push(s); LV.bufLen += s.length;
   if(LV.bufLen >= liveP().rate / 10) liveFlush();   /* مئة ميلي ثانية */
+}
+function liveVadReset(){ LV.vad = { floor:OA_VAD.floorInit, speech:false, speechMs:0, silenceSince:0, lastCommit:Date.now() }; }
+function liveVad(f32, rate){
+  var v = LV.vad; if(!v) { liveVadReset(); v = LV.vad; }
+  var sum = 0; for(var i=0;i<f32.length;i++) sum += f32[i] * f32[i];
+  var rms = Math.sqrt(sum / (f32.length || 1)), ms = (f32.length / rate) * 1000, now = Date.now();
+  /* أرضية الضجيج: تتبع الهدوء بسرعة، وترتفع أثناء الكلام ببطء شديد وحتى سقف
+     منخفض، حتى لا يرفعها كلام طويل فيُحسب الكلام الخافت صمتاً */
+  var talking = rms > Math.max(OA_VAD.minThresh, v.floor * OA_VAD.floorRatio);
+  if(rms < v.floor) v.floor = rms;
+  else v.floor = Math.min(OA_VAD.floorCap, v.floor + (rms - v.floor) * (talking ? 0.005 : 0.05));
+  if(talking){ v.speech = true; v.speechMs += ms; v.silenceSince = 0; return; }
+  if(!v.speech) return;
+  if(!v.silenceSince){ v.silenceSince = now; return; }
+  if(now - v.silenceSince < OA_VAD.silenceMs) return;
+  if(v.speechMs >= OA_VAD.minSpeechMs && now - v.lastCommit >= OA_VAD.minGapMs){
+    liveFlush();
+    if(liveSend({ type:"input_audio_buffer.commit" })){ LV.commits++; v.lastCommit = now; }
+  }
+  v.speech = false; v.speechMs = 0; v.silenceSince = 0;
 }
 function liveFlush(){
   if(!LV.bufLen) return;
@@ -1656,6 +1682,7 @@ function liveConnectOpenAI(key){
     }
   };
 }
+function liveOaPending(){ return LV.oaOrder.map(function(id){ return LV.oaParts[id]; }).join(" ").replace(/\s+/g, " ").trim(); }
 function liveHandleOpenAI(txt){
   var m; try{ m = JSON.parse(txt); }catch(e){ return; }
   var t = m.type || "";
@@ -1667,16 +1694,20 @@ function liveHandleOpenAI(txt){
     if(/insufficient_quota|credit_balance_exhausted|quota/i.test(msg + " " + ((m.error && m.error.code) || ""))) msg = "نفد رصيد OpenAI — اشحنه من صفحة Billing عندهم.";
     liveErr("خطأ من OpenAI: " + msg); return;
   }
+  /* كل مقطع مثبَّت عندهم عنصر مستقل له item_id؛ أجزاء المقطع التالي قد تصل قبل
+     نهائي المقطع السابق، فنحفظ النص لكل عنصر على حدة ونعرض ما لم يُثبَّت بعد */
+  var id = m.item_id || "_";
   if(t === "conversation.item.input_audio_transcription.delta"){
-    LV.oaText += (m.delta || "");
-    liveInterim(LV.oaText.trim()); return;
+    if(!(id in LV.oaParts)){ LV.oaParts[id] = ""; LV.oaOrder.push(id); }
+    LV.oaParts[id] += (m.delta || "");
+    liveInterim(liveOaPending()); return;
   }
   if(t === "conversation.item.input_audio_transcription.completed"){
-    var fin = String(m.transcript || LV.oaText || "").trim();
-    LV.oaText = "";
+    var fin = String(m.transcript || LV.oaParts[id] || "").trim();
+    delete LV.oaParts[id]; LV.oaOrder = LV.oaOrder.filter(function(x){ return x !== id; });
     if(fin) liveFinal(fin);
-    liveInterim("");
-    if(LV.closing && LV.finalWait){ clearTimeout(LV.finalWait); LV.finalWait = null; liveFinish(); }
+    liveInterim(liveOaPending());
+    if(LV.closing && LV.finalWait && !LV.oaOrder.length){ clearTimeout(LV.finalWait); LV.finalWait = null; liveFinish(); }
   }
 }
 function liveHandle(txt){
@@ -1748,7 +1779,8 @@ async function liveStart(remote){
     LV.remote = false; LV.remoteRate = 0;
   }
   LV.ready = false; LV.held = false; LV.closing = false; LV.finalWait = null;
-  LV.buf = []; LV.bufLen = 0; LV.sentChunks = 0; LV.oaText = "";
+  LV.buf = []; LV.bufLen = 0; LV.sentChunks = 0; LV.oaText = ""; LV.oaParts = {}; LV.oaOrder = []; LV.commits = 0;
+  liveVadReset();
   LV.acc = 0; LV.start = Date.now(); LV.sessionStart = Date.now();
   D.engine = "paid"; D.stop = false; D.recHeld = false;
   if(!remote) await liveMakeCapture();
@@ -2120,7 +2152,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "2";
+var VERSION = "3";
 var VERSION_DATE = "5 سبتمبر 2026";
 
 var GUIDE = [
