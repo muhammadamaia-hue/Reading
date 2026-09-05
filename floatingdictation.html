@@ -709,7 +709,9 @@ function payEngineSel(){
 function payReal(){ var v = payEngineSel(); return v !== "compare" ? v : (LS.get("fd.payLast") || "tr-verbatim"); }
 /* الشريط المزروع يسجّل ثم يرسل، فلا بثّ فيه: حين تكون الخانة على البثّ الحي
    يذهب تسجيله إلى المتخصص المسجَّل الحرفي */
-function bridgeModelName(){ var v = payReal(); return v === "tr-live" ? "Gemini 3.5 Transcribe" : v === "oa-live" ? "OpenAI GPT Transcribe" : modelName(); }
+function bridgeLive(){ var v = payReal(); return v === "tr-live" || v === "oa-live"; }
+function bridgeModelName(){ var v = payReal(); return v === "tr-live" ? LIVE_PROV.google.name : v === "oa-live" ? LIVE_PROV.openai.name : modelName(); }
+function bridgeRecName(){ var e = engine(); return e === "openai" ? "OpenAI GPT Transcribe" : e === "transcribe" ? "Gemini 3.5 Transcribe" : modelName(); }
 function cmpOn(){ return payEngineSel() === "compare"; }
 function engine(){ var v = payReal(); return v.indexOf("oa-") === 0 ? "openai" : (v.indexOf("tr-") === 0 ? "transcribe" : "general"); }
 function payModel(){ var v = payReal(); return MODEL_LABEL[v] ? v : "gemini-3.5-flash-lite"; }
@@ -1523,12 +1525,18 @@ var LIVE_PROV = {
   openai: { name:"OpenAI GPT Live Transcribe", rate:24000, maxSecs:3600, perMin:0.017, who:"OpenAI" }
 };
 var LV = { ws:null, ctx:null, node:null, src:null, stream:null, ready:false, held:false, prov:"google",
-           start:0, acc:0, sessionStart:0, timer:null, closing:false, finalWait:null, buf:[], bufLen:0, sentChunks:0, oaText:"" };
+           start:0, acc:0, sessionStart:0, timer:null, closing:false, finalWait:null, buf:[], bufLen:0, sentChunks:0, oaText:"",
+           remote:false, remoteRate:0, lastChunk:0, remoteErr:false };
 
 function liveOn(){ var v = payEngineSel(); return v === "tr-live" || v === "oa-live"; }
-function liveProvider(){ return payEngineSel() === "oa-live" ? "openai" : "google"; }
+function liveProvider(){ return payReal() === "oa-live" ? "openai" : "google"; }
 function liveP(){ return LIVE_PROV[LV.prov] || LIVE_PROV.google; }
-function liveActive(){ return D.engine === "paid" && !!LV.ctx; }
+function liveActive(){ return D.engine === "paid" && !!(LV.ctx || LV.remote); }
+/* الشريط المزروع يبثّ عبر هذه النافذة: صوته الخام يصل رسائل عبر الجسر، والقناة
+   الحية مع المزوّد تُفتح هنا بالمفتاح، والنص التخميني والنهائي يُعادان إليه */
+function liveInterim(t){ showLive(t); if(LV.remote) barPush({ type:"liveInterim", text:t }); }
+function liveFinal(t){ var out = applyPunct(applyDict(t)); if(LV.remote) barPush({ type:"transcribed", text:out }); else sessionInsert(out); }
+function liveErr(msg){ note(msg, true); if(LV.remote){ LV.remoteErr = true; barPush({ type:"liveError", error:msg }); } }
 function liveElapsed(){ var run = LV.held ? 0 : (Date.now() - LV.start); return Math.round(((LV.acc || 0) + run) / 1000); }
 function liveSessionLeft(){ return Math.max(0, liveP().maxSecs - Math.round((Date.now() - LV.sessionStart) / 1000)); }
 function liveSend(obj){ if(LV.ws && LV.ws.readyState === 1){ try{ LV.ws.send(JSON.stringify(obj)); return true; }catch(e){} } return false; }
@@ -1551,10 +1559,12 @@ function livePcmBase64(f32){
   for(var k=0;k<bytes.length;k+=step) bin += String.fromCharCode.apply(null, bytes.subarray(k, k + step));
   return btoa(bin);
 }
-function liveFeed(f32){
-  if(!LV.ctx || LV.closing) return;
+function liveFeed(f32, rate){
+  if(!(LV.ctx || LV.remote) || LV.closing) return;
+  if(LV.remote) LV.lastChunk = Date.now();
   if(!LV.ready || LV.held) return;           /* المعلّق لا يُرسل ولا يُحاسَب */
-  var s = liveDownsample(f32, LV.ctx.sampleRate, liveP().rate);
+  var from = rate || (LV.ctx ? LV.ctx.sampleRate : liveP().rate);
+  var s = liveDownsample(f32, from, liveP().rate);
   LV.buf.push(s); LV.bufLen += s.length;
   if(LV.bufLen >= liveP().rate / 10) liveFlush();   /* مئة ميلي ثانية */
 }
@@ -1605,12 +1615,12 @@ function liveConnect(key){
     var d = ev.data;
     if(d instanceof Blob){ d.text().then(liveHandle); } else liveHandle(String(d));
   };
-  ws.onerror = function(){ if(!LV.closing && LV.ws === ws) note("تعذّر الاتصال بخدمة البثّ الحي عند " + liveP().who + ".", true); };
+  ws.onerror = function(){ if(!LV.closing && LV.ws === ws) liveErr("تعذّر الاتصال بخدمة البثّ الحي عند " + liveP().who + "."); };
   ws.onclose = function(ev){
     if(LV.ws !== ws) return;
     LV.ws = null;
     if(!LV.closing && D.engine === "paid"){
-      note("انقطع الاتصال بـ" + liveP().who + " (" + ev.code + (ev.reason ? " — " + ev.reason : "") + "). ما وصل حتى الآن باقٍ في الصندوق؛ اضغط كيس النقود لتبدأ من جديد.", true);
+      liveErr("انقطع الاتصال بـ" + liveP().who + " (" + ev.code + (ev.reason ? " — " + ev.reason : "") + "). ما وصل حتى الآن باقٍ؛ اضغط كيس النقود لتبدأ من جديد.");
       liveStop(true);
     }
   };
@@ -1618,7 +1628,7 @@ function liveConnect(key){
 function liveConnectOpenAI(key){
   var ws;
   try{ ws = new WebSocket(OA_LIVE_WS, ["realtime", "openai-insecure-api-key." + key]); }
-  catch(e){ note("تعذّر فتح قناة OpenAI: " + e.message, true); liveStop(true); return; }
+  catch(e){ liveErr("تعذّر فتح قناة OpenAI: " + e.message); liveStop(true); return; }
   LV.ws = ws;
   ws.onopen = function(){
     var langCode = { ar:"ar", sv:"sv", en:"en" }[$("#lang").value] || null;
@@ -1636,12 +1646,12 @@ function liveConnectOpenAI(key){
     setTimeout(function(){ if(LV.ws === ws && !LV.ready && !LV.closing){ LV.ready = true; note("● بثّ حي — تكلّم"); } }, 3000);
   };
   ws.onmessage = function(ev){ var d = ev.data; if(d instanceof Blob){ d.text().then(liveHandleOpenAI); } else liveHandleOpenAI(String(d)); };
-  ws.onerror = function(){ if(!LV.closing && LV.ws === ws) note("تعذّر الاتصال بخدمة البثّ الحي عند OpenAI.", true); };
+  ws.onerror = function(){ if(!LV.closing && LV.ws === ws) liveErr("تعذّر الاتصال بخدمة البثّ الحي عند OpenAI."); };
   ws.onclose = function(ev){
     if(LV.ws !== ws) return;
     LV.ws = null;
     if(!LV.closing && D.engine === "paid"){
-      note("انقطع الاتصال بـOpenAI (" + ev.code + (ev.reason ? " — " + ev.reason : "") + "). ما وصل حتى الآن باقٍ في الصندوق؛ اضغط كيس النقود لتبدأ من جديد.", true);
+      liveErr("انقطع الاتصال بـOpenAI (" + ev.code + (ev.reason ? " — " + ev.reason : "") + "). ما وصل حتى الآن باقٍ؛ اضغط كيس النقود لتبدأ من جديد.");
       liveStop(true);
     }
   };
@@ -1655,36 +1665,41 @@ function liveHandleOpenAI(txt){
     if(/buffer too small|empty/i.test(msg)) return;            /* لا صوت بعد عند الإغلاق — لا يهم */
     if(/invalid.*api key|incorrect api key|401/i.test(msg)) msg = "OpenAI رفض المفتاح — تحقّق منه في الإعدادات.";
     if(/insufficient_quota|credit_balance_exhausted|quota/i.test(msg + " " + ((m.error && m.error.code) || ""))) msg = "نفد رصيد OpenAI — اشحنه من صفحة Billing عندهم.";
-    note("خطأ من OpenAI: " + msg, true); return;
+    liveErr("خطأ من OpenAI: " + msg); return;
   }
   if(t === "conversation.item.input_audio_transcription.delta"){
     LV.oaText += (m.delta || "");
-    showLive(LV.oaText.trim()); return;
+    liveInterim(LV.oaText.trim()); return;
   }
   if(t === "conversation.item.input_audio_transcription.completed"){
     var fin = String(m.transcript || LV.oaText || "").trim();
     LV.oaText = "";
-    if(fin) sessionInsert(applyPunct(applyDict(fin)));
-    showLive("");
+    if(fin) liveFinal(fin);
+    liveInterim("");
     if(LV.closing && LV.finalWait){ clearTimeout(LV.finalWait); LV.finalWait = null; liveFinish(); }
   }
 }
 function liveHandle(txt){
   var m; try{ m = JSON.parse(txt); }catch(e){ return; }
   if(m.setupComplete){ LV.ready = true; note("● بثّ حي — تكلّم"); return; }
-  if(m.error){ note("خطأ من جوجل: " + (m.error.message || JSON.stringify(m.error)), true); return; }
+  if(m.error){ liveErr("خطأ من جوجل: " + (m.error.message || JSON.stringify(m.error))); return; }
   var c = m.serverContent; if(!c) return;
-  if(c.interimInputTranscription && typeof c.interimInputTranscription.text === "string") showLive(c.interimInputTranscription.text);
+  if(c.interimInputTranscription && typeof c.interimInputTranscription.text === "string") liveInterim(c.interimInputTranscription.text);
   if(c.inputTranscription && typeof c.inputTranscription.text === "string"){
     var t = c.inputTranscription.text.trim();
-    if(t) sessionInsert(applyPunct(applyDict(t)));
-    showLive("");
+    if(t) liveFinal(t);
+    liveInterim("");
     if(LV.closing && LV.finalWait){ clearTimeout(LV.finalWait); LV.finalWait = null; liveFinish(); }
   }
 }
 function liveTick(){
-  if(!LV.ctx) return;
+  if(!(LV.ctx || LV.remote)) return;
   var s = liveElapsed(), left = liveSessionLeft();
+  if(LV.remote){
+    if(!window.opener || window.opener.closed){ note("أُغلقت صفحة الشريط — أُوقف البثّ.", true); liveStop(true); return; }
+    if(LV.ready && !LV.held && Date.now() - LV.lastChunk > 6000){ liveErr("انقطع الصوت القادم من الشريط — أُوقف البثّ."); liveStop(); return; }
+    barPush({ type:"liveTick", secs:s, left:left, ready:LV.ready, held:LV.held, who:liveP().who, warn:LIVE_WARN_SECS });
+  }
   if(left <= 0){
     note("انتهت جلسة " + liveP().who + " (" + fmtSecs(liveP().maxSecs) + ") — أُوقف البثّ نظيفاً. اضغط كيس النقود لجلسة جديدة.");
     liveStop(); return;
@@ -1694,34 +1709,44 @@ function liveTick(){
   else if(!LV.ready) note("☁️ يتصل بخدمة البثّ الحي …");
   else note(warn + "● بثّ حي " + fmtSecs(s) + " · يبقى من الجلسة " + fmtSecs(left) + " · اضغط «إيقاف» لينهي");
 }
-async function liveStart(){
-  if(D.engine === "free"){ note("أوقف الإملاء المجاني أولاً.", true); return; }
+/* remote: {rate, lang} حين يطلب الشريط المزروع البثّ عبر هذه النافذة */
+async function liveStart(remote){
+  function fail(msg){ if(remote) barPush({ type:"liveError", error:msg }); note(msg, true); }
+  if(D.engine === "free"){ fail("أوقف الإملاء المجاني أولاً."); return; }
+  if(D.engine === "paid"){ fail(remote ? "النافذة مشغولة بتسجيل أو بثّ آخر — أوقفه أولاً." : "هناك بثّ يعمل بالفعل."); return; }
   LV.prov = liveProvider();
   var key = LV.prov === "openai" ? getOaKey() : getKey();
   if(!key){
-    note(LV.prov === "openai" ? "ضع مفتاح OpenAI في الإعدادات ⚙ أولاً." : "ضع مفتاح Google AI في الإعدادات ⚙ أولاً.", true);
+    fail(LV.prov === "openai" ? "ضع مفتاح OpenAI في الإعدادات ⚙ أولاً." : "ضع مفتاح Google AI في الإعدادات ⚙ أولاً.");
     openSettings(); $(LV.prov === "openai" ? "#oakey" : "#gkey").focus(); return;
   }
   var Ctx = window.AudioContext || window.webkitAudioContext;
-  if(!window.WebSocket || !navigator.mediaDevices || !Ctx){ note("هذا المتصفح لا يدعم البثّ الحي.", true); return; }
+  if(!window.WebSocket || (!remote && (!navigator.mediaDevices || !Ctx))){ fail("هذا المتصفح لا يدعم البثّ الحي."); return; }
   var cap = capUsd();
-  if(cap > 0 && costState().total >= cap){ note("بلغت سقف الاستهلاك التقريبي (" + fmtCap() + ") — لم يبدأ البثّ.", true); return; }
-  sessionStart();
-  try{ LV.stream = await navigator.mediaDevices.getUserMedia({ audio:{ channelCount:1, echoCancellation:true, noiseSuppression:true } }); }
-  catch(err){
-    note("تعذّر فتح الميكروفون: " + (err.name === "NotAllowedError" ? "الإذن محظور — انقر أيقونة القفل يسار شريط العنوان ← الميكروفون ← السماح." : err.message), true);
-    return;
+  if(cap > 0 && costState().total >= cap){ fail("بلغت سقف الاستهلاك التقريبي (" + fmtCap() + ") — لم يبدأ البثّ."); return; }
+  if(remote){
+    if(remote.lang && $("#lang").value !== remote.lang) setLang(remote.lang, false);
+    LV.remote = true; LV.remoteErr = false; LV.remoteRate = remote.rate > 0 ? remote.rate : liveP().rate; LV.lastChunk = Date.now();
+    LV.ctx = null; LV.src = null; LV.node = null; LV.stream = null;
+  } else {
+    sessionStart();
+    try{ LV.stream = await navigator.mediaDevices.getUserMedia({ audio:{ channelCount:1, echoCancellation:true, noiseSuppression:true } }); }
+    catch(err){
+      note("تعذّر فتح الميكروفون: " + (err.name === "NotAllowedError" ? "الإذن محظور — انقر أيقونة القفل يسار شريط العنوان ← الميكروفون ← السماح." : err.message), true);
+      return;
+    }
+    try{ LV.ctx = new Ctx({ sampleRate: liveP().rate }); }catch(e){ LV.ctx = new Ctx(); }
+    try{ await LV.ctx.resume(); }catch(e){}
+    LV.src = LV.ctx.createMediaStreamSource(LV.stream);
+    LV.remote = false; LV.remoteRate = 0;
   }
-  try{ LV.ctx = new Ctx({ sampleRate: liveP().rate }); }catch(e){ LV.ctx = new Ctx(); }
-  try{ await LV.ctx.resume(); }catch(e){}
-  LV.src = LV.ctx.createMediaStreamSource(LV.stream);
   LV.ready = false; LV.held = false; LV.closing = false; LV.finalWait = null;
   LV.buf = []; LV.bufLen = 0; LV.sentChunks = 0; LV.oaText = "";
   LV.acc = 0; LV.start = Date.now(); LV.sessionStart = Date.now();
   D.engine = "paid"; D.stop = false; D.recHeld = false;
-  await liveMakeCapture();
+  if(!remote) await liveMakeCapture();
   setDest("paid"); setButtons(); costPaint(); paidHoldPaint();
-  note("☁️ يتصل بخدمة البثّ الحي …");
+  note(remote ? "☁️ يبثّ من الشريط — يتصل بخدمة البثّ الحي …" : "☁️ يتصل بخدمة البثّ الحي …");
   liveConnect(key);
   LV.timer = setInterval(liveTick, 1000);
 }
@@ -1732,7 +1757,7 @@ function liveHold(){
   D.recHeld = LV.held; paidHoldPaint(); liveTick();
 }
 function liveStop(abrupt){
-  if(!LV.ctx || LV.closing) return;
+  if(!(LV.ctx || LV.remote) || LV.closing) return;
   LV.closing = true;
   if(LV.timer){ clearInterval(LV.timer); LV.timer = null; }
   if(!LV.held) liveFlush();
@@ -1757,7 +1782,9 @@ function liveFinish(){
   D.engine = null; D.recHeld = false; setDest("idle"); setButtons(); paidHoldPaint();
   var usd = onPaidTier() ? (secs / 60) * liveP().perMin : 0;
   if(usd) costAdd(usd);
-  note("تم — بثّ حي " + fmtSecs(secs) + " · " + liveP().name + (usd ? " · " + fmtMoney(usd, true) : ""));
+  note("تم — بثّ حي " + (LV.remote ? "من الشريط " : "") + fmtSecs(secs) + " · " + liveP().name + (usd ? " · " + fmtMoney(usd, true) : ""));
+  if(LV.remote && !LV.remoteErr) barPush({ type:"liveEnded", secs:secs, name:liveP().name, cost: usd ? fmtMoney(usd, true) : "" });
+  LV.remote = false; LV.remoteRate = 0;
 }
 
 async function paidStart(){
@@ -2048,8 +2075,8 @@ function payPaint(){
   $("#fldVocab").style.display = (engine() === "transcribe" || v === "compare") ? "" : "none";
   var H = {
     "tr-verbatim": "المتخصص: نموذج درّبته جوجل على التفريغ وحده. يكتب كلامك كما قلته حرفاً حرفاً — لا يرتّب ولا يحذف ولا يبدّل. الفائز في مقارنتك على الكلام السوري.",
-    "tr-live": "المتخصص نفسه لكن بقناة حية: النص يظهر في السطر الحي وأنت تتكلم ويُكتب في الصندوق حين تسكت لحظة — متل الزر الأخضر تماماً لكن بدقة المتخصص وبهجائه. حرفي دائماً. جلسة جوجل عشر دقائق كحد أقصى ثم يتوقف نظيفاً وتعيد تشغيله؛ والإيقاف المؤقت يقطع الصوت والفاتورة لا عدّاد الجلسة. السعر نحو ضعف المسجَّل: قرابة سنت للدقيقة، تقديراً. والشريط المزروع يبقى على المتخصص المسجَّل الحرفي لأنه لا يقدر على البثّ.",
-    "oa-live": "بثّ OpenAI الحي بمفتاح OpenAI: النص يظهر في السطر الحي وأنت تتكلم ويُكتب في الصندوق حين تسكت لحظة، كبثّ جوجل تماماً. حرفي دائماً. الأغلى في القائمة: 0.017 دولار للدقيقة، ضعف بثّ جوجل، تقديراً. الإيقاف المؤقت يقطع الصوت والفاتورة. جلسته حتى ساعة ثم توقف نظيف. والشريط المزروع يبقى على OpenAI المسجَّل.",
+    "tr-live": "المتخصص نفسه لكن بقناة حية: النص يظهر في السطر الحي وأنت تتكلم ويُكتب في الصندوق حين تسكت لحظة — متل الزر الأخضر تماماً لكن بدقة المتخصص وبهجائه. حرفي دائماً. جلسة جوجل عشر دقائق كحد أقصى ثم يتوقف نظيفاً وتعيد تشغيله؛ والإيقاف المؤقت يقطع الصوت والفاتورة لا عدّاد الجلسة. السعر نحو ضعف المسجَّل: قرابة سنت للدقيقة، تقديراً. والشريط المزروع يبثّ به أيضاً: صوته يمرّ عبر هذه النافذة والجمل المكتملة تنزل في مربع الصفحة وأنت تتكلم.",
+    "oa-live": "بثّ OpenAI الحي بمفتاح OpenAI: النص يظهر في السطر الحي وأنت تتكلم ويُكتب في الصندوق حين تسكت لحظة، كبثّ جوجل تماماً. حرفي دائماً. الأغلى في القائمة: 0.017 دولار للدقيقة، ضعف بثّ جوجل، تقديراً. الإيقاف المؤقت يقطع الصوت والفاتورة. جلسته حتى ساعة ثم توقف نظيف. والشريط المزروع يبثّ به أيضاً عبر هذه النافذة.",
     "tr-smart": "نفس المتخصص ومفتاح التنقيح شغّال. هذا تنقيح «من المصنع»: مضبوط بتدريب جوجل نفسه لا برسالة رجاء، فيرقّم ويحذف التلعثم بانضباط — ومع ذلك قد يبدّل كلمة عامية: في تجربتك حوّل «مبارح» إلى «النهارده». للنص الجاهز للنشر حين تقبل هذا الثمن.",
     "oa-transcribe": "متخصص التفريغ عند OpenAI، بمفتاح OpenAI لا بمفتاح جوجل — رأي ثانٍ من شركة أخرى على كلامك، ولعملك إن انقطع رصيد أحدهما. حرفي بطبيعته بلا مفتاح تنقيح، ومفرداتك المخصصة تذهب له كإشارات. يستقبل التسجيل كما سجّله المتصفح فلا تحويل، وحدّه 25 ميغابايت أي نحو ساعة. سعره 0.0045 دولار للدقيقة — أرخص من متخصص جوجل — ويُحسب في العدّاد من طول التسجيل.",
     "gemini-3.5-flash-lite": "نموذج ذكاء عام يؤدي دور المفرّغ «بالرجاء»: نرسل معه أمراً مكتوباً أن يفرّغ حرفياً، فيطيع غالباً وقد يشذّ. الأسرع والأرخص، وأضعف في العامية من المتخصص.",
@@ -2061,7 +2088,7 @@ function payPaint(){
   costPaint();
   micTips();
   if(D.engine === "paid") setDest("paid");
-  barPush({ type:"setModel", name: bridgeModelName() });
+  barPush({ type:"setModel", name: bridgeModelName(), live: bridgeLive() });
 }
 $("#payEngine").addEventListener("change", function(){
   LS.set("fd.payEngine", this.value);
@@ -2086,8 +2113,8 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "3.4";
-var VERSION_DATE = "1 سبتمبر 2026";
+var VERSION = "1";
+var VERSION_DATE = "5 سبتمبر 2026";
 
 var GUIDE = [
   ["النسخة", "رقم النسخة وتاريخها",
@@ -2100,9 +2127,9 @@ var GUIDE = [
   ["الأزرار — سطر الأزرار، من اليمين","السطر الحي فوق الصندوق", "سطر رفيع بين شريط التحرير وأعلى الصندوق، يظهر فيه الكلام وهو يتكوّن قبل أن يستقرّ نصاً في الصندوق. كان تحت الصندوق سابقاً فكانت العين تنزل إليه، وصار فوقه ليكون قريباً من الأزرار وأول ما تقع عليه العين. يبقى محجوز المكان طوال جلسة الإملاء المجاني حتى وهو فارغ، لئلا يقفز الصندوق كلما سكتّ لحظة، ويكتب فيه «يستمع» ريثما تتكلم. ويختفي تماماً حين لا يكون هناك إملاء فلا يسرق مساحة وأنت تكتب بيدك. ويتبع حجم الخط وسماكته وألوان الوضوح التي ضبطتها للصندوق نفسه. أما مسار كيس النقود فلا سطر حياً فيه لأن النص يصل دفعة واحدة عند الإرسال."],
   ["الأزرار — سطر الأزرار، من اليمين","أيقونة كيس النقود الكهرمانية — Gemini", "زر بأيقونة كيس نقود، بنفس لغة ألوان الشريط: الكهرماني يعني أن هذا الزر يصرف من رصيدك. وله محركان تختار بينهما من ⚙: «العام» هو المسار الأصلي كما هو حرفياً بنماذجه الثلاثة، و«التفريغ Gemini 3.5 Transcribe» متخصص جديد يُضاف خياراً لا بديلاً — وضعه الحرفي افتراض ثابت، وتلميح لغته من أزرار اللغة (العربية المعرّفة عنده مصرية، وقد فرّغ نصك السوري بدقة عالية في تجربتك)، ومفرداتك المخصصة من الإعدادات تذهب معه حتى ألف مصطلح، وزر «الذكي» اختياري مطفأ لأنه قد يبدّل كلماتك، وصوته يمرّ دائماً عبر مخزن ملفات جوجل، وعدّاد التكلفة لا يحسبه بعد. أما آلية التسجيل فواحدة في المحركين: يسجّل تسجيلاً واحداً متواصلاً حتى تضغط إيقاف (بحد أقصى نصف ساعة)، ثم يرسله دفعة واحدة. لذلك النص يظهر عند الانتهاء لا أثناء الكلام، وهذا مقصود: تقطيع الصوت إلى مقاطع قصيرة يقطع الكلمات في منتصفها فيخمّن النموذج بقيتها. أدقّ من المجاني، وبنفس الدقة في كروم وEdge. يحتاج مفتاحاً من الإعدادات، والتلميح على الزر والشارة أثناء التسجيل يسمّيان النموذج الذي يعالج صوتك. والصوت يُصغَّر قبل الإرسال إلى الجودة التي تعالج بها جوجل الصوت أصلاً، فلا تنقص الدقة ويصغر الطلب. والتسجيل القصير يذهب في طلب واحد مباشر، أما الطويل فيُرفع أولاً إلى مخزن ملفات جوجل ثم يُفرَّغ — تراها في الرسائل خطوة بخطوة — والملف يُحذف عندهم تلقائياً بعد يومين. ويفرّغ باللغة المختارة من أزرار اللغة، لغة واحدة في التسجيل الواحد."],
   ["الأزرار — سطر الأزرار، من اليمين","خانة «محرك الإملاء المدفوع» — القائمة الموحّدة", "في ⚙ الإعدادات خانة واحدة تحكم كل المدفوع، فيها تسعة أسطر في ثلاث مجموعات معنونة داخل القائمة: «بثّ لحظي» وفيها الحيّان بخلفية زرقاء خفيفة — بثّ جوجل وبثّ OpenAI — ثم «تسجيل» وفيها الستة، ثم «اختبار» وفيها لوحة المقارنة. وفي آخر كل سطر سعره بالكرونة للدقيقة محسوباً من سعر الصرف الذي عندك، فتقرأ المال بعينك. في مجموعة التسجيل: الأول والثاني هما المتخصص Gemini 3.5 Transcribe، وهو نموذج درّبته جوجل على التفريغ وحده: «حرفي» يكتب كلامك كما قلته بالحرف، و«منقّح» هو نفسه مع مفتاح التنقيح شغّالاً فيرقّم ويحذف التلعثم. وهذا تنقيح «من المصنع»: مضبوط بتدريب جوجل نفسه فيُطاع دائماً — ومع ذلك قد يبدّل كلمة عامية، ففي تجربتك حوّل «مبارح» إلى «النهارده»، فالحرفي هو الأصل والمنقّح لمن يريد نصاً جاهزاً للنشر ويقبل الثمن. والثالث متخصص OpenAI بمفتاحه الخاص، مشروح في بنده. والأسطر الثلاثة التالية نماذج الذكاء العامة Pro وFlash وFlash-Lite من الأغلى إلى الأرخص، وليست مفرّغات أصلاً: نرسل مع التسجيل أمراً مكتوباً أن تفرّغ حرفياً — تفريغ «بالرجاء» — فتطيع غالباً وقد تشذّ، وأظهرت مقارنتك أنها تخطئ في الكلام السوري أكثر من المتخصص، ونبقيها احتياطاً وللمقارنة. والسطر الأخير لوحة المقارنة المشروحة في بندها. اختر سطراً وينتهي الأمر، وتحت الخانة سطر يشرح ما اخترته. وأما «منقّح بالرجاء» للنماذج العامة فلم يُبنَ بقرار صاحب المشروع، لأن تنقيحاً بلا مقبض مصنعي قد لا ينضبط."],
-  ["الأزرار — سطر الأزرار، من اليمين","البثّ الحي — Gemini 3.5 Transcribe Live", "السطر الثالث في خانة «محرك الإملاء المدفوع». هو المتخصص نفسه لكن بقناة مفتوحة باستمرار مع جوجل طوال كلامك: الصوت يتدفق إليها لحظة بلحظة بلا تلميح لغة للعربية — لأن رمز جوجل الوحيد للعربية هنا مصر وإرساله جرّ هجاءً مصرياً على الكلام السوري، فتُركت جوجل تكتشف اللغة وحدها — والنص يرجع في نوعين — تخميني لحظي تراه في السطر الحي فوق الصندوق وهو يتغيّر، ونهائي يُكتب في الصندوق حين تسكت لحظة. أي متل الزر الأخضر في الإحساس، لكن بدقة المتخصص وهجائه. حرفي دائماً بلا تنقيح. حدوده من جوجل: الجلسة عشر دقائق كحد أقصى؛ قبل نهايتها بنصف دقيقة يظهر تحذير في السطر تحت الصندوق، ثم تتوقف نظيفاً وما كُتب باقٍ، وتضغط كيس النقود لجلسة جديدة. زر الإيقاف المؤقت يقطع إرسال الصوت فتقف الفاتورة، لكن عدّاد الجلسة عند جوجل يمشي مهما طال التعليق. عند الإيقاف تنتظر الأداة ثانيتين ونصفاً آخر جملة من جوجل ثم تغلق. السعر نحو ضعف المسجَّل: ثلاثة دولارات ونصف لكل مليون وحدة صوت داخلة وواحد وعشرون للنص، أي قرابة سنت للدقيقة بتقدير جوجل، ويُحسب في العدّاد تقديراً بعلامة ≈ لأن القناة الحية لا ترجع عدّاد وحدات موثوقاً. الشريط المزروع لا يقدر على البثّ لأنه يسجّل ثم يرسل، فحين تكون الخانة على البثّ يذهب تسجيله إلى المتخصص المسجَّل الحرفي. والبثّ الحي المنقّح ممكن بسطر واحد لكنه لم يُضف حتى لا تطول القائمة — اطلبه إن احتجته."],
+  ["الأزرار — سطر الأزرار، من اليمين","البثّ الحي — Gemini 3.5 Transcribe Live", "السطر الثالث في خانة «محرك الإملاء المدفوع». هو المتخصص نفسه لكن بقناة مفتوحة باستمرار مع جوجل طوال كلامك: الصوت يتدفق إليها لحظة بلحظة بلا تلميح لغة للعربية — لأن رمز جوجل الوحيد للعربية هنا مصر وإرساله جرّ هجاءً مصرياً على الكلام السوري، فتُركت جوجل تكتشف اللغة وحدها — والنص يرجع في نوعين — تخميني لحظي تراه في السطر الحي فوق الصندوق وهو يتغيّر، ونهائي يُكتب في الصندوق حين تسكت لحظة. أي متل الزر الأخضر في الإحساس، لكن بدقة المتخصص وهجائه. حرفي دائماً بلا تنقيح. حدوده من جوجل: الجلسة عشر دقائق كحد أقصى؛ قبل نهايتها بنصف دقيقة يظهر تحذير في السطر تحت الصندوق، ثم تتوقف نظيفاً وما كُتب باقٍ، وتضغط كيس النقود لجلسة جديدة. زر الإيقاف المؤقت يقطع إرسال الصوت فتقف الفاتورة، لكن عدّاد الجلسة عند جوجل يمشي مهما طال التعليق. عند الإيقاف تنتظر الأداة ثانيتين ونصفاً آخر جملة من جوجل ثم تغلق. السعر نحو ضعف المسجَّل: ثلاثة دولارات ونصف لكل مليون وحدة صوت داخلة وواحد وعشرون للنص، أي قرابة سنت للدقيقة بتقدير جوجل، ويُحسب في العدّاد تقديراً بعلامة ≈ لأن القناة الحية لا ترجع عدّاد وحدات موثوقاً. الشريط المزروع يبثّ به أيضاً: صوته الخام يمرّ عبر هذه النافذة التي تفتح القناة بمفتاحك، والتخميني يظهر في سطره العائم، والجمل المكتملة تنزل في مربع الصفحة وأنت تتكلم. والبثّ الحي المنقّح ممكن بسطر واحد لكنه لم يُضف حتى لا تطول القائمة — اطلبه إن احتجته."],
   ["الأزرار — سطر الأزرار، من اليمين","OpenAI GPT Transcribe — المزوّد الثاني", "السطر الرابع في خانة «محرك الإملاء المدفوع»، ويحتاج مفتاح OpenAI الخاص به من قسمه في ⚙ الإعدادات — مفتاح جوجل لا ينفع هنا ورصيدهما منفصلان. هو متخصص التفريغ الذي توصي به OpenAI اليوم، اسمه الرسمي gpt-transcribe. حرفي بطبيعته بلا مفتاح تنقيح، ومفرداتك المخصصة تذهب له كإشارات مع تلميح اللغة المختارة من أزرار اللغة. يستقبل تسجيل المتصفح كما هو بلا تحويل، وحدّه 25 ميغابايت أي قرابة ساعة. سعره 0.0045 دولار للدقيقة — نحو أربعة أخماس سعر متخصص جوجل — ويُحسب في العدّاد من طول التسجيل ويُخصم من رصيد OpenAI لا من رصيد جوجل. فائدته رأي ثانٍ من شركة أخرى على كلامك، واستمرار عملك إن نفد رصيد أحد المفتاحين. لا بثّ حياً فيه؛ والشريط المزروع يعمل معه كما مع غيره. ويظهر بطاقةً سادسة في لوحة المقارنة حين يكون مفتاحه موجوداً."],
-  ["الأزرار — سطر الأزرار، من اليمين","بثّ OpenAI الحي — GPT Live Transcribe", "السطر الثاني في مجموعة البثّ اللحظي، بمفتاح OpenAI. يعمل كبثّ جوجل تماماً من جهتك: النص التخميني في السطر الحي وأنت تتكلم، والنهائي في الصندوق حين تسكت، والإيقاف المؤقت يقطع الصوت والفاتورة، والتوقف ينتظر آخر جملة. من تحت هو قناة Realtime عندهم: الصوت يُرسل خاماً على 24 كيلوهرتز والنموذج نفسه يقطع الجمل — هذا النموذج لا يقبل إعداد كشف نهاية الجملة على الخادم، وهو ما ظهر خطأً في أول تجربة حقيقية وأُصلح في 3.4. المتصفح لا يقدر على ترويسة مفتاح كما يفعل الخادم، فيمرّ المفتاح في بروتوكول فرعي كما تنصّ وثائقهم للمتصفحات — نفس مستوى حماية مفتاح جوجل: في متصفحك وحده. لغته من أزرار اللغة، ومفرداتك المخصصة تذهب له كإشارات. جلسته حتى ساعة ثم توقف نظيف مع تحذير قبل نهايتها بنصف دقيقة. الأغلى في القائمة: 0.017 دولار للدقيقة، أي ضعف بثّ جوجل، ويُحسب في العدّاد تقديراً من الزمن ويُخصم من رصيد OpenAI. لا يرجع لغة مكتشفة ولا توقيتات. والشريط المزروع لا يقدر على البثّ فيذهب تسجيله إلى OpenAI المسجَّل."],
+  ["الأزرار — سطر الأزرار، من اليمين","بثّ OpenAI الحي — GPT Live Transcribe", "السطر الثاني في مجموعة البثّ اللحظي، بمفتاح OpenAI. يعمل كبثّ جوجل تماماً من جهتك: النص التخميني في السطر الحي وأنت تتكلم، والنهائي في الصندوق حين تسكت، والإيقاف المؤقت يقطع الصوت والفاتورة، والتوقف ينتظر آخر جملة. من تحت هو قناة Realtime عندهم: الصوت يُرسل خاماً على 24 كيلوهرتز والنموذج نفسه يقطع الجمل — هذا النموذج لا يقبل إعداد كشف نهاية الجملة على الخادم، وهو ما ظهر خطأً في أول تجربة حقيقية وأُصلح في 3.4. المتصفح لا يقدر على ترويسة مفتاح كما يفعل الخادم، فيمرّ المفتاح في بروتوكول فرعي كما تنصّ وثائقهم للمتصفحات — نفس مستوى حماية مفتاح جوجل: في متصفحك وحده. لغته من أزرار اللغة، ومفرداتك المخصصة تذهب له كإشارات. جلسته حتى ساعة ثم توقف نظيف مع تحذير قبل نهايتها بنصف دقيقة. الأغلى في القائمة: 0.017 دولار للدقيقة، أي ضعف بثّ جوجل، ويُحسب في العدّاد تقديراً من الزمن ويُخصم من رصيد OpenAI. لا يرجع لغة مكتشفة ولا توقيتات. والشريط المزروع يبثّ به أيضاً عبر هذه النافذة بالطريقة نفسها."],
   ["الأزرار — سطر الأزرار، من اليمين","⚖ لوحة المقارنة — اختبار الدقة ومعاينة الفروقات", "وضع اختبار تختاره من ⚙ الإعدادات: السطر الأخير في خانة «محرك الإملاء المدفوع». حين يكون مختاراً، التسجيل الذي تسجّله بزر كيس النقود لا يذهب إلى محرك واحد بل إلى نماذج التسجيل الستة معاً: النماذج العامة الثلاثة، ومحرك التفريغ المتخصص بوضعيه الحرفي والمنقّح، وOpenAI GPT Transcribe. ومن غاب مفتاحه — جوجل أو OpenAI — ظهرت بطاقته فارغة تقول ذلك بدل أن تختفي. الحيّان لا يدخلان اللوحة لأنهما لا يقبلان تسجيلاً. تفتح لوحة فيها بطاقة لكل محرك، تصل نتائجها تباعاً مع تكلفة كل واحدة، وتحت كل نص زر يُدخله في الصندوق وزر ينسخه. وبين بطاقتي التفريغ تلوين للفروق كلمةً كلمة: في «منقّح» تُلوَّن بالأخضر الكلمات التي غيّرها أو أضافها عن الحرفي، وفي «حرفي» تُلوَّن بالأحمر الكلمات التي أسقطها المنقّح — فترى بعينك ماذا يفعل المنقّح بكلامك قبل أن تقرر اعتماده، وهذا هو الفحص الذي كشف من قبل أنه يحوّل كلمات سورية إلى مصرية. الغاية من اللوحة أن تقرر أي محرك تعتمد في عملك اليومي: سجّل مقطعاً قصيراً يشبه إملاءك المعتاد، قارن، ثم ارجع في الخانة نفسها إلى المحرك الذي أعجبك. تدفع ثمن الخمسة معاً فلا تتركها شغّالة في العمل اليومي، والسطر أثناء التسجيل يذكّرك أنها شغّالة. سقف الاستهلاك يحميك هنا أيضاً. ولا تصل هذه اللوحة إلى الشريط المزروع: تسجيلاته تذهب دائماً إلى المحرك المختار في الوضع العادي."],
   ["الأزرار — سطر الأزرار، من اليمين","ماذا يحدث إذا كان Gemini مزدحماً", "جوجل ترفض الطلب أحياناً حين يكون النموذج مزدحماً، وهذه الموجات تمرّ في ثوانٍ. فالأداة تعيد المحاولة وحدها بعد ثانية، ثم ثانيتين، ثم أربع، وتخبرك بما يجري — فلا يضيع تسجيلك لأن جوجل كانت مشغولة لحظة. أما نفاد الحصة فيبدو مشابهاً لكنه لا ينقضي بالانتظار، ولذلك يُبلَّغ فوراً بلا إعادة محاولة عابثة."],
   ["الأزرار — سطر الأزرار، من اليمين","⏸ الإيقاف المؤقت", "زر كهرماني يظهر أثناء التسجيل المدفوع وحده. تضغطه فيتجمّد التسجيل ويقف العدّاد معه، وتضغطه ثانية فيكمل على نفس التسجيل لا على تسجيل جديد. فائدته أنك حين تتوقف لتفكّر أو يقاطعك أحد لا تدفع ثمن صمتك: المتصفح يوقف إنتاج الصوت فعلياً أثناء التعليق، فالمقطع يخرج متصلاً بلا فجوات، أي أن الصمت لا يدخل الفاتورة أصلاً لا أنه يدخل ثم يُحذف. وما دام التسجيل معلّقاً يتغيّر لون زر كيس النقود ويبقى ينبض، ويكتب السطر تحت الصندوق «معلّق عند» والوقت الذي جمعته حتى الآن — كي لا تنسى نفسك متوقفاً وأنت تحسبك تسجّل. والحد الأقصى نصف ساعة يُحسب من زمن الكلام وحده لا من زمن التعليق."],
@@ -2341,7 +2368,7 @@ else $("#btnPip").style.display = "none";
     }
     if(d.type === "openSettings"){ openSettings(); return; }
     if(d.type === "barState"){
-      barPush({ type:"setModel", name: bridgeModelName() });
+      barPush({ type:"setModel", name: bridgeModelName(), live: bridgeLive() });
       var dp = dispGet();
       barPush({ type:"setDisp", s:dp.s, b:dp.b, bg:dp.bg });
       dictPushBar();
@@ -2353,6 +2380,10 @@ else $("#btnPip").style.display = "none";
       return;
     }
     if(d.type === "needKey"){ reply({ type:"keyState", has: !!getKey() }); return; }
+    if(d.type === "liveStart"){ liveStart({ rate: d.rate | 0, lang: d.lang }); return; }
+    if(d.type === "liveChunk"){ if(LV.remote && d.buf) liveFeed(new Float32Array(d.buf), (d.rate | 0) || LV.remoteRate); return; }
+    if(d.type === "liveHold"){ if(LV.remote && liveActive() && LV.held !== !!d.held) liveHold(); return; }
+    if(d.type === "liveStop"){ if(LV.remote) liveStop(); return; }
     if(d.type !== "transcribe" || !d.buf) return;
 
     if(engine() === "openai" ? !getOaKey() : !getKey()){
@@ -2395,7 +2426,7 @@ else $("#btnPip").style.display = "none";
           return;
         }
         reply({ type:"transcribed", text: applyPunct(applyDict(r.text)) });
-        note("تم تفريغ " + fmtSecs(secs) + " للصفحة · " + bridgeModelName() + (usd ? " · " + fmtMoney(usd, c.est) : ""));
+        note("تم تفريغ " + fmtSecs(secs) + " للصفحة · " + bridgeRecName() + (usd ? " · " + fmtMoney(usd, c.est) : ""));
       });
       });
     }).catch(function(err){
