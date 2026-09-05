@@ -268,6 +268,14 @@ main{flex:1; display:flex; flex-direction:column; padding:10px 12px; gap:0; min-
     </select>
     <p class="hlp" id="payHint"></p>
   </div>
+  <div class="field">
+    <label for="gliveLang">تلميح اللغة لبثّ جوجل الحي حين تكون اللغة عربية</label>
+    <select id="gliveLang">
+      <option value="ar-EG">مصري — رمز جوجل الوحيد للعربية، وهو ما يرسله المحرك المسجَّل أيضاً</option>
+      <option value="">بلا تلميح — جوجل تكتشف اللغة وحدها وقد تحسبها لغة أخرى</option>
+    </select>
+    <p class="hlp">بلا تلميح، قد تكتب جوجل جملة عربية بحروف لاتينية أو تظنها فارسية أو أردية. مع التلميح المصري قد يميل هجاء كلمة أو كلمتين إلى المصري، والقاموس الشخصي يصحّحها.</p>
+  </div>
   <div class="field" id="fldVocab" style="display:none">
     <label for="gvocab">مفردات مخصصة — سطر لكل مصطلح</label>
     <textarea id="gvocab" rows="4" placeholder="أسماء ومصطلحات يخطئ فيها الإملاء، تُرسل مع كل طلب. الأفضل نحو مئة أو أقل، والحد ألف."></textarea>
@@ -1633,7 +1641,7 @@ function liveConnect(key){
     /* العربية بلا تلميح: رمز جوجل الوحيد للعربية هنا مصر، وإرساله جرّ الهجاء المصري
        على كلامه السوري. السويدية والإنكليزية تبقيان بتلميحهما لأن رموزهما دقيقة. */
     var lang = $("#lang").value;
-    var cfg = { languageCodes: lang === "ar" ? [] : (TR_LANG[lang] || []), mode:"VERBATIM" };
+    var cfg = { languageCodes: lang === "ar" ? (gliveLang() ? [gliveLang()] : []) : (TR_LANG[lang] || []), mode:"VERBATIM" };
     var vocab = vocabList(); if(vocab.length) cfg.customVocabulary = vocab;
     liveSend({ setup:{ model:"models/" + LIVE_MODEL, generationConfig:{ responseModalities:["TEXT"] }, inputAudioTranscription: cfg } });
   };
@@ -2152,7 +2160,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "4";
+var VERSION = "5";
 var VERSION_DATE = "5 سبتمبر 2026";
 
 var GUIDE = [
@@ -2420,6 +2428,7 @@ else $("#btnPip").style.display = "none";
     }
     if(d.type === "needKey"){ reply({ type:"keyState", has: !!getKey() }); return; }
     if(d.type === "liveStart"){ liveStart({ rate: d.rate | 0, lang: d.lang }); return; }
+    if(d.type === "liveHeart"){ if(LV.remote && Date.now() - LV.lastTickSent >= 1000) liveRemoteTick(); return; }
     if(d.type === "liveChunk"){ if(LV.remote && d.buf) liveFeed(new Float32Array(d.buf), (d.rate | 0) || LV.remoteRate); return; }
     if(d.type === "liveHold"){ if(LV.remote && liveActive() && LV.held !== !!d.held) liveHold(); return; }
     if(d.type === "liveStop"){ if(LV.remote) liveStop(); return; }
@@ -2485,6 +2494,9 @@ function tierPaint(){
   micTips();
   costPaint();
 }
+function gliveLang(){ var v = LS.get("fd.gliveLang"); return v === null ? "ar-EG" : v; }
+$("#gliveLang").value = gliveLang();
+$("#gliveLang").addEventListener("change", function(){ LS.set("fd.gliveLang", this.value); });
 $("#gtier").value = LS.get("fd.tier") || "free";
 $("#gtier").addEventListener("change", function(){ LS.set("fd.tier", this.value); tierPaint(); });
 tierPaint();
