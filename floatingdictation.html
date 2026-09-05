@@ -1526,7 +1526,7 @@ var LIVE_PROV = {
 };
 var LV = { ws:null, ctx:null, node:null, src:null, stream:null, ready:false, held:false, prov:"google",
            start:0, acc:0, sessionStart:0, timer:null, closing:false, finalWait:null, buf:[], bufLen:0, sentChunks:0, oaText:"",
-           remote:false, remoteRate:0, lastChunk:0, remoteErr:false };
+           remote:false, remoteRate:0, lastChunk:0, lastTickSent:0, remoteErr:false };
 
 function liveOn(){ var v = payEngineSel(); return v === "tr-live" || v === "oa-live"; }
 function liveProvider(){ return payReal() === "oa-live" ? "openai" : "google"; }
@@ -1561,7 +1561,7 @@ function livePcmBase64(f32){
 }
 function liveFeed(f32, rate){
   if(!(LV.ctx || LV.remote) || LV.closing) return;
-  if(LV.remote) LV.lastChunk = Date.now();
+  if(LV.remote){ LV.lastChunk = Date.now(); if(Date.now() - LV.lastTickSent >= 1000 && !liveRemoteTick()) return; }
   if(!LV.ready || LV.held) return;           /* المعلّق لا يُرسل ولا يُحاسَب */
   var from = rate || (LV.ctx ? LV.ctx.sampleRate : liveP().rate);
   var s = liveDownsample(f32, from, liveP().rate);
@@ -1692,14 +1692,21 @@ function liveHandle(txt){
     if(LV.closing && LV.finalWait){ clearTimeout(LV.finalWait); LV.finalWait = null; liveFinish(); }
   }
 }
+/* نبضة الحال إلى الشريط. تُطلق من مؤقّت الثانية ومن وصول الصوت معاً، لأن كروم
+   يبطّئ مؤقّتات النافذة حين تكون خلف نافذة أخرى، أما رسائل الصوت من الشريط
+   فتصل بلا تباطؤ لأن صفحته هي الظاهرة. ترجع false إن أوقفت البثّ. */
+function liveRemoteTick(){
+  if(!LV.remote || LV.closing) return false;
+  if(!window.opener || window.opener.closed){ note("أُغلقت صفحة الشريط — أُوقف البثّ.", true); liveStop(true); return false; }
+  if(LV.ready && !LV.held && Date.now() - LV.lastChunk > 6000){ liveErr("انقطع الصوت القادم من الشريط — أُوقف البثّ."); liveStop(); return false; }
+  LV.lastTickSent = Date.now();
+  barPush({ type:"liveTick", secs:liveElapsed(), left:liveSessionLeft(), ready:LV.ready, held:LV.held, who:liveP().who, warn:LIVE_WARN_SECS });
+  return true;
+}
 function liveTick(){
   if(!(LV.ctx || LV.remote)) return;
   var s = liveElapsed(), left = liveSessionLeft();
-  if(LV.remote){
-    if(!window.opener || window.opener.closed){ note("أُغلقت صفحة الشريط — أُوقف البثّ.", true); liveStop(true); return; }
-    if(LV.ready && !LV.held && Date.now() - LV.lastChunk > 6000){ liveErr("انقطع الصوت القادم من الشريط — أُوقف البثّ."); liveStop(); return; }
-    barPush({ type:"liveTick", secs:s, left:left, ready:LV.ready, held:LV.held, who:liveP().who, warn:LIVE_WARN_SECS });
-  }
+  if(LV.remote && !liveRemoteTick()) return;
   if(left <= 0){
     note("انتهت جلسة " + liveP().who + " (" + fmtSecs(liveP().maxSecs) + ") — أُوقف البثّ نظيفاً. اضغط كيس النقود لجلسة جديدة.");
     liveStop(); return;
@@ -1726,7 +1733,7 @@ async function liveStart(remote){
   if(cap > 0 && costState().total >= cap){ fail("بلغت سقف الاستهلاك التقريبي (" + fmtCap() + ") — لم يبدأ البثّ."); return; }
   if(remote){
     if(remote.lang && $("#lang").value !== remote.lang) setLang(remote.lang, false);
-    LV.remote = true; LV.remoteErr = false; LV.remoteRate = remote.rate > 0 ? remote.rate : liveP().rate; LV.lastChunk = Date.now();
+    LV.remote = true; LV.remoteErr = false; LV.lastTickSent = 0; LV.remoteRate = remote.rate > 0 ? remote.rate : liveP().rate; LV.lastChunk = Date.now();
     LV.ctx = null; LV.src = null; LV.node = null; LV.stream = null;
   } else {
     sessionStart();
@@ -2113,7 +2120,7 @@ costPaint();
 /* ---------- guide ---------- */
 /* One place defines the version. Bump this line when shipping a change; the
    guide entry and the header stamp both read it, so they cannot disagree. */
-var VERSION = "1";
+var VERSION = "2";
 var VERSION_DATE = "5 سبتمبر 2026";
 
 var GUIDE = [
